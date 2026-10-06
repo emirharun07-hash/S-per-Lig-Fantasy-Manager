@@ -42,13 +42,44 @@ def rdp(P,eps):
 # merge tiny spurs: drop paths shorter than 18px that end in an endpoint
 out=[]
 for p in paths:
-    if len(p)<18 and (deg[p[0]]==1 or deg[p[-1]]==1): continue
+    ends=(deg[p[0]]==1)+(deg[p[-1]]==1)
+    # spurs: short twigs that the skeleton grows into thick brush ends (one free end, one junction)
+    if ends==1 and len(p)<60: continue
     out.append(rdp(p,1.2))
+# thick brush strokes become a double tube (a loop around the stroke), thin strokes stay a single tube
+from scipy.ndimage import distance_transform_edt
+dist=distance_transform_edt(m)
+R0=11.0          # half-width in px (3x scale) above which a stroke counts as thick
+def offset_loop(run):
+    P=np.array(run,float); n=len(P)
+    T=np.gradient(P,axis=0); T/=np.linalg.norm(T,axis=1,keepdims=True)+1e-9
+    Nn=np.stack([-T[:,1],T[:,0]],1)
+    r=np.array([dist[int(y),int(x)] for y,x in run])*0.5
+    a=[tuple(v) for v in P+Nn*r[:,None]]; b=[tuple(v) for v in (P-Nn*r[:,None])[::-1]]
+    # simplify each side on its own (a closed loop has identical end points, which defeats RDP)
+    return rdp(a,1.0)+rdp(b,1.0)+[a[0]]
+final=[]
+for p in out:
+    # densify the simplified path again so widths can be sampled along it
+    dense=[]
+    for (y0,x0),(y1,x1) in zip(p,p[1:]):
+        k=max(1,int(np.hypot(y1-y0,x1-x0)/4))
+        dense+= [(y0+(y1-y0)*t/k, x0+(x1-x0)*t/k) for t in range(k)]
+    dense.append(p[-1])
+    thick=[dist[int(round(y)),int(round(x))]>R0 for y,x in dense]
+    i=0
+    while i<len(dense):
+        j=i
+        while j<len(dense) and thick[j]==thick[i]: j+=1
+        run=dense[max(0,i-1):min(len(dense),j+1)]
+        if thick[i] and len(run)>=34: final.append(offset_loop(run))
+        elif len(run)>=2: final.append(rdp(run,1.2))
+        i=j
 width_m=0.62; s=width_m/W
-polys=[[[ (x-W/2)*s, (H/2-y)*s ] for y,x in p] for p in out]
+polys=[[[ (x-W/2)*s, (H/2-y)*s ] for y,x in p] for p in final]
 json.dump({'width':width_m,'height':H*s,'paths':polys},open(HERE+'/neon_paths.json','w'))
 print('paths',len(polys),'points',sum(len(p) for p in polys),'size',W,H)
 # preview
 prev=Image.new('RGB',(W,H),(10,14,20)); import PIL.ImageDraw as D; d=D.Draw(prev)
-for p in out: d.line([(x,y) for y,x in p],fill=(120,220,255),width=6)
+for p in final: d.line([(x,y) for y,x in p],fill=(120,220,255),width=6)
 os.makedirs(ROOT+'/.cache',exist_ok=True); prev.save(ROOT+'/.cache/neon_paths.png')

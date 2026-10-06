@@ -12,8 +12,8 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | 3D toolchain | Done: Blender 5.0.1 via `pip install bpy==5.0.1` (Python 3.11), Cycles on CPU |
 | Assets | Done: jerseys from Shopify, AZUR logo from the live theme, 23 CC0 poster photos, Poly Haven textures/models/HDRI |
 | First still (golden hour) | Done: `renders/still_golden_hour.png`, approved as a direction on 2026-10-06 |
-| Scene round 2 | **In progress**, see "Next" |
-| Camera options | Pending: 3–4 preview angles for the owner to choose from (decision can come later) |
+| Scene round 2 | Done: pillow, folded-back duvet, magazine, desk corner with lamp and chair, boots, training bag, medals, pennant, black garment bag with AZUR print and zip, flush ceiling light, neon double tubes for thick strokes |
+| Camera options | Rendered: presets A–F plus bed detail G in `scene/build_room.py` (`CAMS`). Owner decides later; bed is out of frame in most angles, so a layout change (bed against the left poster wall) is proposed |
 | Light passes + parallax layers | Pending: render after the camera is chosen |
 | Interactive prototype (Artifact) | Pending |
 
@@ -31,14 +31,9 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Next
 
-1. Scene round 2 in `scene/build_room.py`:
-   - bed: visible crumpled duvet, pillow, magazine / sticker album, maybe a phone or handheld console
-   - storytelling: football boots, sports bag, desk with orange lamp, school notebooks, medals on the rail end, scarf
-   - garment bag: darker, believable, readable "Nächster Drop" tag
-   - neon: fix the traced R (`scene/neon_paths.py`)
-2. Render 3–4 camera options as previews (corner high, centred, closer to the rail).
-3. Build the interactive prototype with the current still as a placeholder plate (camera-agnostic scene config).
-4. After the camera is chosen: render the light passes (dawn, day, golden hour, blue hour/night + neon, desk lamp, ceiling, street lamp) and parallax layers for desktop and mobile cameras.
+1. Owner reviews camera presets A–F and the bed-layout proposal.
+2. Build the interactive prototype with the current still as a placeholder plate (camera-agnostic scene config).
+3. After the camera is chosen: render the light passes (dawn, day, golden hour, blue hour/night + neon, desk lamp, ceiling, street lamp) and parallax layers for desktop and mobile cameras.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
@@ -52,7 +47,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 pip install bpy==5.0.1 pillow scikit-image imageio-ffmpeg
 python3 azur/scene/fetch_assets.py            # Poly Haven assets into azur/.cache/ph
 python3 azur/scene/build_room.py -- preview azur/renders/preview.png azur/.cache/azur_room.blend
-python3 azur/scene/build_room.py -- final azur/renders/still.png
+python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th arg: camera preset(s), e.g. A,B,F
 ```
 
 Headless Chromium for looking at web references needs the proxy CA key:

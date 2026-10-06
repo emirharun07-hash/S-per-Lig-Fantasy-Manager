@@ -223,14 +223,30 @@ matt = box('mattress', bx0 + 0.04, bx1 - 0.04, by0, by1 - 0.035, 0.24, 0.42, fla
 matt.modifiers.new('sub', 'SUBSURF').levels = 1
 bpy.ops.object.select_all(action='DESELECT'); matt.select_set(True); bpy.context.view_layer.objects.active = matt; bpy.ops.object.shade_smooth()
 
-# duvet: cloth drop onto the mattress
-bpy.ops.mesh.primitive_grid_add(x_subdivisions=64, y_subdivisions=92, size=1.0, location=(0.56, 0.86, 0.80))
-duv = bpy.context.object; duv.name = 'duvet'; duv.scale = (1.32, 2.0, 1); apply_tf(duv)
+# pillow at the head end (collides with the duvet)
+bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0.5, 0.16, 0.5))
+pil = bpy.context.object; pil.name = 'pillow'; pil.scale = (0.66, 0.44, 0.15); apply_tf(pil)
+pil.rotation_euler = (0, math.radians(3), math.radians(-6))
+pil.modifiers.new('sub', 'SUBSURF').levels = 3
+ptx = bpy.data.textures.new('pillownoise', 'CLOUDS'); ptx.noise_scale = 0.25
+pd = pil.modifiers.new('disp', 'DISPLACE'); pd.texture = ptx; pd.strength = 0.025
+bpy.ops.object.shade_smooth()
+pil.data.materials.append(M['duvet'])
+pil.modifiers.new('col', 'COLLISION')
+
+# duvet: thrown back toward the foot end and half off the side, the way a kid leaves it in the morning
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=64, y_subdivisions=92, size=1.0, location=(0.52, 1.02, 0.66))
+duv = bpy.context.object; duv.name = 'duvet'; duv.scale = (1.30, 1.95, 1); apply_tf(duv)
 bm = bmesh.new(); bm.from_mesh(duv.data)
-for v in bm.verts:   # crumple the starting shape so the duvet lands bunched, like a kid just got up
+FOLD = 0.62   # head-side part is folded back over the rest
+for v in bm.verts:
     x, y = v.co.x, v.co.y
-    v.co.z += 0.10 * math.sin(x * 7.1 + y * 2.3) * math.sin(y * 5.3) + 0.16 * math.exp(-((y - 1.15) ** 2) * 6) + random.uniform(-0.01, 0.01)
-    v.co.x += 0.08 * math.sin(y * 4.0)
+    if y < FOLD:   # fold the head end back on top, slightly skewed so the edge runs diagonally
+        d = FOLD - y
+        v.co.y = FOLD + d * 0.82 + 0.10 * (x - 0.5)
+        v.co.z += 0.09 + d * 0.05
+    v.co.z += 0.07 * math.sin(x * 6.3 + y * 2.1) * math.sin(y * 4.7 + 0.6) + random.uniform(-0.008, 0.008)
+    v.co.x += 0.10 * math.sin(y * 3.3) + 0.06 * (y - 1.0)
 bm.to_mesh(duv.data); bm.free()
 for o in (matt,):
     c = o.modifiers.new('col', 'COLLISION'); o.collision.thickness_outer = 0.01; o.collision.cloth_friction = 8
@@ -238,17 +254,17 @@ floor_c = bpy.data.objects['floor']; floor_c.modifiers.new('col', 'COLLISION')
 for nm in ('bed_foot', 'bed_side', 'bed_side_l', 'wall_left'):
     bpy.data.objects[nm].modifiers.new('col', 'COLLISION')
 cl = duv.modifiers.new('cloth', 'CLOTH'); cs = cl.settings
-cs.quality = 6; cs.mass = 0.6; cs.tension_stiffness = 12; cs.compression_stiffness = 12; cs.shear_stiffness = 6; cs.bending_stiffness = 0.6
+cs.quality = 7; cs.mass = 0.6; cs.tension_stiffness = 12; cs.compression_stiffness = 12; cs.shear_stiffness = 6; cs.bending_stiffness = 0.5
 cs.air_damping = 2.0
-cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.008; cl.collision_settings.distance_min = 0.008
-cl.point_cache.frame_end = 70
+cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.01; cl.collision_settings.distance_min = 0.008
+cl.point_cache.frame_end = 90
 # scarf over the foot board (invented club colours: navy / sky / white)
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=8, y_subdivisions=70, size=1.0, location=(0.62, by1 + 0.02, 0.78))
 scarf = bpy.context.object; scarf.name = 'scarf'; scarf.scale = (0.17, 1.35, 1); scarf.rotation_euler = (0, 0, math.radians(88)); apply_tf(scarf)
 sc2 = scarf.modifiers.new('cloth', 'CLOTH'); sc2.settings.quality = 6; sc2.settings.mass = 0.25; sc2.settings.bending_stiffness = 0.3
-sc2.point_cache.frame_end = 70
-sc.frame_start, sc.frame_end = 1, 70
-for f in range(1, 71): sc.frame_set(f)
+sc2.point_cache.frame_end = 90
+sc.frame_start, sc.frame_end = 1, 90
+for f in range(1, 91): sc.frame_set(f)
 dg = bpy.context.evaluated_depsgraph_get()
 for o in (duv, scarf):   # copy the simulated shape into the mesh (applying a cloth modifier keeps frame 1)
     coords = [v.co.copy() for v in o.evaluated_get(dg).data.vertices]
@@ -349,15 +365,38 @@ bag.modifiers.new('sub', 'SUBSURF').levels = 2
 tx = bpy.data.textures.new('bagnoise', 'CLOUDS'); tx.noise_scale = 0.12
 dm = bag.modifiers.new('disp', 'DISPLACE'); dm.texture = tx; dm.strength = 0.028
 bpy.ops.object.shade_smooth()
-bag.data.materials.append(flat('bag', (0.018, 0.02, 0.024), rough=0.45, **{'Alpha': 0.92, 'Coat Weight': 0.15}))
-# paper tag on string: "Nächster Drop"
-tagm = mt @ Matrix.Translation((0.16, -0.135, -0.16)) @ Matrix.Rotation(math.radians(-8), 4, 'Y')
-tag = box('tag', -0.045, 0.045, -0.0008, 0.0008, -0.06, 0.06, M['paper']); tag.matrix_world = tagm
+# matte black non-woven garment bag with a small cream AZUR print and a centre zip
+bmat = bpy.data.materials.new('bag'); bmat.use_nodes = True; nt = bmat.node_tree; N2 = nt.nodes; L2 = nt.links; bb = N2['Principled BSDF']
+bb.inputs['Roughness'].default_value = 0.88; bb.inputs['Sheen Weight'].default_value = 0.12; bb.inputs['Sheen Roughness'].default_value = 0.6
+tco = N2.new('ShaderNodeTexCoord'); sep = N2.new('ShaderNodeSeparateXYZ'); L2.new(tco.outputs['Object'], sep.inputs[0])
+LOGO_W, LOGO_Z = 0.20, -0.27
+mu = N2.new('ShaderNodeMapRange'); mu.clamp = False; mu.inputs['From Min'].default_value = -LOGO_W / 2; mu.inputs['From Max'].default_value = LOGO_W / 2
+mv = N2.new('ShaderNodeMapRange'); mv.clamp = False; lh = LOGO_W * 227 / 480; mv.inputs['From Min'].default_value = LOGO_Z - lh / 2; mv.inputs['From Max'].default_value = LOGO_Z + lh / 2
+L2.new(sep.outputs['X'], mu.inputs['Value']); L2.new(sep.outputs['Z'], mv.inputs['Value'])
+cmb = N2.new('ShaderNodeCombineXYZ'); L2.new(mu.outputs[0], cmb.inputs['X']); L2.new(mv.outputs[0], cmb.inputs['Y'])
+lt = N2.new('ShaderNodeTexImage'); lt.image = img(A + '/logo/azur-logo-paper.webp'); lt.extension = 'CLIP'; L2.new(cmb.outputs[0], lt.inputs[0])
+front = N2.new('ShaderNodeMath'); front.operation = 'LESS_THAN'; front.inputs[1].default_value = 0.0; L2.new(sep.outputs['Y'], front.inputs[0])
+fac = N2.new('ShaderNodeMath'); fac.operation = 'MULTIPLY'; L2.new(lt.outputs['Alpha'], fac.inputs[0]); L2.new(front.outputs[0], fac.inputs[1])
+mixb = N2.new('ShaderNodeMix'); mixb.data_type = 'RGBA'; mixb.inputs[6].default_value = (0.012, 0.013, 0.015, 1); mixb.inputs[7].default_value = (0.78, 0.74, 0.66, 1)
+L2.new(fac.outputs[0], mixb.inputs['Factor']); L2.new(mixb.outputs[2], bb.inputs['Base Color'])
+bag.data.materials.append(bmat)
+# zip: a thin strip shrink-wrapped onto the bag front
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=1, y_subdivisions=60, size=1.0)
+zp = bpy.context.object; zp.name = 'zip'; zp.scale = (0.009, 0.86, 1); zp.rotation_euler = (math.radians(90), 0, 0); zp.location = (0.0, -0.25, -0.52); apply_tf(zp)
+zp.matrix_world = bag.matrix_world @ Matrix.Translation((0, 0, 0))
+sw = zp.modifiers.new('wrap', 'SHRINKWRAP'); sw.target = bag; sw.wrap_method = 'NEAREST_SURFACEPOINT'; sw.offset = 0.0015
+zs = zp.modifiers.new('sol', 'SOLIDIFY'); zs.thickness = 0.002
+zp.data.materials.append(flat('zip', (0.05, 0.05, 0.055), rough=0.35, metal=0.6))
+pull = box('zip_pull', -0.007, 0.007, -0.004, 0.004, -0.03, 0.0, M['silver'], 0.002)
+pull.matrix_world = bag.matrix_world @ Matrix.Translation((0.0, -0.075, -0.07))
+# handwritten paper tag on a string from the hook: "Nächster Drop"
+tagm = mt @ Matrix.Translation((0.09, -0.12, -0.19)) @ Matrix.Rotation(math.radians(-10), 4, 'Y') @ Matrix.Rotation(math.radians(-12), 4, 'Z')
+tag = box('tag', -0.05, 0.05, -0.0008, 0.0008, -0.07, 0.07, M['paper'], 0.001); tag.matrix_world = tagm
 ft = bpy.data.fonts.load(A + '/fonts/Caveat.ttf')
-tcu = bpy.data.curves.new('tagtext', 'FONT'); tcu.body = 'Nächster\nDrop'; tcu.font = ft; tcu.size = 0.021; tcu.align_x = 'CENTER'; tcu.space_line = 0.85
-tto = link(bpy.data.objects.new('tagtext', tcu)); tto.matrix_world = tagm @ Matrix.Translation((0, -0.0012, 0.008)) @ Matrix.Rotation(math.radians(90), 4, 'X')
+tcu = bpy.data.curves.new('tagtext', 'FONT'); tcu.body = 'Nächster\nDrop'; tcu.font = ft; tcu.size = 0.03; tcu.align_x = 'CENTER'; tcu.align_y = 'CENTER'; tcu.space_line = 0.8
+tto = link(bpy.data.objects.new('tagtext', tcu)); tto.matrix_world = tagm @ Matrix.Translation((0, -0.0012, 0.0)) @ Matrix.Rotation(math.radians(90), 4, 'X')
 tto.data.materials.append(M['ink'])
-cyl('string', (tagm.translation + Vector((0, 0, 0.06))), (mt.translation + Vector((0.05, -0.02, -0.02))), 0.0008, M['paper'], verts=6)
+cyl('string', (tagm @ Vector((0, 0, 0.07))), (mt @ Vector((0.0, -0.02, 0.05))), 0.0008, M['paper'], verts=6)
 
 # ---------------------------------------------------------------- posters (Mbappé reference: the wall nearly becomes wallpaper)
 plist = sorted(f for f in os.listdir(A + '/posters') if f.endswith('.jpg'))
@@ -433,7 +472,7 @@ def fill_wall(wall, u0, u1, z0, z1, holes=(), seed=0):
 
 neon_hole = (NEON['x'] - 0.37, NEON['x'] + 0.37, NEON['z'] - 0.17, H)
 fill_wall('back', 0.03, 2.56, 0.50, H - 0.03, holes=[neon_hole], seed=3)
-fill_wall('left', 2.05, D - 0.03, 0.62, H - 0.03, seed=5)
+fill_wall('left', 2.05, D - 0.03, 0.86, H - 0.03, seed=5)
 
 # ---------------------------------------------------------------- AZUR neon (LED neon flex traced from the real signature)
 nj = json.load(open(HERE + '/neon_paths.json'))
@@ -523,19 +562,159 @@ cx = [sum((o.matrix_world @ Vector(c)).x for c in o.bound_box) / 8 for o in ms]
 for o, c in zip(ms, cx):
     if c < max(cx) - 0.05: o.hide_render = True; o.hide_viewport = True
 rg, _ = import_gltf('gamepad', loc=(0.62, 2.38, 0.004), rot_z=math.radians(-25))
-rc, _ = import_gltf('cardboard_box_01', loc=(0.28, 3.02, 0.0), rot_z=math.radians(12))
-rl, _ = import_gltf('modern_ceiling_lamp_01', loc=(1.5, 1.15, H - 1.173), scale=1.0)
+rc, _ = import_gltf('cardboard_box_01', loc=(0.30, 3.72, 0.0), rot_z=math.radians(8), scale=0.9)
+# flush opal ceiling light (the light source for the night passes)
+bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=1.0, location=(1.7, 1.9, H))
+cl_ = bpy.context.object; cl_.name = 'ceiling_light'; cl_.scale = (0.19, 0.19, 0.075); bpy.ops.object.shade_smooth()
+cl_.data.materials.append(flat('opal', (0.95, 0.94, 0.92), rough=0.25, **{'Subsurface Weight': 0.6, 'Coat Weight': 0.3}))
+cyl('ceiling_ring', (1.7, 1.9, H - 0.002), (1.7, 1.9, H - 0.012), 0.2, M['paint'], verts=48)
 
-# ---------------------------------------------------------------- camera
-cd = bpy.data.cameras.new('cam'); cd.lens = CAM['lens']; cd.sensor_width = 36
+# ---------------------------------------------------------------- storytelling props
+def surface_z(x, y, z0=2.2):
+    """Height of whatever is below (x, y): used to lay things on the crumpled duvet."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    hit, loc, nrm, _, _, _ = sc.ray_cast(dg, Vector((x, y, z0)), Vector((0, 0, -1)))
+    return (loc.z, nrm) if hit else (0.0, Vector((0, 0, 1)))
+
+def group(name, objs, loc=(0, 0, 0), rot_z=0.0):
+    root = link(bpy.data.objects.new(name, None))
+    for o in objs: o.parent = root
+    root.location = loc; root.rotation_euler = (0, 0, rot_z)
+    return root
+
+# desk against the left wall behind the bed: the pine desk the kid has had for years
+pine = pbr('pine', 'oak_veneer_01', tile=0.7, tint=(1.0, 0.84, 0.62), rough=(0.35, 0.6), nstr=0.3)
+DX1, DY0, DY1, DZ = 0.60, 2.30, 3.40, 0.74
+box('desk_top', 0.0, DX1, DY0, DY1, DZ - 0.028, DZ, pine, 0.003)
+for lx, ly in ((DX1 - 0.05, DY0 + 0.02), (DX1 - 0.05, DY1 - 0.055), (0.015, DY0 + 0.02), (0.015, DY1 - 0.055)):
+    box('desk_leg', lx, lx + 0.035, ly, ly + 0.035, 0, DZ - 0.028, pine, 0.002)
+box('desk_drawer', 0.04, DX1 - 0.02, DY1 - 0.44, DY1 - 0.07, DZ - 0.17, DZ - 0.03, pine, 0.003)
+box('drawer_knob', DX1 - 0.02, DX1 + 0.006, DY1 - 0.265, DY1 - 0.245, DZ - 0.11, DZ - 0.09, M['silver'], 0.002)
+import_gltf('desk_lamp_arm_01', loc=(0.16, DY1 - 0.16, DZ), rot_z=math.radians(-120))
+import_gltf('binder_notebook', loc=(0.30, DY0 + 0.38, DZ + 0.001), rot_z=math.radians(78))
+import_gltf('stationery_supplies', loc=(0.14, DY0 + 0.14, DZ + 0.074), rot_z=math.radians(80))
+# exercise books, stacked a bit crooked
+for i, (c_, rz) in enumerate([((0.15, 0.32, 0.55), 6), ((0.75, 0.2, 0.15), -4), ((0.9, 0.85, 0.25), 11)]):
+    bk = box('heft', -0.105, 0.105, -0.148, 0.148, 0, 0.006, flat('heft', c_, rough=0.6), 0.001)
+    bk.location = (0.33, DY0 + 0.78, DZ + i * 0.0065); bk.rotation_euler = (0, 0, math.radians(90 + rz))
+# simple wooden chair, pulled out and turned
+ch = []
+ch.append(box('seat', -0.2, 0.2, -0.2, 0.2, 0.43, 0.455, pine, 0.004))
+for lx, ly in ((-0.18, -0.18), (0.16, -0.18), (-0.18, 0.16), (0.16, 0.16)):
+    ch.append(box('cleg', lx, lx + 0.025, ly, ly + 0.025, 0.0, 0.43, pine, 0.002))
+for lx in (0.16,):
+    for ly in (-0.18, 0.16):
+        ch.append(box('cpost', lx, lx + 0.025, ly, ly + 0.025, 0.455, 0.86, pine, 0.002))
+    ch.append(box('cback', lx - 0.004, lx + 0.03, -0.18, 0.185, 0.72, 0.84, pine, 0.003))
+group('chair', ch, loc=(0.86, 2.98, 0), rot_z=math.radians(-28))
+
+# football boots: dropped by the bed, one on its side (metaball upper, rubber soleplate, studs)
+def boot(name, loc, rot, tilt=0.0):
+    mb = bpy.data.metaballs.new(name); mb.resolution = 0.01; mb.render_resolution = 0.006
+    for co, r, sz in [((0, 0.075, 0.042), 0.07, (0.62, 1.55, 0.55)), ((0, -0.055, 0.055), 0.066, (0.66, 1.05, 0.85)),
+                      ((0, -0.04, 0.1), 0.05, (0.62, 0.8, 0.8)), ((0, 0.135, 0.036), 0.05, (0.7, 1.0, 0.55))]:
+        e = mb.elements.new(); e.type = 'ELLIPSOID'; e.co = co; e.radius = r; e.size_x, e.size_y, e.size_z = sz
+    up = link(bpy.data.objects.new(name, mb)); up.data.materials.append(flat('boot', (0.012, 0.012, 0.014), rough=0.32, **{'Coat Weight': 0.4}))
+    sole = box(name + '_sole', -0.045, 0.045, -0.135, 0.165, 0.0, 0.016, flat('sole', (0.85, 0.83, 0.78), rough=0.45), 0.012)
+    parts = [up, sole]
+    for sx, sy in [(-0.028, -0.1), (0.028, -0.1), (-0.03, 0.02), (0.03, 0.03), (-0.025, 0.1), (0.025, 0.11), (0, 0.145)]:
+        parts.append(cyl(name + '_stud', (sx, sy, 0.0), (sx, sy, -0.012), 0.0075, M['rubber'], verts=10))
+    for i in range(5):   # laces
+        parts.append(box(name + '_lace', -0.03, 0.03, 0.03 + i * 0.022, 0.036 + i * 0.022, 0.085 - i * 0.006, 0.09 - i * 0.006, flat('lace', (0.92, 0.92, 0.9), rough=0.7), 0.002))
+    r = group(name + '_root', parts, loc=loc, rot_z=rot)
+    r.rotation_euler = (0, tilt, rot)
+    return r
+boot('boot_l', (1.18, 1.62, 0.012), math.radians(-35))
+boot('boot_r', (1.38, 1.5, 0.05), math.radians(60), tilt=math.radians(-80))
+
+# training bag on the floor at the foot of the bed
+bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.15, depth=0.42, location=(0, 0, 0))
+tb = bpy.context.object; tb.name = 'trainingbag'; tb.rotation_euler = (0, math.radians(90), 0); apply_tf(tb)
+tb.scale = (1, 1, 0.82); apply_tf(tb)
+bv2 = tb.modifiers.new('bev', 'BEVEL'); bv2.width = 0.07; bv2.segments = 6; bv2.limit_method = 'NONE'
+tb.modifiers.new('sub', 'SUBSURF').levels = 2
+tbt = bpy.data.textures.new('bagslump', 'CLOUDS'); tbt.noise_scale = 0.2
+dd = tb.modifiers.new('disp', 'DISPLACE'); dd.texture = tbt; dd.strength = 0.03
+bpy.ops.object.shade_smooth()
+bagm = bpy.data.materials.new('trainingbag'); bagm.use_nodes = True; nt = bagm.node_tree; bp = nt.nodes['Principled BSDF']
+tco = nt.nodes.new('ShaderNodeTexCoord'); sx = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(tco.outputs['Object'], sx.inputs[0])
+band = nt.nodes.new('ShaderNodeMapRange'); band.interpolation_type = 'STEPPED'; band.inputs['From Min'].default_value = -0.03; band.inputs['From Max'].default_value = 0.03; band.inputs['Steps'].default_value = 1
+nt.links.new(sx.outputs['Z'], band.inputs['Value'])
+mb2 = nt.nodes.new('ShaderNodeMix'); mb2.data_type = 'RGBA'; mb2.inputs[6].default_value = (0.02, 0.04, 0.12, 1); mb2.inputs[7].default_value = (0.02, 0.04, 0.12, 1)
+stripe = nt.nodes.new('ShaderNodeMath'); stripe.operation = 'COMPARE'; stripe.inputs[1].default_value = 0.045; stripe.inputs[2].default_value = 0.012
+nt.links.new(sx.outputs['Z'], stripe.inputs[0])
+mb2.inputs[7].default_value = (0.85, 0.85, 0.82, 1); nt.links.new(stripe.outputs[0], mb2.inputs['Factor']); nt.links.new(mb2.outputs[2], bp.inputs['Base Color'])
+bp.inputs['Roughness'].default_value = 0.7; bp.inputs['Sheen Weight'].default_value = 0.2
+tb.data.materials.append(bagm)
+hd = bpy.data.curves.new('strap', 'CURVE'); hd.dimensions = '3D'; hd.bevel_depth = 0.008; hd.bevel_resolution = 2
+for sxx in (-0.06, 0.06):
+    spx = hd.splines.new('BEZIER'); spx.bezier_points.add(2)
+    for i, pt in enumerate([(sxx, -0.04, 0.1), (sxx + 0.01, 0.0, 0.2), (sxx, 0.04, 0.1)]):
+        bpt = spx.bezier_points[i]; bpt.co = pt; bpt.handle_left_type = bpt.handle_right_type = 'AUTO'
+hdo = link(bpy.data.objects.new('strap', hd)); hdo.data.materials.append(bagm)
+group('trainingbag_root', [tb, hdo], loc=(1.55, 1.82, 0.13), rot_z=math.radians(-18))
+
+# medals hanging off the rail upright: the first small wins
+def medal(x, y, z, drop, col, metal):
+    rib = bpy.data.meshes.new('ribbon'); bm = bmesh.new()
+    w = 0.012
+    vs = [bm.verts.new(v) for v in [(-0.02 - w, 0, 0), (-0.02 + w, 0, 0), (w, 0, -drop), (-w, 0, -drop),
+                                    (0.02 - w, -0.002, 0), (0.02 + w, -0.002, 0), (w, -0.002, -drop), (-w, -0.002, -drop)]]
+    bm.faces.new(vs[0:4]); bm.faces.new(vs[4:8]); bm.to_mesh(rib); bm.free()
+    ro = link(bpy.data.objects.new('ribbon', rib)); ro.location = (x, y, z); ro.data.materials.append(flat('ribbon', col, rough=0.6, **{'Sheen Weight': 0.5}))
+    d = cyl('medal', (x, y - 0.002, z - drop - 0.026), (x, y - 0.006, z - drop - 0.026), 0.026, M[metal], verts=32)
+    d.rotation_euler = (math.radians(90), 0, 0)
+medal(RAIL['x0'], RAIL['y'] - 0.016, RAIL['z'] - 0.03, 0.21, (0.06, 0.12, 0.45), 'gold')
+medal(RAIL['x0'] + 0.008, RAIL['y'] - 0.02, RAIL['z'] - 0.035, 0.26, (0.7, 0.05, 0.08), 'silver')
+
+# felt pennant on the free wall by the window (invented club colours)
+pn = bpy.data.meshes.new('pennant'); bm = bmesh.new()
+pv = [bm.verts.new(v) for v in [(0, -0.14, 0), (0, 0.14, 0), (0, 0.0, -0.46)]]
+bm.faces.new(pv); bm.to_mesh(pn); bm.free()
+pno = link(bpy.data.objects.new('pennant', pn)); pno.location = (W - 0.004, 3.56, 2.12); pno.rotation_euler = (0, math.radians(2), math.radians(180))
+pnm = bpy.data.materials.new('pennant'); pnm.use_nodes = True; nt = pnm.node_tree; pb = nt.nodes['Principled BSDF']
+tco = nt.nodes.new('ShaderNodeTexCoord'); sz_ = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(tco.outputs['Object'], sz_.inputs[0])
+st = nt.nodes.new('ShaderNodeMath'); st.operation = 'GREATER_THAN'; st.inputs[1].default_value = -0.09; nt.links.new(sz_.outputs['Z'], st.inputs[0])
+mp_ = nt.nodes.new('ShaderNodeMix'); mp_.data_type = 'RGBA'; mp_.inputs[6].default_value = (0.03, 0.07, 0.25, 1); mp_.inputs[7].default_value = (0.92, 0.9, 0.86, 1)
+nt.links.new(st.outputs[0], mp_.inputs['Factor']); nt.links.new(mp_.outputs[2], pb.inputs['Base Color'])
+pb.inputs['Roughness'].default_value = 0.95; pb.inputs['Sheen Weight'].default_value = 0.6
+pno.data.materials.append(pnm)
+cyl('pennant_pin', (W, 3.56, 2.12), (W - 0.012, 3.56, 2.12), 0.004, M['silver'], verts=8)
+
+# football magazine left open on the duvet (invented title "ANSTOSS")
+mz, _ = surface_z(0.62, 1.42)
+mag = box('magazine', -0.105, 0.105, -0.14, 0.14, 0.0, 0.004, M['paper'], 0.001)
+mag.location = (0.62, 1.42, mz + 0.002); mag.rotation_euler = (math.radians(4), math.radians(-3), math.radians(28))
+cov = poster(A + '/posters/hero_a.jpg', 0.205, 0.275, Matrix.Translation((0, 0, 0.0042)), gloss=True, border=0.0, tape=False)
+cov.parent = mag
+mtc = bpy.data.curves.new('masthead', 'FONT'); mtc.body = 'ANSTOSS'; mtc.size = 0.034; mtc.align_x = 'CENTER'
+mto = link(bpy.data.objects.new('masthead', mtc)); mto.parent = mag; mto.location = (0, 0.1, 0.0046)
+mto.data.materials.append(flat('masthead', (0.95, 0.95, 0.93), rough=0.4))
+
+# ---------------------------------------------------------------- cameras (the owner may still change the angle; all presets render from one build)
+CAMS = {
+    'A': dict(loc=(1.25, 0.22, 0.86), target=(2.0, 3.40, 1.02), lens=24),    # first still: low, beside the bed
+    'B': dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19),   # high in the front-left corner
+    'C': dict(loc=(1.72, 0.30, 1.15), target=(1.70, 3.95, 1.08), lens=22),   # centred on the rail
+    'D': dict(loc=(0.70, 1.28, 0.98), target=(1.80, 3.00, 1.10), lens=26),   # sitting on the bed, closer to the jerseys
+    'E': dict(loc=(0.55, 1.55, 1.12), target=(1.90, 3.10, 0.98), lens=22),   # bed's foot end in front, jerseys close
+    'F': dict(loc=(0.30, 0.95, 1.95), target=(1.95, 3.20, 0.92), lens=20),   # high above the bed, closer to the rail
+    'G': dict(loc=(1.65, 0.55, 1.45), target=(0.55, 1.45, 0.42), lens=28),   # detail: the bed
+}
+cd = bpy.data.cameras.new('cam'); cd.sensor_width = 36
 cd.dof.use_dof = True; cd.dof.aperture_fstop = CAM['fstop']
-cam = link(bpy.data.objects.new('cam', cd)); cam.location = CAM['loc']
-cam.rotation_euler = (Vector(CAM['target']) - Vector(CAM['loc'])).to_track_quat('-Z', 'Y').to_euler()
-cd.dof.focus_distance = (Vector((1.55, RAIL['y'], 1.2)) - Vector(CAM['loc'])).length
-sc.camera = cam
+cam = link(bpy.data.objects.new('cam', cd)); sc.camera = cam
+def use_cam(k):
+    c = CAMS[k]; cam.location = c['loc']; cd.lens = c['lens']
+    cam.rotation_euler = (Vector(c['target']) - Vector(c['loc'])).to_track_quat('-Z', 'Y').to_euler()
+    cd.dof.focus_distance = (Vector((1.55, RAIL['y'], 1.2)) - Vector(c['loc'])).length
+CAM_KEYS = (argv[3] if len(argv) > 3 else 'A').split(',')
+use_cam(CAM_KEYS[0])
 
 if BLEND: bpy.ops.wm.save_as_mainfile(filepath=BLEND)
-sc.render.filepath = OUT
-import time; t0 = time.time()
-bpy.ops.render.render(write_still=True)
-print('RENDER_SECONDS', round(time.time() - t0, 1))
+import time
+for k in CAM_KEYS:
+    use_cam(k)
+    sc.render.filepath = OUT.replace('{cam}', k) if '{cam}' in OUT else (OUT if len(CAM_KEYS) == 1 else OUT.replace('.png', f'_{k}.png'))
+    t0 = time.time(); bpy.ops.render.render(write_still=True)
+    print('RENDER_SECONDS', k, round(time.time() - t0, 1))
