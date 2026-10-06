@@ -716,6 +716,8 @@ CAM_KEYS = (argv[3] if len(argv) > 3 else 'A').split(',')
 use_cam(CAM_KEYS[0])
 
 if BLEND: bpy.ops.wm.save_as_mainfile(filepath=BLEND)
+if os.environ.get('AZUR_BUILD_ONLY'):   # render_queue.py only needs the saved scene
+    sys.exit(0)
 import time
 for k in CAM_KEYS:
     use_cam(k)
