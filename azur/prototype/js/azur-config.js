@@ -55,17 +55,17 @@ AZUR.config = {
      The browser mixes the passes (sky, sun_low, sun_high, neon, lamp, ceiling, street) with these weights.
      exposure is in stops (the approved stills use 2.65). neon is a scalar; its colour is the palette glow. */
   daylight: [
-    { h: 0.0,  sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  street: 0.95, exposure: 3.35, window: 0.15, garment: [0.34, 0.0, 0.42] },
+    { h: 0.0,  sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  street: 0.95, exposure: 3.35, window: 0.15, garment: [0.28, 0.0, 0.42] },
     { h: 5.2,  sky: [0.05, 0.065, 0.12],   sunLow: 0, sunHigh: 0, neon: 0.95, lamp: 0.0,  ceiling: 0.0,  street: 0.7,  exposure: 3.2, window: 0.35, garment: [0.42, 0.0, 0.36] },
     { h: 6.4,  sky: [0.42, 0.46, 0.6],     sunLow: 0, sunHigh: 0, neon: 0.55, lamp: 0.0,  ceiling: 0.0,  street: 0.15, exposure: 2.8, window: 0.75, garment: [0.66, 0.02, 0.25] },
-    { h: 8.5,  sky: [0.9, 0.9, 0.92],      sunLow: 0, sunHigh: [0.25, 0.24, 0.22], neon: 0.28, lamp: 0, ceiling: 0, street: 0, exposure: 2.55, window: 1, garment: [0.92, 0.0, 0.06] },
-    { h: 12.5, sky: [1.0, 1.0, 1.0],       sunLow: 0, sunHigh: [0.75, 0.72, 0.66], neon: 0.2, lamp: 0, ceiling: 0, street: 0, exposure: 2.35, window: 1, garment: [0.98, 0.0, 0.0] },
-    { h: 16.0, sky: [1.0, 0.97, 0.92],     sunLow: [0.35, 0.27, 0.18], sunHigh: [0.3, 0.27, 0.22], neon: 0.25, lamp: 0, ceiling: 0, street: 0, exposure: 2.5, window: 1, garment: [0.95, 0.12, 0.0] },
-    { h: 18.4, sky: [1.0, 0.86, 0.72],     sunLow: [1.0, 0.6, 0.33], sunHigh: 0, neon: 0.45, lamp: 0, ceiling: 0, street: 0, exposure: 2.65, window: 1, garment: [0.92, 0.32, 0.0] },
+    { h: 8.5,  sky: [0.9, 0.9, 0.92],      sunLow: 0, sunHigh: [0.25, 0.24, 0.22], neon: 0.12, lamp: 0, ceiling: 0, street: 0, exposure: 2.6, window: 1, garment: [0.92, 0.0, 0.06] },
+    { h: 12.5, sky: [1.0, 1.0, 1.0],       sunLow: 0, sunHigh: [0.75, 0.72, 0.66], neon: 0.08, lamp: 0, ceiling: 0, street: 0, exposure: 2.5, window: 1, garment: [0.98, 0.0, 0.0] },
+    { h: 16.0, sky: [1.0, 0.97, 0.92],     sunLow: [0.35, 0.27, 0.18], sunHigh: [0.3, 0.27, 0.22], neon: 0.12, lamp: 0, ceiling: 0, street: 0, exposure: 2.5, window: 1, garment: [0.95, 0.12, 0.0] },
+    { h: 18.4, sky: [1.0, 0.86, 0.72],     sunLow: [1.0, 0.6, 0.33], sunHigh: 0, neon: 0.35, lamp: 0, ceiling: 0, street: 0, exposure: 2.65, window: 1, garment: [0.92, 0.32, 0.0] },
     { h: 19.6, sky: [0.62, 0.45, 0.42],    sunLow: [0.85, 0.36, 0.14], sunHigh: 0, neon: 0.75, lamp: 0.25, ceiling: 0, street: 0, exposure: 2.85, window: 0.8, garment: [0.78, 0.4, 0.05] },
-    { h: 20.6, sky: [0.17, 0.22, 0.42],    sunLow: 0, sunHigh: 0, neon: 1.0, lamp: 0.75, ceiling: 0.0, street: 0.35, exposure: 3.05, window: 0.55, garment: [0.55, 0.12, 0.3] },
-    { h: 22.3, sky: [0.04, 0.055, 0.11],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.85, ceiling: 0.0, street: 0.9, exposure: 3.3, window: 0.25, garment: [0.42, 0.04, 0.36] },
-    { h: 24.0, sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  street: 0.95, exposure: 3.35, window: 0.15, garment: [0.34, 0.0, 0.42] }
+    { h: 20.6, sky: [0.17, 0.22, 0.42],    sunLow: 0, sunHigh: 0, neon: 1.0, lamp: 0.75, ceiling: 0.0, street: 0.35, exposure: 3.05, window: 0.55, garment: [0.48, 0.12, 0.3] },
+    { h: 22.3, sky: [0.04, 0.055, 0.11],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.85, ceiling: 0.0, street: 0.9, exposure: 3.3, window: 0.25, garment: [0.32, 0.04, 0.36] },
+    { h: 24.0, sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  street: 0.95, exposure: 3.35, window: 0.15, garment: [0.28, 0.0, 0.42] }
   ],
   lampTint: [1.0, 0.62, 0.32],        // warm bulb in the desk lamp
   ceilingTint: [1.0, 0.86, 0.68],
