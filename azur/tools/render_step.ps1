@@ -96,7 +96,7 @@ if ($req.redo) {
 }
 uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
 
-$final = "fertig"; $note = $req.note
+$final = "fertig"; $note = $req.note; $failed = @()
 foreach ($job in $req.jobs) {
   Write-Status "arbeitet" $req.id $job $req.note
   Push-All "AZUR PC: $($req.id) $job started" | Out-Null
@@ -105,17 +105,17 @@ foreach ($job in $req.jobs) {
   $mins = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
   if ($code -eq 3) { $final = "abgeloest"; $note = "neuer Auftrag auf dem Branch, dieser wurde bei $job beendet"; break }
   if ($code -ne 0) {
-    $final = "fehler"; $note = "$job ist fehlgeschlagen (Exit $code nach $mins min)"
-    Write-Status "fehler" $req.id $job $note
+    # report it (the commit keeps this job's log), then go on: the next jobs do not depend on it
+    $failed += "$job (Exit $code nach $mins min)"
+    Write-Status "fehler" $req.id $job ("$job ist fehlgeschlagen (Exit $code nach $mins min), es geht mit dem naechsten Auftragsteil weiter")
     Push-All "AZUR PC: $($req.id) $job failed" | Out-Null
-    break
+    continue
   }
   Write-Status "arbeitet" $req.id $job "$job fertig nach $mins min"
   Push-All "AZUR renders from the PC: $($req.id) $job" | Out-Null
 }
 Set-Content -Path $DoneFile -Value $req.id
-if ($final -ne "fehler") {
-  Write-Status $final $req.id "" $note
-  Push-All "AZUR PC: $($req.id) $final" | Out-Null
-}
+if ($failed.Count -and $final -eq "fertig") { $final = "fehler"; $note = "fehlgeschlagen: " + ($failed -join ", ") }
+Write-Status $final $req.id "" $note
+Push-All "AZUR PC: $($req.id) $final" | Out-Null
 Write-Host ("[{0}] Auftrag {1}: {2}" -f (Get-Date -Format "HH:mm"), $req.id, $final)
