@@ -16,7 +16,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | Camera options | Rendered: presets A–F plus bed detail G in `scene/build_room.py` (`CAMS`). Owner decides later; bed is out of frame in most angles, so a layout change (bed against the left poster wall) is proposed |
 | Views + light passes | **Done** (04:32 UTC): beauty plates, depth maps, hanger + drop sprites, all 7 light passes for room / rail / rail_m / bed. Checked in the browser across the day and published (artifact version 8) |
 | Interactive prototype | **Published**: https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy (code in `prototype/`, config in `prototype/js/azur-config.js`) |
-| Real camera moves | **Day sets done and live** (artifact version 10). **Night sets rendering in the cloud again** since 07:16 UTC (owner: the Mac could not upload, its git is tied to a work account). room → rail night about 08:20, room → bed night about 09:40 UTC |
+| Real camera moves | **Live** (artifact version 11): room → rail day + night, room → bed day; garments fly along. **room → bed night rendering** in the cloud, ready about 09:30 UTC |
 | Bed fix | **Done in the scene, re-rendering**: the duvet looked lumpy and grey. Now it is simulated the way it happens (head edge pulled back on a hook, then let go): a thrown-back sky-blue duvet with soft folds, the white pillow free. Bed camera unchanged. Room and bed plates/passes are re-rendered with the new `.cache/azur_room.blend`; rail views do not show the bed and stay valid |
 
 ## Owner feedback on the first still (2026-10-06)
