@@ -17,7 +17,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | Views + light passes | **Rendering** via `scene/render_queue.py` (detached, resumable, commits every output): beauty plates, depth maps, hanger + drop sprites, 7 light passes for views room / rail / rail_m / bed |
 | Interactive prototype | **Published**: https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy (code in `prototype/`, config in `prototype/js/azur-config.js`) |
 | Real camera moves | **Queued after the views** (`scene/render_moves.py`, chained by `tools/start_queue.sh`): room → rail and room → bed, 36 frames each, a golden-hour set and a night set. The player (`azur-app.js`) uses them as soon as all frames exist and falls back to the fake pans until then; phones keep the fake pan |
-| Bed fix | **In progress**: the duvet looked lumpy and grey. New stiffer, coarser cloth, washed sky-blue cover, white pillow (`build_room.py`); bed camera candidates rendered to `.cache/test/bed/`. After the choice: rebuild `.cache/azur_room.blend`, delete room/bed outputs that show the bed, restart the queue |
+| Bed fix | **Done in the scene, re-rendering**: the duvet looked lumpy and grey. Now it is simulated the way it happens (head edge pulled back on a hook, then let go): a thrown-back sky-blue duvet with soft folds, the white pillow free. Bed camera unchanged. Room and bed plates/passes are re-rendered with the new `.cache/azur_room.blend`; rail views do not show the bed and stay valid |
 
 ## Owner feedback on the first still (2026-10-06)
 

@@ -238,51 +238,68 @@ bpy.ops.object.shade_smooth()
 pil.data.materials.append(flat('pillow', (0.86, 0.855, 0.83), rough=0.85, **{'Sheen Weight': 0.4}))
 pil.modifiers.new('col', 'COLLISION')
 
-# duvet: thrown back toward the foot end and half off the side, the way a kid leaves it in the morning.
-# A filled duvet makes few, broad folds: coarse cloth grid, stiff bending, no small-scale noise (that made it lumpy).
+# duvet: thrown back the way a kid leaves it in the morning. Simulated like it happens: the duvet lies over the
+# bed, its head edge is pulled back toward the foot end in an arc (pinned to a moving hook), then let go to settle.
+# A filled duvet makes few, broad folds: coarse cloth grid, soft rumples, light smoothing.
+DUVET = dict(grid=(36, 64), cx=0.60, z=0.52, amp=0.03, fx=7.0, fy=5.0, push=0.035, mass=0.5, bend=0.8,
+             pull_mid=(0.55, 0.60, 0.92), pull_to=(0.70, 1.18, 0.58), pull_rz=28, pull_f=52, frames=60, settle=45)
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=92, size=1.0)   # the old grid, only to keep the
 _tmp = bpy.context.object; _n = len(_tmp.data.vertices); bpy.data.objects.remove(_tmp, do_unlink=True)
 for _ in range(_n): random.uniform(-0.006, 0.006)   # seeded sequence identical for everything built after the bed
-rnd = random.Random(23)
-bpy.ops.mesh.primitive_grid_add(x_subdivisions=30, y_subdivisions=52, size=1.0, location=(0.66, 1.02, 0.60))
+rnd = random.Random(23); DV = DUVET
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=DV['grid'][0], y_subdivisions=DV['grid'][1], size=1.0, location=(DV['cx'], 1.02, DV['z']))
 duv = bpy.context.object; duv.name = 'duvet'; duv.scale = (1.04, 1.90, 1); apply_tf(duv)   # must not start inside the wall
 bm = bmesh.new(); bm.from_mesh(duv.data)
-FOLD = 0.66   # head-side part is folded back over the rest
 for v in bm.verts:
     x, y = v.co.x, v.co.y
-    if y < FOLD:   # fold the head end back on top, slightly skewed so the edge runs diagonally
-        d = FOLD - y
-        v.co.y = FOLD + d * 0.78 + 0.12 * (x - 0.55)
-        v.co.z += 0.07 + d * 0.06
-    # broad, soft rumples only
-    v.co.z += 0.035 * math.sin(x * 3.3 + y * 1.4 + 0.8) * math.sin(y * 2.3 + 0.4) + rnd.uniform(-0.002, 0.002)
-    v.co.x += 0.03 * math.sin(y * 3.1)       # the cover is pushed together a little across the bed
+    v.co.z += DV['amp'] * math.sin(x * DV['fx'] + y * 1.4 + 0.8) * math.sin(y * DV['fy'] + 0.4) + rnd.uniform(-0.002, 0.002)
+    v.co.x += DV['push'] * math.sin(y * 3.1)       # the cover is pushed together a little across the bed
 bm.to_mesh(duv.data); bm.free()
 for o in (matt,):
-    c = o.modifiers.new('col', 'COLLISION'); o.collision.thickness_outer = 0.01; o.collision.cloth_friction = 30
+    c = o.modifiers.new('col', 'COLLISION'); o.collision.thickness_outer = 0.01; o.collision.cloth_friction = 80   # holds the overhanging duvet
 floor_c = bpy.data.objects['floor']; floor_c.modifiers.new('col', 'COLLISION')
 for nm in ('bed_foot', 'bed_side', 'bed_side_l', 'wall_left'):
     bpy.data.objects[nm].modifiers.new('col', 'COLLISION')
-cl = duv.modifiers.new('cloth', 'CLOTH'); cs = cl.settings
-cs.quality = 8; cs.mass = 0.9; cs.tension_stiffness = 15; cs.compression_stiffness = 15; cs.shear_stiffness = 10; cs.bending_stiffness = 6.0
-cs.air_damping = 1.5
-cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.015; cl.collision_settings.distance_min = 0.012
-cl.point_cache.frame_end = 90
+
+def cloth_on(o, mass, bend, pin=None):
+    cl = o.modifiers.new('cloth', 'CLOTH'); cs = cl.settings
+    cs.quality = 8; cs.mass = mass; cs.tension_stiffness = 15; cs.compression_stiffness = 15; cs.shear_stiffness = 8; cs.bending_stiffness = bend
+    cs.air_damping = 1.5
+    if pin: cs.vertex_group_mass = pin
+    cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.012; cl.collision_settings.distance_min = 0.01
+    return cl
+
+def bake_cloth(o, frames):
+    """Run the simulation and copy the result into the mesh (applying a cloth modifier keeps frame 1)."""
+    pc = o.modifiers['cloth'].point_cache; pc.frame_start = 1; pc.frame_end = frames
+    sc.frame_start, sc.frame_end = 1, frames
+    for f in range(1, frames + 1): sc.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get(); coords = [v.co.copy() for v in o.evaluated_get(dg).data.vertices]
+    for m in [m for m in o.modifiers if m.type in ('CLOTH', 'HOOK')]: o.modifiers.remove(m)
+    for v, c in zip(o.data.vertices, coords): v.co = c
+    sc.frame_set(1)
+
+# stage 1: the head edge is pulled back on a hook
+ymin = min(v.co.y for v in duv.data.vertices)
+vg = duv.vertex_groups.new(name='pin'); vg.add([v.index for v in duv.data.vertices if v.co.y < ymin + 0.04], 1.0, 'REPLACE')
+pull = link(bpy.data.objects.new('duvet_pull', None)); pull.location = (DV['cx'], ymin, DV['z']); bpy.context.view_layer.update()
+hk = duv.modifiers.new('hook', 'HOOK'); hk.object = pull; hk.vertex_group = 'pin'; hk.center = pull.location; hk.matrix_inverse = pull.matrix_world.inverted()
+pull.keyframe_insert('location', frame=1); pull.keyframe_insert('rotation_euler', frame=1)
+pull.location = DV['pull_mid']; pull.keyframe_insert('location', frame=DV['pull_f'] // 2)
+pull.location = DV['pull_to']; pull.rotation_euler = (0, 0, math.radians(DV['pull_rz']))
+pull.keyframe_insert('location', frame=DV['pull_f']); pull.keyframe_insert('rotation_euler', frame=DV['pull_f'])
+cloth_on(duv, DV['mass'], DV['bend'], pin='pin'); bake_cloth(duv, DV['frames'])
+# stage 2: let go, the pulled edge drops onto the duvet
+duv.vertex_groups.remove(vg); bpy.data.objects.remove(pull, do_unlink=True)
+cloth_on(duv, DV['mass'], DV['bend']); bake_cloth(duv, DV['settle'])
+
 # scarf over the foot board (invented club colours: navy / sky / white)
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=8, y_subdivisions=70, size=1.0, location=(0.62, by1 + 0.02, 0.78))
 scarf = bpy.context.object; scarf.name = 'scarf'; scarf.scale = (0.17, 1.35, 1); scarf.rotation_euler = (0, 0, math.radians(88)); apply_tf(scarf)
 sc2 = scarf.modifiers.new('cloth', 'CLOTH'); sc2.settings.quality = 6; sc2.settings.mass = 0.25; sc2.settings.bending_stiffness = 0.3
-sc2.point_cache.frame_end = 90
-sc.frame_start, sc.frame_end = 1, 90
-for f in range(1, 91): sc.frame_set(f)
-dg = bpy.context.evaluated_depsgraph_get()
-for o in (duv, scarf):   # copy the simulated shape into the mesh (applying a cloth modifier keeps frame 1)
-    coords = [v.co.copy() for v in o.evaluated_get(dg).data.vertices]
-    o.modifiers.remove(o.modifiers['cloth'])
-    for v, c in zip(o.data.vertices, coords): v.co = c
-sc.frame_set(1)
-for o, th, lv in ((duv, 0.05, 2), (scarf, 0.01, 1)):
-    sm_ = o.modifiers.new('smooth', 'SMOOTH'); sm_.factor = 0.6; sm_.iterations = 6   # calm the collision jitter
+bake_cloth(scarf, 90)
+for o, th, lv, sf, si in ((duv, 0.05, 2, 0.45, 2), (scarf, 0.01, 1, 0.6, 6)):
+    sm_ = o.modifiers.new('smooth', 'SMOOTH'); sm_.factor = sf; sm_.iterations = si   # calm the collision jitter
     s = o.modifiers.new('sol', 'SOLIDIFY'); s.thickness = th; s.offset = 1
     sb_ = o.modifiers.new('sub', 'SUBSURF'); sb_.levels = lv; sb_.render_levels = lv
     bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o; bpy.ops.object.shade_smooth()
