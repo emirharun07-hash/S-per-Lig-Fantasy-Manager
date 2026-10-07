@@ -211,6 +211,16 @@
       const goBed = () => { this.select(-1); const r = this.bedPoly.getBoundingClientRect(); this.go('bed', { focus: [r.left + r.width / 2, r.top + r.height / 2] }); };
       this.bedSvg.querySelector('a').addEventListener('click', e => { e.preventDefault(); goBed(); });
       this.bedSvg.querySelector('a').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBed(); } });
+      this.bedLabel = $('.azur-bedlabel');
+      const showBed = on => {
+        if (on) { const r = this.bedPoly.getBoundingClientRect(), s = this.stage.getBoundingClientRect();
+          this.bedLabel.style.left = (r.left - s.left + r.width / 2) + 'px'; this.bedLabel.style.top = (Math.max(r.top - s.top, 60) + 10) + 'px'; }
+        this.bedLabel.classList.toggle('is-on', on);
+      };
+      this.bedSvg.querySelector('a').addEventListener('pointerenter', () => showBed(true));
+      this.bedSvg.querySelector('a').addEventListener('pointerleave', () => showBed(false));
+      this.bedSvg.querySelector('a').addEventListener('focus', () => showBed(true));
+      this.bedSvg.querySelector('a').addEventListener('blur', () => showBed(false));
       // the kid outside the window
       this.windowEl = $('.azur-window');
     }

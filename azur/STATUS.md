@@ -42,7 +42,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 1. Let the render queue finish (`tail azur/.cache/queue.log`). If it stopped: `sh azur/tools/start_queue.sh` or `setsid nohup python3 azur/scene/render_queue.py > azur/.cache/queue_run.txt 2>&1 &`. Finished outputs are skipped.
 2. After new renders land: test in the headless browser (`azur/tools/prototype_shots.cjs`), tune `daylight` keys and garment grading, republish the artifact (same file path / URL above) with the new files under `assets/views/`.
-3. Polish: drop sprite + hanger sprite alignment, window kid, bed hotspot polygon, mobile swipe feel, reduced motion.
+3. Polish: drop sprite + hanger sprite alignment, window kid, mobile swipe feel, reduced motion. Scene: the duvet looks lumpy from the room camera (more smoothing / fewer self-collision artefacts), boots are placeholders.
 4. Later: real camera flights, bed easter egg, Phase 2 (Shopify) only after explicit approval.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
