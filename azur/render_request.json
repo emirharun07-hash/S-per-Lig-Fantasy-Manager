@@ -1,0 +1,7 @@
+{
+  "id": "r3-1",
+  "note": "Runde 3: neue Szene (Trikots auf Buegeln, Tageszeiten), Vorschau, 3D-Modelle, Bilder, Kamerafahrten",
+  "set": "scene3",
+  "rebuild": true,
+  "jobs": ["preview", "export", "queue", "moves"]
+}
