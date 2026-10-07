@@ -48,8 +48,9 @@
       this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient();
       requestAnimationFrame(t => this.frame(t));
       setTimeout(() => this.showHint(), this.reduced ? 200 : 1600);
-      // other views load in the background so camera moves never wait
-      setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
+      // other views load in the background so camera moves never wait (each view is 8 textures: phones load on demand,
+      // desktops skip the phone plate)
+      if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
       setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
     }
@@ -89,7 +90,9 @@
       const m = A.config.motion.pan, from = this.viewKey;
       const back = to === 'room';
       const focus = opts.focus || [this.stage.clientWidth / 2, this.stage.clientHeight / 2];
+      const slow = setTimeout(() => this.root.classList.add('is-loading'), 250);   // a view not loaded yet (phones load on demand)
       await this.comp.load(to, this.passes, false);
+      clearTimeout(slow); this.root.classList.remove('is-loading');
       const mv = this.findMove(from, to);
       if (mv && !this.reduced) {
         await this.playMove(mv, to);
