@@ -65,7 +65,8 @@ python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th
 ```
 
 Rendering on the owner's machines (estimates from Blender Open Data medians vs. tonight's cloud timings):
-- PC: Ryzen 7 5800X + Radeon RX 6750 XT 12 GB (HIP): full re-render ~55-75 min, a camera-move frame ~10-14 s.
+- PC: Ryzen 7 5800X + Radeon RX 6750 XT 12 GB (HIP): **measured 2026-10-07: rail plate 17.9 s (cloud CPU 545 s, about 30x)**.
+  Full re-render of tonight's set would take about 20-25 min there. Set up and working (owner's PowerShell, private git identity).
   `powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 [all|moves|queue]` (needs Git for Windows
   and a current AMD driver; untested so far). Preferred: private machine, so the GitHub login works.
 - MacBook Air M5 (Metal, fanless, throttles under long load): full re-render ~60-90 min. `sh azur/tools/render_on_mac.sh`.
