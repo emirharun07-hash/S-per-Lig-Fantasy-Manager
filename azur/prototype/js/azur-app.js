@@ -224,11 +224,13 @@
       const mul = `rgb(${g.map(x => Math.round(Math.min(1, x / gmax) * 255)).join(',')})`;
       const nb = 0.8 + 0.2 * Math.min(1, (this.light.lamp ? (this.light.lamp[0] || this.light.lamp) : 0) / 0.85);
       c.style.filter = gmax > 1 ? `brightness(${(1 + (gmax - 1) * (1 - mix.night)).toFixed(3)})` : '';
-      const cover = F => {          // F: one frame (an image, or a slice of a strip)
+      const pan = this.comp.pan, os = 1 / (1 + (this.comp.overscan || 0));
+      const cover = F => {          // F: one frame (an image, or a slice of a strip); same fit, pan and overscan as the plates
         const ia = F.w / F.h, ca = c.width / c.height;
-        let sw = F.w, sh = F.h, sx = 0, sy = 0;
-        if (ca > ia) { sh = sw / ca; sy = (F.h - sh) / 2; } else { sw = sh * ca; sx = (F.w - sw) / 2; }
-        return [sx, sy, sw, sh, 0, 0, c.width, c.height];
+        let sw = F.w, sh = F.h;
+        if (ca > ia) sh = sw / ca; else sw = sh * ca;
+        sw *= os; sh *= os;
+        return [(F.w - sw) * pan, (F.h - sh) / 2, sw, sh, 0, 0, c.width, c.height];
       };
       const blit = F => { const q = cover(F); ctx.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); };
       const draw = k => {
@@ -327,9 +329,21 @@
       if (this.viewKey === target && (target.includes('@') || this.rail.selected === i)) return;
       this.rail.setSelected(-1); this.rail.setHover(-1); this.root.classList.remove('has-selection');
       if (i >= 0 && this.viewKey !== railKey) await this.go(railKey);      // another one is out: hang it back first
+      if (i >= 0 && railKey === 'rail_m') { const sp = this.panFor(i); if (sp != null) await this.panTo(sp); }   // phones: centre it first
       await this.go(target);
       if (i >= 0 && this.viewKey === target) { this.rail.setSelected(i); this.root.classList.add('has-selection'); }
       this.kick();
+    }
+    panTo(target, ms = 320) {
+      return new Promise(res => {
+        const p0 = this.pan, t0 = performance.now();
+        const step = now => {
+          const t = this.reduced ? 1 : Math.min(1, (now - t0) / ms), e = t * t * (3 - 2 * t);
+          this.pan = p0 + (target - p0) * e; this.snapPan = this.pan; this.kick();
+          if (t < 1) requestAnimationFrame(step); else { this.snapPan = target; res(); }
+        };
+        requestAnimationFrame(step);
+      });
     }
     /* Garment under a stage point (scene2): reads the rendered id mask of the current view. -1 = none. */
     garmentAt(x, y) {
