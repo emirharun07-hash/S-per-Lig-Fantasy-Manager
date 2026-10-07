@@ -23,7 +23,7 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5 },
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5 },   // exposure: extra stops on top of the clock
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },

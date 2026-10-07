@@ -176,7 +176,17 @@
       const key = name + ':' + variant;
       if (!this.moveFrames[key]) {
         const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = variant === 'night' ? 'n' : 'f';
-        this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => { const im = new Image(); im.decoding = 'async'; im.src = base + pre + String(i).padStart(3, '0') + '.webp'; return im; });
+        const img = src => { const im = new Image(); im.decoding = 'async'; im.src = src; return im; };
+        if (m.atlas) {      // published build (tools/build_artifact.py): frames stacked in a few vertical strips
+          const per = m.atlas.per, strips = Array.from({ length: Math.ceil(m.frames / per) }, (_, s) => img(`${base}${pre}_s${s}.webp`));
+          this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => {
+            const s = Math.floor(i / per), inStrip = Math.min(per, m.frames - s * per), im = strips[s];
+            return { im, get w() { return im.naturalWidth; }, get h() { return im.naturalHeight / inStrip; }, get y() { return (i % per) * this.h; } };
+          });
+        } else this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => {
+          const im = img(base + pre + String(i).padStart(3, '0') + '.webp');
+          return { im, y: 0, get w() { return im.naturalWidth; }, get h() { return im.naturalHeight; } };
+        });
       }
       return this.moveFrames[key];
     }
@@ -196,7 +206,7 @@
         if (mix.nightOn) need.push(this.moveFramesFor(name, 'night'));
         if (mix.night > 0.5 && !need[need.length - 1]) return false;            // a golden-hour flight into a night room would jar
         const sets = need.filter(Boolean);
-        return sets.length > 0 && sets.every(f => f.every(im => im.complete && im.naturalWidth));
+        return sets.length > 0 && sets.every(f => f.every(F => F.im.complete && F.im.naturalWidth));
       };
       if (ready(`${from}-${to}`)) return { name: `${from}-${to}`, reverse: false };
       if (ready(`${to}-${from}`)) return { name: `${to}-${from}`, reverse: true };
@@ -214,22 +224,23 @@
       const mul = `rgb(${g.map(x => Math.round(Math.min(1, x / gmax) * 255)).join(',')})`;
       const nb = 0.8 + 0.2 * Math.min(1, (this.light.lamp ? (this.light.lamp[0] || this.light.lamp) : 0) / 0.85);
       c.style.filter = gmax > 1 ? `brightness(${(1 + (gmax - 1) * (1 - mix.night)).toFixed(3)})` : '';
-      const cover = im => {
-        const ia = im.naturalWidth / im.naturalHeight, ca = c.width / c.height;
-        let sw = im.naturalWidth, sh = im.naturalHeight, sx = 0, sy = 0;
-        if (ca > ia) { sh = sw / ca; sy = (im.naturalHeight - sh) / 2; } else { sw = sh * ca; sx = (im.naturalWidth - sw) / 2; }
+      const cover = F => {          // F: one frame (an image, or a slice of a strip)
+        const ia = F.w / F.h, ca = c.width / c.height;
+        let sw = F.w, sh = F.h, sx = 0, sy = 0;
+        if (ca > ia) { sh = sw / ca; sy = (F.h - sh) / 2; } else { sw = sh * ca; sx = (F.w - sw) / 2; }
         return [sx, sy, sw, sh, 0, 0, c.width, c.height];
       };
+      const blit = F => { const q = cover(F); ctx.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); };
       const draw = k => {
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
         if (day) {
-          ctx.drawImage(day[k], ...cover(day[k]));
+          blit(day[k]);
           if (mul !== 'rgb(255,255,255)') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over'; }
         }
         if (night) {
           ctx.globalAlpha = day ? mix.night : 1;
           ctx.filter !== undefined && nb < 0.999 && (ctx.filter = `brightness(${nb.toFixed(3)})`);
-          ctx.drawImage(night[k], ...cover(night[k]));
+          blit(night[k]);
           if (ctx.filter !== undefined) ctx.filter = 'none';
           ctx.globalAlpha = 1;
         }
@@ -238,7 +249,7 @@
       // garments fly along: the frames are rendered without them, the live garment layer follows the projected
       // hangers frame by frame (moves.json track). Older moves without a track hide the garments instead.
       const tr = !this.plate && m.track && m.track.length === n ? m.track : null;
-      const ref = (day || night)[0], iw = ref.naturalWidth, ih = ref.naturalHeight;
+      const ref = (day || night)[0], iw = ref.w, ih = ref.h;
       const cv = cover(ref).map(x => x);   // [sx, sy, sw, sh, ...] in image pixels
       const proxy = { cssW: W, cssH: H, toScreen: (u, v) => [(u * iw - cv[0]) / cv[2] * W, (v * ih - cv[1]) / cv[3] * H] };
       const sb = v => A.sprites && A.sprites[v] && A.sprites[v].drop && A.sprites[v].drop.box;

@@ -237,7 +237,8 @@
         gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, W.ceiling); gl.uniform3fv(u.wStreet, W.street);
         gl.uniform3fv(u.wSpot, v.tex.spot ? (W.spot || [0, 0, 0]) : [0, 0, 0]);
         PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p] || 1));
-        gl.uniform1f(u.uExposure, state.exposure);
+        const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
+        gl.uniform1f(u.uExposure, state.exposure + (vc.exposure || 0));
       } else {
         gl.uniform3fv(u.uGrade, Compositor.beautyGrade(state));
       }
