@@ -10,6 +10,7 @@
 # one between two renders. What the PC is doing goes to azur/render_status.json (pushed), so the cloud can see it.
 param([switch]$Hello)
 $ErrorActionPreference = "Continue"
+$env:AZUR_NO_HANDOVER = "1"
 $Branch = "claude/shopify-notification-signup-o5avym"
 $Trailer = "`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`nClaude-Session: https://claude.ai/code/session_01R3wWJYBEPWenzksQTM89FE"
 $Cache = "azur\.cache"

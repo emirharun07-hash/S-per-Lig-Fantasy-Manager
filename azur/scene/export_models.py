@@ -46,6 +46,7 @@ def plain_wood(o):
 
 
 def main():
+    rq.hand_over_to_watch_v2()
     rq.ensure_blend()
     rq.open_scene()
     os.makedirs(OUT, exist_ok=True)

@@ -90,6 +90,28 @@ def superseded():
         return False
 
 
+def hand_over_to_watch_v2():
+    """On the owner's PC: a script started by the old watch mode (or an old manual run) cannot report what it does.
+    It opens watch mode v2 in a new PowerShell window (status reports, preview, newer requests stop stale runs),
+    closes the old window and stops; v2 picks up the current render request and skips what is already rendered.
+    Runs started by the current render_on_windows.ps1 set AZUR_NO_HANDOVER and are left alone."""
+    if os.name != 'nt' or os.environ.get('AZUR_NO_HANDOVER') or NO_GIT or FAST: return
+    ppid = os.getppid()
+    try:
+        out = subprocess.run(['tasklist', '/FI', f'PID eq {ppid}', '/FO', 'CSV', '/NH'], capture_output=True, text=True, timeout=30).stdout
+        parent = out.strip().split(',')[0].strip().strip('"').lower()
+    except Exception:
+        return
+    if parent not in ('powershell.exe', 'pwsh.exe'): return
+    log('handing over to watch mode v2: a new window opens, this one closes')
+    script = os.path.join(REPO, 'azur', 'tools', 'render_on_windows.ps1')
+    subprocess.Popen(['powershell', '-ExecutionPolicy', 'Bypass', '-NoExit', '-File', script, 'watch'], cwd=REPO,
+                     creationflags=getattr(subprocess, 'CREATE_NEW_CONSOLE', 0x10))
+    time.sleep(5)
+    subprocess.run(['taskkill', '/PID', str(ppid), '/F'], capture_output=True)
+    sys.exit(0)
+
+
 def stop_if_superseded():
     if superseded():
         log('a newer render request is on the branch: stopping this run'); git_push(force=True); sys.exit(3)
@@ -796,6 +818,7 @@ def job_state(sc, key, state, meta):
 
 
 def main():
+    hand_over_to_watch_v2()
     ensure_blend()
     sc = open_scene()
     meta_path = os.path.join(OUT, 'passes.json')

@@ -18,6 +18,7 @@
 # committed and pushed like the cloud renders. Do not let the cloud render the same job at the same time.
 param([string]$Mode = "all")
 $ErrorActionPreference = "Stop"
+$env:AZUR_NO_HANDOVER = "1"     # the render scripts hand over to watch mode only when an old copy of this script started them
 Set-Location (git rev-parse --show-toplevel)
 $Branch = "claude/shopify-notification-signup-o5avym"
 git fetch -q origin $Branch

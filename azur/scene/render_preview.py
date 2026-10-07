@@ -47,6 +47,7 @@ def shots():
 
 
 def main():
+    rq.hand_over_to_watch_v2()
     rq.ensure_blend()
     sc = rq.open_scene()
     os.makedirs(OUT, exist_ok=True)

@@ -157,6 +157,7 @@ def render_move(sc, name, spec, variant):
 
 
 def main():
+    rq.hand_over_to_watch_v2()
     rq.ensure_blend()
     sc = rq.open_scene()
     names = [n for n in MOVES if not rq.ONLY or n in rq.ONLY]

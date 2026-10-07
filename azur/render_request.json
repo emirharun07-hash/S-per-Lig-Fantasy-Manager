@@ -1,7 +1,7 @@
 {
-  "id": "r3-1",
-  "note": "Runde 3: neue Szene (Trikots auf Buegeln, Tageszeiten), Vorschau, 3D-Modelle, Bilder, Kamerafahrten",
+  "id": "r3-2",
+  "note": "Runde 3 fortsetzen im neuen Wartemodus: Vorschau, 3D-Modelle, restliche Bilder, Kamerafahrten (Fertiges bleibt)",
   "set": "scene3",
-  "rebuild": true,
+  "rebuild": false,
   "jobs": ["preview", "export", "queue", "moves"]
 }
