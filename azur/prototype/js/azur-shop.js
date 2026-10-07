@@ -1,12 +1,13 @@
-/* AZUR — product page and cart (prototype simulation).
+/* AZUR — product page over the room and the cart.
    The product page opens over the room: the room stays visible behind it, the chosen jersey flies from the rail
-   into the page. In Shopify this becomes templates/product.json + the real cart (no custom checkout). */
+   into the page. Prototype: a simulated cart. Shopify (A.config.shopify): the size goes into the real cart
+   (/cart/add.js) and the theme's own cart drawer opens; checkout is Shopify's. */
 (function () {
   const A = window.AZUR = window.AZUR || {};
 
   class Shop {
     constructor(app) {
-      this.app = app; this.cart = this.load();
+      this.app = app; this.live = !!A.config.shopify; this.cart = this.live ? [] : this.load();
       const c = A.config.copy;
       this.pdp = document.createElement('section');
       this.pdp.className = 'azur-pdp'; this.pdp.setAttribute('role', 'dialog'); this.pdp.setAttribute('aria-modal', 'true'); this.pdp.setAttribute('aria-labelledby', 'azur-pdp-title');
@@ -26,14 +27,17 @@
             <div class="azur-pdp__sizerow"></div>
           </fieldset>
           <button class="azur-pdp__add" type="button" data-act="add" disabled>${c.chooseSize}</button>
+          <p class="azur-pdp__error" role="alert" hidden></p>
           <ul class="azur-pdp__facts">
             <li>${A.store.shipping}</li>
             <li>${A.store.care}</li>
           </ul>
-          <a class="azur-pdp__shop" target="_blank" rel="noopener">Im Shop öffnen <span aria-hidden="true">↗</span></a>
+          ${this.live ? `<a class="azur-pdp__shop">${c.toProductPage || 'Zur Produktseite'} <span aria-hidden="true">→</span></a>`
+            : '<a class="azur-pdp__shop" target="_blank" rel="noopener">Im Shop öffnen <span aria-hidden="true">↗</span></a>'}
           <button class="azur-pdp__back" type="button" data-act="close"><span aria-hidden="true">←</span> ${c.backToRoom}</button>
         </div>`;
       document.body.appendChild(this.pdp);
+      if (this.live) { this.drawer = null; this.bind(); return; }      // the theme's cart drawer takes over
 
       this.drawer = document.createElement('aside');
       this.drawer.className = 'azur-cart'; this.drawer.setAttribute('aria-label', c.cart); this.drawer.setAttribute('aria-hidden', 'true');
@@ -64,6 +68,7 @@
         }
       });
       this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
+      if (!this.drawer) return;
       this.drawer.querySelector('.azur-cart__close').addEventListener('click', () => this.toggleCart(false));
       this.drawer.addEventListener('click', e => {
         const r = e.target.closest('[data-remove]'); if (!r) return;
@@ -82,10 +87,11 @@
       q('.azur-pdp__price').textContent = A.formatPrice(product.price) + ' · inkl. MwSt.';
       q('.azur-pdp__fit').textContent = product.fit || '';
       q('.azur-pdp__desc').textContent = product.description;
-      q('.azur-pdp__shop').href = product.productUrl;
+      q('.azur-pdp__shop').href = product.productUrl;      // Shopify: the real product page
       const img = q('.azur-pdp__img'); img.src = product.image; img.alt = product.name;
       q('.azur-pdp__sizerow').innerHTML = product.variants.map((v, i) => `
-        <label class="azur-size"><input type="radio" name="azur-size" value="${v.title}" ${v.available ? '' : 'disabled'}><span>${v.title}</span></label>`).join('');
+        <label class="azur-size"><input type="radio" name="azur-size" value="${v.id}" ${v.available ? '' : 'disabled'}><span>${v.title}</span></label>`).join('');
+      q('.azur-pdp__error').hidden = true;
       const add = q('.azur-pdp__add'); add.disabled = true; add.textContent = A.config.copy.chooseSize; add.classList.remove('is-done');
       this.pdp.style.setProperty('--accent', product.accent || '#333');
       this.pdp.classList.add('is-on');
@@ -119,12 +125,34 @@
 
     add() {
       if (!this.product || !this.size) return;
-      const v = this.product.variants.find(x => x.title === this.size);
+      const v = this.product.variants.find(x => String(x.id) === String(this.size));
+      if (this.live) return this.addLive(v);
       const line = this.cart.find(l => l.variant === v.id);
       if (line) line.qty += 1; else this.cart.push({ variant: v.id, key: this.product.key, name: this.product.name, size: v.title, price: this.product.price, image: this.product.image, qty: 1 });
       this.save(); this.renderCart();
       const b = this.pdp.querySelector('.azur-pdp__add'); b.textContent = A.config.copy.added + ' ✓'; b.classList.add('is-done');
       this.app.bumpCart();
+    }
+
+    async addLive(v) {
+      const b = this.pdp.querySelector('.azur-pdp__add'), err = this.pdp.querySelector('.azur-pdp__error'), c = A.config.copy;
+      const root = (window.Shopify && Shopify.routes && Shopify.routes.root) || '/';
+      b.disabled = true; b.textContent = c.adding || 'Wird hinzugefügt …'; err.hidden = true;
+      try {
+        const res = await fetch(root + 'cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ items: [{ id: Number(v.id), quantity: 1 }] }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.status >= 400) throw new Error(data.description || data.message || 'Das hat nicht geklappt.');
+        b.textContent = c.added + ' ✓'; b.classList.add('is-done');
+        setTimeout(() => {                      // the theme drawer shows the cart (it re-renders itself from Liquid)
+          this.close();
+          const opener = document.querySelector('[data-cart-open]');
+          if (opener) opener.click(); else location.href = root + 'cart';
+        }, 650);
+      } catch (e) {
+        err.textContent = e.message; err.hidden = false;
+        b.textContent = c.addToCart;
+      } finally { b.disabled = false; }
     }
 
     renderCart() {
@@ -143,6 +171,7 @@
     }
 
     toggleCart(on) {
+      if (!this.drawer) { const o = document.querySelector('[data-cart-open]'); if (o && on !== false) o.click(); return; }
       const open = on == null ? !this.drawer.classList.contains('is-on') : on;
       this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open));
       if (open) this.drawer.querySelector('.azur-cart__close').focus({ preventScroll: true });

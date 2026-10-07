@@ -28,7 +28,7 @@
       this.card.innerHTML = `
         <div class="azur-holo__card">
           <div class="azur-holo__sheen" aria-hidden="true"></div>
-          <img class="azur-holo__logo" src="assets/brand/azur-logo-ink.webp" alt="AZUR">
+          <img class="azur-holo__logo" src="${A.url('assets/brand/azur-logo-ink.webp')}" alt="AZUR">
           <p class="azur-holo__title">${c.dropDone}</p>
           <p class="azur-holo__text">${c.dropDoneText}</p>
           <p class="azur-holo__meta"><span>Nächster Drop</span><span class="azur-holo__mail"></span></p>
@@ -42,11 +42,18 @@
 
     bind() {
       const form = this.el.querySelector('form'), err = this.el.querySelector('.azur-drop__error');
-      form.addEventListener('submit', e => {
-        e.preventDefault();                                 // prototype: nothing leaves the page
+      form.addEventListener('submit', async e => {
+        e.preventDefault();                                 // prototype: nothing leaves the page; Shopify: posted below
         const v = form.querySelector('input[type=email]').value.trim();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { err.textContent = A.config.copy.dropInvalid; err.hidden = false; return; }
         err.hidden = true;
+        if (A.config.shopify) {
+          const btn = form.querySelector('button'); btn.disabled = true;
+          try { if (await this.postLive(v)) this.confirm(v); }
+          catch (x) { err.textContent = x.message; err.hidden = false; }
+          finally { btn.disabled = false; }
+          return;
+        }
         try { localStorage.setItem('azur-drop-signup', v); } catch (x) { /* storage blocked: fine */ }
         this.confirm(v);
       });
@@ -68,8 +75,26 @@
       this.card.addEventListener('keydown', e => { if (e.key === 'Escape') { this.hideCard(); this.app.select(-1); } });
     }
 
+    /* Shopify: the same customer form as the theme's snippets/signup-form.liquid (tags newsletter, drops; Shopify sends
+       the double opt-in mail when it is switched on). If Shopify asks for a bot check, the form is posted normally and
+       the page comes back with ?customer_posted=true#azur-drop (app.js shows the card then). */
+    async postLive(mail) {
+      const root = (window.Shopify && Shopify.routes && Shopify.routes.root) || '/';
+      const drop = A.products.find(p => p.type === 'drop') || {};
+      const fields = { form_type: 'customer', utf8: '✓', 'contact[email]': mail, 'contact[tags]': drop.signupTags || 'newsletter, drops' };
+      const fd = new FormData(); Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+      const res = await fetch(root + 'contact', { method: 'POST', body: fd, credentials: 'same-origin' });
+      if (/challenge/.test(res.url)) {
+        const f = document.createElement('form'); f.method = 'post'; f.action = root + 'contact#azur-drop'; f.hidden = true;
+        Object.entries(fields).forEach(([k, v]) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); });
+        document.body.appendChild(f); f.submit(); return false;
+      }
+      if (!res.ok) throw new Error(A.config.copy.dropFailed || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.');
+      return true;
+    }
+
     open() {
-      let known = null; try { known = localStorage.getItem('azur-drop-signup'); } catch (x) { }
+      let known = null; try { known = A.config.shopify ? null : localStorage.getItem('azur-drop-signup'); } catch (x) { }
       if (known) this.el.querySelector('input[type=email]').value = known;
       this.el.classList.add('is-on');
       setTimeout(() => { if (!this.app.isMobile) this.el.querySelector('input').focus({ preventScroll: true }); }, 380);
@@ -89,7 +114,7 @@
 
     confirm(mail) {
       this.close();
-      this.card.querySelector('.azur-holo__mail').textContent = mail;
+      this.card.querySelector('.azur-holo__mail').textContent = mail || '';
       this.card.classList.add('is-on');
       this.app.setWorldDim(0.45, 6);
       setTimeout(() => this.card.querySelector('.azur-holo__close').focus({ preventScroll: true }), 500);

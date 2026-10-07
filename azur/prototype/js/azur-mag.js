@@ -37,7 +37,7 @@
       const pages = [];
       pages.push(`
         <div class="mp mp--cover">
-          <img class="mp__photo" src="assets/mag/cover.webp" alt="${c.coverAlt}" loading="lazy">
+          <img class="mp__photo" src="${A.url('assets/mag/cover.webp')}" alt="${c.coverAlt}" loading="lazy">
           <p class="mp__mast" aria-label="ANSTOSS">ANSTOSS</p>
           <p class="mp__issue">${c.issue}</p>
           <p class="mp__lines">${c.coverLines.map(l => `<span>${l}</span>`).join('')}</p>
@@ -58,7 +58,7 @@
         </div>`);
       pages.push(`
         <div class="mp mp--photo">
-          <img class="mp__photo" src="assets/mag/story.webp" alt="${c.storyAlt}" loading="lazy">
+          <img class="mp__photo" src="${A.url('assets/mag/story.webp')}" alt="${c.storyAlt}" loading="lazy">
           <p class="mp__quote">${c.storyQuote}</p>
           ${foot(3, 'ANSTOSS 01')}
         </div>`);
@@ -89,7 +89,7 @@
         </div>`);
       pages.push(`
         <div class="mp mp--back">
-          <img class="mp__logo" src="assets/brand/azur-logo-paper.webp" alt="AZUR" loading="lazy">
+          <img class="mp__logo" src="${A.url('assets/brand/azur-logo-paper.webp')}" alt="AZUR" loading="lazy">
           <p class="mp__bye">${c.bye}</p>
           <p class="mp__credits">${c.credits}</p>
         </div>`);

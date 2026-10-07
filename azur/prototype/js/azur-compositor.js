@@ -86,7 +86,7 @@
       const im = new Image();
       im.decoding = 'async';
       im.onload = () => res(im); im.onerror = () => res(null);
-      im.src = src;
+      im.src = A.url(src);
     });
   }
 
@@ -140,17 +140,18 @@
 
     /* Load a view. Resolves to 'passes', 'beauty' or 'none'. Textures are cached per view. */
     async load(key, meta, activate = true) {
-      const base = A.config.assetBase + key + '/';
+      const base = A.config.assetBase + key + '/';   // loadImage() turns these into real URLs (A.url)
       if (this.cache[key]) { if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; } return this.cache[key].mode; }
       const scales = (meta && meta[key]) || {};
       const have = REQUIRED.every(p => scales[FILES[p]]);
       const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null };
       // a chosen garment's view ('rail@2') shares depth, garment ids and window mask with its view ('rail')
       const baseDir = A.config.assetBase + key.split('@')[0] + '/';
+      const masks = (A.config.views[key.split('@')[0]] || {}).masks !== false;   // the bed view has no garments or window
       const [depth, ids, win] = await Promise.all([
-        loadImage(base + 'depth.png').then(im => im || (base !== baseDir ? loadImage(baseDir + 'depth.png') : null)),
-        key.includes('@') ? null : loadImage(baseDir + 'ids.png'),
-        loadImage(baseDir + 'window.png')]);
+        loadImage(baseDir + 'depth.png'),
+        key.includes('@') || !masks ? null : loadImage(baseDir + 'ids.png'),
+        masks ? loadImage(baseDir + 'window.png') : null]);
       if (have && this.gl) {
         const list = PASSES.filter(p => scales[FILES[p]]);
         const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));

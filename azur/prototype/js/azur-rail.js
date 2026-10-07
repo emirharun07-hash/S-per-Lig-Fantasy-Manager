@@ -38,7 +38,7 @@
       el.innerHTML = `
         <div class="azur-g__shadow" aria-hidden="true"></div>
         <div class="azur-g__pivot">
-          <img class="azur-g__hanger" alt="" aria-hidden="true" src="${A.sprites && A.sprites.hanger ? cfg.assetBase + 'hanger.webp' : HANGER_FALLBACK.src}">
+          <img class="azur-g__hanger" alt="" aria-hidden="true" src="${A.sprites && A.sprites.hanger ? A.url(cfg.assetBase + 'hanger.webp') : HANGER_FALLBACK.src}">
           <div class="azur-g__body">
             ${p.type === 'drop' ? this.dropMarkup() : `
             <img class="azur-g__img" src="${p.image}" alt="" draggable="false">
@@ -60,7 +60,7 @@
       return `<img class="azur-g__img azur-g__dropimg" alt="" draggable="false" hidden>
         <div class="azur-bag" aria-hidden="true">
           <span class="azur-bag__zip"></span>
-          <img class="azur-bag__logo" src="assets/brand/azur-logo-paper.webp" alt="">
+          <img class="azur-bag__logo" src="${A.url('assets/brand/azur-logo-paper.webp')}" alt="">
           <span class="azur-bag__tag">Nächster<br>Drop</span>
         </div>`;
     }
@@ -134,7 +134,7 @@
       if (drop) {
         const img = drop.el.querySelector('.azur-g__dropimg'), bag = drop.el.querySelector('.azur-bag');
         const has = !!sprite;
-        if (img) { img.hidden = !has; if (has) img.src = cfg.assetBase + viewKey + '/drop.webp'; }
+        if (img) { img.hidden = !has; if (has) img.src = A.url(cfg.assetBase + viewKey + '/drop.webp'); }
         if (bag) bag.hidden = has;
         drop.hasSprite = has;
       }

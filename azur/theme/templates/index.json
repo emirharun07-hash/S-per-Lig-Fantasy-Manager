@@ -1,0 +1,53 @@
+{
+  "sections": {
+    "room": {
+      "type": "azur-room",
+      "settings": {
+        "product_1": "frankfurt-trikot-azur-collection",
+        "product_2": "berlin-trikot-azur-collection",
+        "product_3": "brasilien-trikot-azur-collection",
+        "product_4": "deutschland-trikot-azur-collection",
+        "product_5": "turkei-trikot-azur-collection"
+      }
+    },
+    "campaign": {
+      "type": "campaign",
+      "disabled": true,
+      "settings": {
+        "product": "frankfurt-trikot-azur-collection",
+        "motif": "frankfurt",
+        "view": "back",
+        "scheme": "light",
+        "headline": "Frankfurt 069",
+        "link_label": "Zum Trikot"
+      }
+    },
+    "products": {
+      "type": "product-pair",
+      "settings": {
+        "products": [
+          "frankfurt-trikot-azur-collection",
+          "berlin-trikot-azur-collection",
+          "turkei-trikot-azur-collection",
+          "deutschland-trikot-azur-collection",
+          "brasilien-trikot-azur-collection"
+        ],
+        "large": 2,
+        "label": "Trikots",
+        "link_label": "Alle ansehen"
+      }
+    },
+    "service": {
+      "type": "service-line",
+      "settings": {
+        "note": "14 Tage Rückgabe, kostenloser Rückversand"
+      }
+    }
+  },
+  "order": [
+    "room",
+    "campaign",
+    "products",
+    "service"
+  ]
+}

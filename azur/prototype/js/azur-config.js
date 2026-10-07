@@ -23,7 +23,7 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5 },   // exposure: extra stops on top of the clock
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, masks: false },   // exposure: extra stops on top of the clock
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },
@@ -130,3 +130,8 @@ AZUR.config = {
     prototypeNote: 'Prototyp · Warenkorb und Anmeldung sind simuliert'
   }
 };
+
+/* Paths are written as in the prototype ('assets/scene2/views/rail/sky.webp'). In Shopify the section sets
+   AZUR.config.urlMap (renders in Content > Files, logos in the theme's assets) and AZUR.config.inline (the JSON). */
+AZUR.url = p => (AZUR.config.urlMap ? AZUR.config.urlMap(p) : p);
+

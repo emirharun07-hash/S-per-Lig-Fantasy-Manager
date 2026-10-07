@@ -6,6 +6,7 @@
   const A = window.AZUR = window.AZUR || {};
   const $ = (s, r = document) => r.querySelector(s);
   const fetchJSON = url => fetch(url, { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  const getJSON = p => (A.config.inline && A.config.inline[p]) ? Promise.resolve(A.config.inline[p]) : fetchJSON(A.url(p));
   const lin2srgb = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
   const DEPTH = { near: 0.4, far: 6.5 };
 
@@ -24,14 +25,15 @@
       // scene2: the jerseys are real 3D garments inside the renders (owner feedback: they looked pasted in)
       if (cfg.useScene2 !== false) {
         const s2 = cfg.scene2Base || 'assets/scene2/views/';
-        const ok = await fetch(s2 + 'passes.json', { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
+        const ok = (cfg.inline && cfg.inline[s2 + 'passes.json']) ? true
+          : await fetch(A.url(s2 + 'passes.json'), { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
         if (ok) { cfg.assetBase = s2; cfg.plateGarments = true; }
       }
       this.plate = !!cfg.plateGarments;
       this.root.classList.toggle('is-plate', this.plate);
       const base = cfg.assetBase;
-      [this.views, this.passes, A.sprites, this.moves] = await Promise.all([fetchJSON(base + 'views.json'), fetchJSON(base + 'passes.json'), fetchJSON(base + 'sprites.json'),
-        fetchJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
+      [this.views, this.passes, A.sprites, this.moves] = await Promise.all([getJSON(base + 'views.json'), getJSON(base + 'passes.json'),
+        this.plate ? Promise.resolve({}) : getJSON(base + 'sprites.json'), getJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
       this.moveFrames = {};
       this.comp = new A.Compositor(this.canvas);
       this.root.classList.toggle('no-webgl', !this.comp.ok);
@@ -46,6 +48,11 @@
       this.buildChrome();
       this.bindPointer(); this.bindKeys();
       window.addEventListener('resize', () => this.resize());
+      if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => {
+        this.offscreen = !en.isIntersecting;
+        if (this.video && this.offscreen && !this.video.paused) this.video.pause();
+        if (!this.offscreen) this.kick();
+      }).observe(this.root);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.kick(); });
       this.reducedQuery.addEventListener && this.reducedQuery.addEventListener('change', e => { this.reduced = e.matches; });
       if (A.Panel) this.panel = new A.Panel(this);
@@ -65,6 +72,7 @@
     }
 
     applyPalette() {
+      if (A.config.shopify) return;                   // the theme CSS carries palette A, scoped to the room
       const p = A.config.palettes[A.config.palette], r = document.documentElement.style;
       r.setProperty('--glow', p.glow); r.setProperty('--highlight', p.highlight); r.setProperty('--ink', p.ink); r.setProperty('--night', p.night);
     }
@@ -89,7 +97,7 @@
       if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
       this.root.dataset.view = key; this.root.dataset.mode = mode;
       this.fallbackImg.hidden = !(mode === 'beauty' && !this.comp.ok);
-      if (!this.comp.ok && mode === 'beauty') this.fallbackImg.src = A.config.assetBase + key + '/beauty.webp';
+      if (!this.comp.ok && mode === 'beauty') this.fallbackImg.src = A.url(A.config.assetBase + key + '/beauty.webp');
       this.root.classList.toggle('is-missing', mode === 'none');
       await this.loadDepth(key);
       const slots = v.slots || [];
@@ -178,13 +186,13 @@
         const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = variant === 'night' ? 'n' : 'f';
         const img = src => { const im = new Image(); im.decoding = 'async'; im.src = src; return im; };
         if (m.atlas) {      // published build (tools/build_artifact.py): frames stacked in a few vertical strips
-          const per = m.atlas.per, strips = Array.from({ length: Math.ceil(m.frames / per) }, (_, s) => img(`${base}${pre}_s${s}.webp`));
+          const per = m.atlas.per, strips = Array.from({ length: Math.ceil(m.frames / per) }, (_, s) => img(A.url(`${base}${pre}_s${s}.webp`)));
           this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => {
             const s = Math.floor(i / per), inStrip = Math.min(per, m.frames - s * per), im = strips[s];
             return { im, get w() { return im.naturalWidth; }, get h() { return im.naturalHeight / inStrip; }, get y() { return (i % per) * this.h; } };
           });
         } else this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => {
-          const im = img(base + pre + String(i).padStart(3, '0') + '.webp');
+          const im = img(A.url(base + pre + String(i).padStart(3, '0') + '.webp'));
           return { im, y: 0, get w() { return im.naturalWidth; }, get h() { return im.naturalHeight; } };
         });
       }
@@ -195,7 +203,7 @@
       Object.keys(this.moves || {}).forEach(name => {
         if (this.isMobile !== name.startsWith('rail_m-')) return;
         if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night');
-        const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = base + v + '/drop.webp'; });
+        const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = A.url(base + v + '/drop.webp'); });
       });
     }
     findMove(from, to) {
@@ -261,7 +269,7 @@
         const t = j / (n - 1), a0 = tr[0].drop, b0 = tr[n - 1].drop;
         return b.map((x, q) => x + (sA && a0 ? (1 - t) * (sA[q] - a0[q]) : 0) + (sB && b0 ? t * (sB[q] - b0[q]) : 0));
       };
-      const dropSrc = j => { const v = j / (n - 1) < 0.5 ? m.from_ : m.to; return sb(v) ? A.config.assetBase + v + '/drop.webp' : null; };
+      const dropSrc = j => { const v = j / (n - 1) < 0.5 ? m.from_ : m.to; return sb(v) ? A.url(A.config.assetBase + v + '/drop.webp') : null; };
       const fly = k => { if (tr) { const j = idx(k); this.rail.fly(tr[j], proxy, dropAt(j), dropSrc(j)); } };
       // the first frame is the current camera: fade it in
       draw(idx(0)); c.style.transform = ''; c.hidden = false;
@@ -412,14 +420,14 @@
       this.kick();
     }
     setCartCount(n) { if (this.cartBtn) this.cartBtn.querySelector('span').textContent = n; }
-    bumpCart() { this.cartBtn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 420 }); }
+    bumpCart() { if (this.cartBtn) this.cartBtn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 420 }); }
 
     /* ---------------------------------------------------------------- depth (same values the shader sees) */
     encDepth(metres) { return lin2srgb(Math.max(0, Math.min(1, (DEPTH.far - metres) / (DEPTH.far - DEPTH.near)))); }
     async loadDepth(key) {
       if (this.depthMaps[key] !== undefined) return;
       this.depthMaps[key] = null;
-      const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = A.config.assetBase + key + '/depth.png'; });
+      const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = A.url(A.config.assetBase + key.split('@')[0] + '/depth.png'); });
       if (!im) return;
       const c = document.createElement('canvas'); const w = 200, h = Math.round(200 * im.naturalHeight / im.naturalWidth);
       c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, w, h);
@@ -436,11 +444,12 @@
     /* ---------------------------------------------------------------- chrome: header, view chips, hint, bed, window */
     buildChrome() {
       const c = A.config.copy;
-      const head = $('.azur-head');
-      this.cartBtn = head.querySelector('.azur-head__cart');
-      this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
-      head.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => {
-        e.preventDefault(); const t = a.dataset.go;
+      const head = $('.azur-head');                    // the prototype's own header; Shopify uses the theme header
+      this.cartBtn = head && head.querySelector('.azur-head__cart');
+      if (this.cartBtn) this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
+      document.querySelectorAll('.azur-head [data-go], [data-azur-go]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault(); const t = a.dataset.go || a.dataset.azurGo;
+        if (A.config.shopify) this.root.scrollIntoView({ behavior: this.reduced ? 'auto' : 'smooth' });
         if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'mag') this.openMag(); else this.go(t);
       }));
       this.chips = $('.azur-views');
@@ -488,7 +497,7 @@
         vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
         const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
         [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
-          const so = document.createElement('source'); so.src = ob + f; so.type = t; vid.appendChild(so); });
+          const so = document.createElement('source'); so.src = A.url(ob + f); so.type = t; vid.appendChild(so); });
         Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
         this.root.appendChild(vid); this.comp.video = vid; this.video = vid;
       }
@@ -628,7 +637,7 @@
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
           if (this.shop.pdp.classList.contains('is-on')) return this.shop.close();
-          if (this.shop.drawer.classList.contains('is-on')) return this.shop.toggleCart(false);
+          if (this.shop.drawer && this.shop.drawer.classList.contains('is-on')) return this.shop.toggleCart(false);
           if (this.drop.card.classList.contains('is-on')) { this.drop.hideCard(); return this.select(-1); }
           if (this.rail.selected >= 0) return this.select(-1);
           if (this.viewKey !== 'room' && !this.isMobile) return this.go('room');
@@ -643,6 +652,7 @@
       if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
       else if (h === 'bett') this.go('bed');
       else if (h === 'anstoss') this.openMag();
+      else if (h === 'azur-drop' && /customer_posted=true/.test(location.search)) this.drop.confirm('');   // back from Shopify's bot check
     }
 
     /* ---------------------------------------------------------------- loop */
@@ -657,7 +667,7 @@
 
     frame(t) {
       const dt = Math.min(0.05, (t - this.lastT) / 1000); this.lastT = t;
-      if (document.hidden) { requestAnimationFrame(tt => this.frame(tt)); return; }
+      if (document.hidden || this.offscreen) { requestAnimationFrame(tt => this.frame(tt)); return; }
       const cfg = A.config;
       // light: follow the clock (cheap, once a second) or the design panel
       if (t - this.lightAt > 1000 || this.lightDirty) {

@@ -1,0 +1,143 @@
+{%- comment -%}
+  AZUR Zimmer: das gerenderte Kinderzimmer als Einstieg der Startseite. Die Trikots am Ständer sind der Shop:
+  Klick holt ein Trikot vom Ständer, Größe wählen legt es in den echten Warenkorb (Seitenleiste des Themes),
+  die Hülle am Ende ist die Drop-Anmeldung (Kundenformular, Tags newsletter, drops), das Heft auf dem Bett
+  ist die Markengeschichte. Licht folgt der Uhrzeit der Besucher.
+
+  Code: azur/prototype (Quelle) -> azur/tools/build_theme.py -> assets/azur-room.js, assets/azur-room.css,
+  snippets/azur-room-data.liquid. Die Renderbilder liegen unter Inhalte > Dateien (Namen azr1-…).
+  Die Trikots sind in die Bilder hineingerendert: die Produktfelder nur ändern, wenn sich ein Handle ändert.
+{%- endcomment -%}
+{%- liquid
+  assign files_base = 'azr1-probe.webp' | file_url | split: 'azr1-probe.webp' | first
+  assign keys = 'frankfurt,berlin,brasilien,deutschland,tuerkei' | split: ','
+  assign shipping = 'Versand in Deutschland'
+  if settings.shipping_cost != blank
+    assign shipping = 'Versand ' | append: settings.shipping_cost
+  endif
+-%}
+<style>
+  @font-face { font-family: "Martian Mono"; font-style: normal; font-weight: 300 600; font-stretch: 75% 112.5%; font-display: swap;
+    src: url("{{ 'azur-martian-mono.woff2' | asset_url }}") format("woff2"); }
+  @font-face { font-family: "Caveat"; font-style: normal; font-weight: 500; font-display: swap;
+    src: url("{{ 'azur-caveat.woff2' | asset_url }}") format("woff2"); }
+  /* der Header liegt hell und durchsichtig über dem Zimmer, bis es weggescrollt ist */
+  .js body:has(#inhalt > .shopify-section:first-child > .azur[data-hero])
+    .header--overlay:not(.is-solid, :has(.menu:not([hidden])), :has(.support-menu:popover-open)) {
+    background: linear-gradient(rgb(0 0 0 / .45), transparent); }
+</style>
+{{ 'azur-room.css' | asset_url | stylesheet_tag }}
+
+<div id="azur" class="azur campaign--dark" data-view="room" data-hero>
+  <div class="azur-stage" role="region" aria-label="Das Zimmer">
+    <div class="azur-world">
+      <canvas class="azur-canvas" aria-hidden="true"></canvas>
+      <img class="azur-fallback" alt="Ein Kinderzimmer voller Fußballposter, ein Kleiderständer mit AZUR-Trikots, ein AZUR-Neonschild." hidden>
+      <div class="azur-window" aria-hidden="true" hidden><div class="azur-kid-track"><div class="azur-kid"></div></div></div>
+      <svg class="azur-bed" aria-hidden="false" preserveAspectRatio="none">
+        <a href="#bett" role="button" tabindex="0" aria-label="Zum Bett"><polygon points="0,0 0,0 0,0"/></a>
+      </svg>
+      <svg class="azur-bed azur-magspot" aria-hidden="false" preserveAspectRatio="none" style="display:none">
+        <a href="#anstoss" role="button" tabindex="0" aria-label="Das Heft ANSTOSS lesen"><polygon points="0,0 0,0 0,0"/></a>
+      </svg>
+      <div class="azur-layer"></div>
+    </div>
+    <canvas class="azur-snap" aria-hidden="true" hidden></canvas>
+    <p class="azur-hint" aria-live="polite"></p>
+    <p class="azur-tease" aria-live="polite"></p>
+    <p class="azur-bedlabel" aria-hidden="true">Bett</p>
+    <p class="azur-bedlabel azur-maglabel" aria-hidden="true">ANSTOSS lesen</p>
+    <span class="azur-magglint" aria-hidden="true"></span>
+    <nav class="azur-views" aria-label="Ansicht wählen">
+      <button type="button" data-view="room">Zimmer</button>
+      <button type="button" data-view="rail">Ständer</button>
+      <button type="button" data-view="bed">Bett</button>
+    </nav>
+    <div class="azur-loader" aria-hidden="true"><img class="azur-loader__neon" src="{{ 'azur-logo-paper.webp' | asset_url }}" alt="" width="480" height="227"></div>
+    <p class="azur-missing">Das Zimmer lädt nicht. Alle Trikots findest du weiter unten.</p>
+  </div>
+</div>
+
+<script>
+  /* runs inside assets/azur-room.js right after the scene configuration */
+  window.AZUR_SETUP = function (A) {
+    var files = {{ files_base | json }};
+    var brand = { 'azur-logo-paper.webp': {{ 'azur-logo-paper.webp' | asset_url | json }}, 'azur-logo-ink.webp': {{ 'azur-logo-ink.webp' | asset_url | json }} };
+    A.config.shopify = true;
+    A.config.inline = {% render 'azur-room-data' %};
+    A.config.urlMap = function (p) {
+      var m = p.match(/^assets\/brand\/(.+)$/);
+      if (m) return brand[m[1]] || p;
+      m = p.match(/^assets\/(?:scene2\/)?(.+)$/);
+      return m ? files + 'azr1-' + m[1].replace(/@/g, '-at-').replace(/\//g, '-') : p;
+    };
+    A.formatPrice = function (v) { return v == null ? '' : v.toFixed(2).replace('.', ',') + ' €'; };
+    A.store = {
+      name: {{ shop.name | json }},
+      shipping: {{ shipping | json }},
+      care: {{ section.settings.care | json }}
+    };
+    A.config.copy.toProductPage = 'Zur Produktseite';
+    A.config.copy.adding = 'Wird hinzugefügt …';
+    A.config.copy.dropTitle = {{ section.settings.drop_title | json }};
+    A.config.copy.dropText = {{ section.settings.drop_text | json }};
+    A.products = [
+      {%- for key in keys -%}
+        {%- assign pk = 'product_' | append: forloop.index -%}
+        {%- assign fk = 'fit_' | append: forloop.index -%}
+        {%- assign ak = 'accent_' | append: forloop.index -%}
+        {%- assign p = section.settings[pk] -%}
+        {%- if p != blank -%}
+        {
+          id: {{ p.id | json }}, type: 'product', key: {{ key | json }}, handle: {{ p.handle | json }},
+          name: {{ p.title | json }}, price: {{ p.price | divided_by: 100.0 | json }}, currency: {{ cart.currency.iso_code | json }},
+          image: {{ p.featured_image | image_url: width: 1000 | json }}, imageAspect: {{ p.featured_image.aspect_ratio | default: 0.75 | json }},
+          productUrl: {{ p.url | json }},
+          description: {{ p.description | strip_html | strip_newlines | truncatewords: 45 | json }},
+          fit: {{ section.settings[fk] | json }}, accent: {{ section.settings[ak] | json }},
+          variants: [
+            {%- for v in p.variants -%}{ id: {{ v.id }}, title: {{ v.title | json }}, available: {{ v.available | json }} }{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}
+          ]
+        },
+        {%- endif -%}
+      {%- endfor -%}
+      {
+        id: 'drop-next', type: 'drop', key: 'drop', name: {{ section.settings.drop_title | json }}, price: null, currency: {{ cart.currency.iso_code | json }},
+        image: null, imageAspect: 0.66, description: {{ section.settings.drop_text | json }}, signupTags: {{ section.settings.drop_tags | json }}
+      }
+    ];
+  };
+</script>
+<script src="{{ 'azur-room.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "AZUR Zimmer",
+  "class": "section-azur-room",
+  "settings": [
+    { "type": "paragraph", "content": "Die Trikots sind in die Renderbilder eingebaut (von links nach rechts). Produkte nur tauschen, wenn sich ein Handle ändert." },
+    { "type": "product", "id": "product_1", "label": "Haken 1: Frankfurt 069" },
+    { "type": "text", "id": "fit_1", "label": "Schnitt 1", "default": "Retro-Schnitt" },
+    { "type": "color", "id": "accent_1", "label": "Akzent 1", "default": "#1f4d36" },
+    { "type": "product", "id": "product_2", "label": "Haken 2: Berlin 030" },
+    { "type": "text", "id": "fit_2", "label": "Schnitt 2", "default": "Lockerer Retro-Schnitt" },
+    { "type": "color", "id": "accent_2", "label": "Akzent 2", "default": "#5a1622" },
+    { "type": "product", "id": "product_3", "label": "Haken 3: Brasilien" },
+    { "type": "text", "id": "fit_3", "label": "Schnitt 3", "default": "Regular Fit" },
+    { "type": "color", "id": "accent_3", "label": "Akzent 3", "default": "#1d6b3a" },
+    { "type": "product", "id": "product_4", "label": "Haken 4: Deutschland" },
+    { "type": "text", "id": "fit_4", "label": "Schnitt 4", "default": "Regular Fit" },
+    { "type": "color", "id": "accent_4", "label": "Akzent 4", "default": "#1b1b1b" },
+    { "type": "product", "id": "product_5", "label": "Haken 5: Türkei" },
+    { "type": "text", "id": "fit_5", "label": "Schnitt 5", "default": "Regular Fit" },
+    { "type": "color", "id": "accent_5", "label": "Akzent 5", "default": "#a5141c" },
+    { "type": "header", "content": "Hülle: nächster Drop" },
+    { "type": "text", "id": "drop_title", "label": "Titel", "default": "Nächster Drop" },
+    { "type": "text", "id": "drop_text", "label": "Text", "default": "Noch unter Verschluss." },
+    { "type": "text", "id": "drop_tags", "label": "Tags für die Anmeldung", "default": "newsletter, drops" },
+    { "type": "header", "content": "Produktansicht im Zimmer" },
+    { "type": "text", "id": "care", "label": "Pflegehinweis", "default": "Material- und Pflegehinweise auf der Produktseite." }
+  ],
+  "presets": [ { "name": "AZUR Zimmer" } ]
+}
+{% endschema %}
