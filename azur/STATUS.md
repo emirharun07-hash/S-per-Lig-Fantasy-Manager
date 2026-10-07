@@ -39,6 +39,21 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Bed: easter egg comes later; remind the owner of the ideas (magazine "ANSTOSS" opens the brand story / lookbook; or the drop sign-up; or atmosphere only).
 - Overlapping jerseys are fine; details only on click.
 
+## Scene 2 (owner feedback 2026-10-07: jerseys looked pasted in)
+
+- Jerseys are real 3D garments in the renders now: a thin fabric shell built from the shop's front and back photos
+  (`jersey_mesh` in `build_room.py`), hooks only (the wooden bar sits inside). New: double window with mullion, gaskets,
+  aluminium handles, roller-shutter cover and belt winder; linen curtain; lofted football boots; ceiling spot over the
+  rail (its own light pass `spot`); magazine cover flat.
+- Render set `prototype/assets/scene2/` (`AZUR_SET`, default scene2; old set stays in `assets/views` until scene2 is live):
+  views room / rail / rail_m / bed with garments (beauty, depth, 8 passes), `ids.png` (which garment is where: hover and
+  click), `window.png` (where the outside shows), chosen-garment views `rail@i` / `rail_m@i` (garment taken off the rail
+  toward the camera, 8 passes each), moves room→rail / room→bed and pull moves `rail-rail@i`, day + night.
+- Outside the window: real footage of kids playing on a Bolzplatz (Mixkit, free licence: https://mixkit.co/free-stock-video/young-boy-scoring-free-kick-goal-6652/),
+  cut into a seamless 6.6 s loop: `prototype/assets/scene2/outside/bolzplatz.mp4`; shown through the window mask by the compositor.
+- Rendering: the owner's PC (`powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1`, about 1.5 h).
+- Prototype: scene2 mode (garments in the plate, hover via ids, click = pull-out move) is being built in `prototype/js/`.
+
 ## Next
 
 Nothing is rendering. Waiting for the owner's feedback on artifact version 12.

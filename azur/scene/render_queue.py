@@ -11,14 +11,15 @@ Env:    AZUR_GPU=1            render on the graphics chip (e.g. on the owner's l
 """
 import bpy, os, sys, json, math, time, subprocess
 import numpy as np
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from bpy_extras.object_utils import world_to_camera_view
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 REPO = os.path.dirname(ROOT)
-OUT = os.path.join(ROOT, 'prototype', 'assets', 'views')
-BLEND = os.path.join(ROOT, '.cache', 'azur_room.blend')
+SET = os.environ.get('AZUR_SET', 'scene2')    # scene2: jerseys are real 3D garments inside the renders
+OUT = os.path.join(ROOT, 'prototype', 'assets', SET, 'views')
+BLEND = os.environ.get('AZUR_BLEND') or os.path.join(ROOT, '.cache', f"azur_room_{os.environ.get('AZUR_SET', 'scene2')}.blend")   # rebuilt per scene set
 LOG = os.path.join(ROOT, '.cache', 'queue.log')
 FAST = bool(os.environ.get('AZUR_QUEUE_FAST'))
 if FAST: OUT = os.path.join(ROOT, '.cache', 'queue_test')
@@ -37,7 +38,7 @@ VIEWS = {
     'rail_m': dict(loc=(1.55, 1.15, 1.30), target=(1.55, 3.40, 1.12), lens=20, res=(1440, 1600), fit='VERTICAL', sensor=24),
 }
 # light passes: each rendered alone, white light, mixed and tinted in the browser
-PASSES = ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'ceiling', 'street']
+PASSES = ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'ceiling', 'street', 'spot']
 SUN = {'sun_low': (-1.0, 0.22, -0.12), 'sun_high': (-1.0, 0.12, -0.78)}
 DEPTH_NEAR, DEPTH_FAR = 0.4, 6.5   # metres; depth.png stores near=white, far=black (sRGB-encoded)
 GARMENT_PREFIX = ('jersey_', 'drop_', 'hanger', 'hook', 'tag', 'tagtext', 'string', 'zip')
@@ -50,7 +51,24 @@ def log(*a):
     with open(LOG, 'a') as f: f.write(msg + '\n')
 
 
+_last_push = [0.0]
+
+
+def git_push(force=False):
+    """Push at most every two minutes (a push per output costs more time than a fast GPU needs for the render)."""
+    if NO_GIT or (not force and time.time() - _last_push[0] < 120): return
+    for attempt in range(6):
+        try:
+            subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '-q', 'origin', 'claude/shopify-notification-signup-o5avym'], capture_output=True)
+            subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:claude/shopify-notification-signup-o5avym'], check=True, capture_output=True)
+            _last_push[0] = time.time(); return
+        except Exception as e:
+            log('git push retry', attempt, e)
+            time.sleep(2 ** attempt * 3)
+
+
 def git_save(paths, message):
+    """Commit the outputs right away (nothing is lost if the machine goes away), push in batches."""
     if NO_GIT: return
     rel = [os.path.relpath(p, REPO) for p in paths if os.path.exists(p)]
     for attempt in range(6):
@@ -59,12 +77,11 @@ def git_save(paths, message):
             r = subprocess.run(['git', '-C', REPO, 'commit', '-m', message + '\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01R3wWJYBEPWenzksQTM89FE', '--'] + rel,
                                capture_output=True, text=True)
             if r.returncode not in (0, 1): raise RuntimeError(r.stderr)
-            subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '-q', 'origin', 'claude/shopify-notification-signup-o5avym'], capture_output=True)
-            subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:claude/shopify-notification-signup-o5avym'], check=True, capture_output=True)
-            return
+            break
         except Exception as e:
             log('git retry', attempt, e)
             time.sleep(2 ** attempt * 3)
+    git_push()
 
 
 # ------------------------------------------------------------------ scene
@@ -111,6 +128,12 @@ def open_scene():
         top = max(lamp_pts, key=lambda p: p.z)
         point('L_lamp', (top.x, top.y, top.z - 0.09), 18.0, 0.02)
     point('L_street', (W + 3.2, 2.75, 3.3), 2600.0, 0.25)
+    if 'L_spot' not in bpy.data.objects and 'spot_can' in bpy.data.objects:   # ceiling spot over the rail (scene2)
+        L = bpy.data.lights.new('L_spot', 'SPOT'); L.energy = 60.0; L.spot_size = math.radians(72); L.spot_blend = 0.85; L.shadow_soft_size = 0.05
+        o = bpy.data.objects.new('L_spot', L); sc.collection.objects.link(o)
+        can = bpy.data.objects['spot_can']; c = sum((can.matrix_world @ Vector(v) for v in can.bound_box), Vector()) / 8
+        aim = Vector((1.55, 2.95, 1.25)); o.location = c + (aim - c).normalized() * 0.1
+        o.rotation_euler = (aim - c).to_track_quat('-Z', 'Y').to_euler()
     # opal ceiling light emits only in its own pass
     cm = bpy.data.objects['ceiling_light'].data.materials[0]
     cm.node_tree.nodes['Principled BSDF'].inputs['Emission Color'].default_value = (1, 1, 1, 1)
@@ -146,7 +169,7 @@ def lights_off(sc):
     w = sc.world.node_tree.nodes
     w['Background'].inputs['Strength'].default_value = 0.0
     bpy.data.objects['sun'].hide_render = True
-    for n in ('L_lamp', 'L_street'):
+    for n in ('L_lamp', 'L_street', 'L_spot'):
         if n in bpy.data.objects: bpy.data.objects[n].hide_render = True
     bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 0.0
     bpy.data.objects['ceiling_light'].data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 0.0
@@ -173,6 +196,8 @@ def set_pass(sc, p):
         bpy.data.objects['ceiling_light'].data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 30.0
     elif p == 'street':
         bpy.data.objects['L_street'].hide_render = False; bpy.data.objects['L_street'].data.color = (1, 1, 1)
+    elif p == 'spot':
+        bpy.data.objects['L_spot'].hide_render = False; bpy.data.objects['L_spot'].data.color = (1, 1, 1)
 
 
 def render_settings(sc, kind):
@@ -291,7 +316,6 @@ def job_beauty(sc, key):
     s.rotation_euler = Vector(SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
     b = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
     b.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); b.inputs['Emission Strength'].default_value = 1.6
-    for o in garments(): o.hide_render = True
     secs = render_to(sc, dst.replace('.webp', '.png')); to_webp(dst.replace('.webp', '.png'), dst)
     log('beauty', key, secs, 's'); return [dst]
 
@@ -300,7 +324,6 @@ def job_depth(sc, key):
     dst = os.path.join(OUT, key, 'depth.png')
     if os.path.exists(dst): return None
     set_view(sc, key); render_settings(sc, 'depth'); lights_off(sc)
-    for o in garments(): o.hide_render = True
     m = bpy.data.materials.get('azur_depth') or bpy.data.materials.new('azur_depth')
     m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
     cdn = nt.nodes.new('ShaderNodeCameraData'); mr = nt.nodes.new('ShaderNodeMapRange')
@@ -318,7 +341,6 @@ def job_pass(sc, key, p, meta):
     dst = os.path.join(OUT, key, p + '.webp')
     if os.path.exists(dst): return None
     set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p)
-    for o in garments(): o.hide_render = True
     exr = dst.replace('.webp', '.exr'); secs = render_to(sc, exr)
     meta.setdefault(key, {})[p] = encode_pass(exr, dst)
     mpath = os.path.join(OUT, 'passes.json'); json.dump(meta, open(mpath, 'w'), indent=1)
@@ -383,6 +405,134 @@ def job_hanger_sprite(sc):
     log('hanger sprite', secs, 's'); return [dst, meta]
 
 
+# ------------------------------------------------------------------ garments as part of the room (scene2)
+PULL = {'rail': 0.42, 'rail_m': 0.34}   # metres a chosen garment comes toward the camera
+
+
+def garment_groups():
+    """Per rail slot (left to right): (hook, objects that belong to that garment)."""
+    hooks = sorted([o for o in bpy.data.objects if o.name.startswith('hook')], key=lambda o: o.matrix_world.translation.x)
+    groups = []
+    for i, h in enumerate(hooks):
+        hx = h.matrix_world.translation.x
+        objs = [o for o in bpy.data.objects if o.name.startswith(('hook', 'hanger')) and abs(o.matrix_world.translation.x - hx) < 0.03]
+        if i == len(hooks) - 1:
+            objs += [o for o in bpy.data.objects if o.name.startswith(('drop_', 'tag', 'tagtext', 'string', 'zip'))]
+        else:
+            objs += [o for o in bpy.data.objects if o.name.startswith('jersey_') and abs(o.matrix_world.translation.x - hx) < 0.03]
+        groups.append((h, objs))
+    return groups
+
+
+def ease(t): return t * t * t * (t * (6 * t - 15) + 10)
+
+
+def pose_garment(key, i, t):
+    """Take garment i off the rail toward the camera of view `key` (t 0 = hanging, 1 = held out, facing the camera).
+    Returns what unpose() needs."""
+    h, objs = garment_groups()[i]
+    saved = [(o, o.matrix_world.copy()) for o in objs]
+    if t <= 0: return saved
+    body = next((o for o in objs if not o.name.startswith(('hook', 'hanger'))), objs[0])
+    piv = h.matrix_world.translation.copy()
+    d = Vector(VIEWS[key]['loc']) - piv; d.z = 0; d.normalize()
+    yaw_now = body.matrix_world.to_euler().z
+    yaw_to = math.atan2(d.x, -d.y) + math.radians(7)        # front toward the camera, turned a touch
+    dyaw = (yaw_to - yaw_now + math.pi) % (2 * math.pi) - math.pi
+    new_piv = piv + d * (PULL.get(key, 0.4) * t) + Vector((0, 0, 0.03 * t + 0.03 * math.sin(math.pi * t)))
+    M = Matrix.Translation(new_piv) @ Matrix.Rotation(dyaw * t, 4, 'Z') @ Matrix.Translation(-piv)
+    for o, mw in saved: o.matrix_world = M @ mw
+    return saved
+
+
+def unpose(saved):
+    for o, mw in saved: o.matrix_world = mw
+
+
+def job_ids(sc, key):
+    """Which garment is at each pixel (0 = none, slot i = (i + 1) * 32): exact hover and click areas."""
+    dst = os.path.join(OUT, key, 'ids.png')
+    if os.path.exists(dst): return None
+    set_view(sc, key); render_settings(sc, 'depth'); lights_off(sc)
+    sc.cycles.samples = 1 if FAST else 4; sc.cycles.filter_width = 0.01; sc.camera.data.dof.use_dof = False
+    sc.render.film_transparent = True; sc.render.image_settings.color_mode = 'RGBA'
+    groups = garment_groups(); member = {o.name: i for i, (_, objs) in enumerate(groups) for o in objs}
+    saved_mats = {}
+    for o in bpy.data.objects:
+        if o.type not in ('MESH', 'CURVE', 'FONT', 'META') or BASE_HIDE.get(o.name): continue
+        if o.name in member:
+            v = (member[o.name] + 1) * 32 / 255.0
+            m = bpy.data.materials.get(f'azur_id{member[o.name]}') or bpy.data.materials.new(f'azur_id{member[o.name]}')
+            m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+            em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (v, v, v, 1); out = nt.nodes.new('ShaderNodeOutputMaterial')
+            nt.links.new(em.outputs[0], out.inputs['Surface'])
+            if hasattr(o.data, 'materials'):
+                saved_mats[o.name] = [s_.material for s_ in o.material_slots]
+                for s_ in o.material_slots: s_.material = m
+        else:
+            o.is_holdout = True       # the rest of the room still hides what is behind it
+    sc.view_settings.view_transform = 'Raw'      # exact values, no display curve
+    png = dst.replace('.png', '_tmp.png'); secs = render_to(sc, png)
+    for name, mats in saved_mats.items():
+        for s_, m in zip(bpy.data.objects[name].material_slots, mats): s_.material = m
+    sc.camera.data.dof.use_dof = True; sc.cycles.filter_width = 1.5
+    from PIL import Image
+    im = Image.open(png); a = np.asarray(im.convert('RGBA')).astype(np.int32)
+    ids = np.where(a[..., 3] > 127, np.clip(np.round(a[..., 0] / 32.0), 0, 7) * 32, 0).astype(np.uint8)
+    Image.fromarray(ids, 'L').save(dst, optimize=True); os.remove(png)
+    log('ids', key, secs, 's'); return [dst]
+
+
+def job_window(sc, key):
+    """Where the outside is seen through the window (white): the prototype plays the real outdoor video there."""
+    dst = os.path.join(OUT, key, 'window.png')
+    if os.path.exists(dst): return None
+    set_view(sc, key); render_settings(sc, 'depth'); lights_off(sc)
+    sc.cycles.samples = 2 if FAST else 16
+    black = bpy.data.materials.get('azur_black') or bpy.data.materials.new('azur_black')
+    black.use_nodes = True; nt = black.node_tree; nt.nodes.clear()
+    em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (0, 0, 0, 1); out = nt.nodes.new('ShaderNodeOutputMaterial')
+    nt.links.new(em.outputs[0], out.inputs['Surface'])
+    sc.view_layers[0].material_override = black
+    glass = bpy.data.objects['glass']; glass.hide_render = True
+    old_world = sc.world; w = bpy.data.worlds.get('azur_white') or bpy.data.worlds.new('azur_white'); w.use_nodes = True
+    w.node_tree.nodes['Background'].inputs['Color'].default_value = (1, 1, 1, 1); w.node_tree.nodes['Background'].inputs['Strength'].default_value = 1.0
+    sc.world = w; sc.view_settings.view_transform = 'Standard'
+    sc.render.image_settings.color_mode = 'BW'
+    secs = render_to(sc, dst)
+    sc.world = old_world; sc.view_layers[0].material_override = None
+    log('window mask', key, secs, 's'); return [dst]
+
+
+def job_selected(sc, key, i, what, meta):
+    """View `key` with garment i taken off the rail toward the camera: 'beauty' or one light pass."""
+    sel = f'{key}@{i}'
+    dst = os.path.join(OUT, sel, what + '.webp')
+    if os.path.exists(dst): return None
+    if what == 'beauty':
+        return job_beauty_at(sc, key, dst, lambda: pose_garment(key, i, 1.0))
+    set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, what)
+    saved = pose_garment(key, i, 1.0)
+    try: exr = dst.replace('.webp', '.exr'); secs = render_to(sc, exr)
+    finally: unpose(saved)
+    meta.setdefault(sel, {})[what] = encode_pass(exr, dst)
+    mpath = os.path.join(OUT, 'passes.json'); json.dump(meta, open(mpath, 'w'), indent=1)
+    log('selected', sel, what, secs, 's'); return [dst, mpath]
+
+
+def job_beauty_at(sc, key, dst, prepare):
+    set_view(sc, key); render_settings(sc, 'beauty'); lights_off(sc)
+    sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 2.2; world_tint(sc, (1.0, 0.86, 0.72))
+    s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0; s.data.color = (1.0, 0.60, 0.33)
+    s.rotation_euler = Vector(SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
+    b = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
+    b.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); b.inputs['Emission Strength'].default_value = 1.6
+    saved = prepare()
+    try: secs = render_to(sc, dst.replace('.webp', '.png')); to_webp(dst.replace('.webp', '.png'), dst)
+    finally: unpose(saved)
+    log('beauty', os.path.basename(os.path.dirname(dst)), secs, 's'); return [dst]
+
+
 def main():
     ensure_blend()
     sc = open_scene()
@@ -392,10 +542,14 @@ def main():
     jobs = [('projections', lambda: job_projections(sc))]
     jobs += [(f'beauty {v}', (lambda v=v: job_beauty(sc, v))) for v in views]
     jobs += [(f'depth {v}', (lambda v=v: job_depth(sc, v))) for v in views]
-    jobs += [('hanger sprite', lambda: job_hanger_sprite(sc))]
-    jobs += [(f'drop sprite {v}', (lambda v=v: job_bag_sprite(sc, v))) for v in views if v != 'bed']
+    jobs += [(f'ids {v}', (lambda v=v: job_ids(sc, v))) for v in views if v != 'bed']
+    jobs += [(f'window {v}', (lambda v=v: job_window(sc, v))) for v in views if v != 'bed']
     for v in [x for x in ('rail', 'room', 'rail_m', 'bed') if x in views]:
         jobs += [(f'pass {v} {p}', (lambda v=v, p=p: job_pass(sc, v, p, meta))) for p in PASSES]
+    # a chosen garment, taken off the rail toward the camera (desktop rail, then phone rail)
+    for v in [x for x in ('rail', 'rail_m') if x in views]:
+        for i in range(6):
+            jobs += [(f'selected {v}@{i} {w}', (lambda v=v, i=i, w=w: job_selected(sc, v, i, w, meta))) for w in ['beauty'] + PASSES]
     for name, fn in jobs:
         try:
             restore_visibility()
@@ -404,6 +558,7 @@ def main():
         except Exception as e:
             import traceback; log('FAILED', name, e); log(traceback.format_exc())
             sc = open_scene()
+    git_push(force=True)
     log('queue finished')
 
 

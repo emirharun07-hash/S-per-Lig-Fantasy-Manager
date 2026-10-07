@@ -4,8 +4,9 @@
    result matches the Blender stills. Falls back to the pre-graded beauty plate, and to a plain <img> without WebGL. */
 (function () {
   const A = window.AZUR = window.AZUR || {};
-  const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street'];
-  const FILES = { sky: 'sky', sunLow: 'sun_low', sunHigh: 'sun_high', neon: 'neon', lamp: 'lamp', ceiling: 'ceiling', street: 'street' };
+  const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street', 'spot'];
+  const REQUIRED = PASSES.slice(0, 7);          // 'spot' (ceiling spot on the rail) exists from scene2 on
+  const FILES = { sky: 'sky', sunLow: 'sun_low', sunHigh: 'sun_high', neon: 'neon', lamp: 'lamp', ceiling: 'ceiling', street: 'street', spot: 'spot' };
 
   const VERT = `#version 300 es
   in vec2 aPos; out vec2 vUv;
@@ -14,9 +15,12 @@
   const FRAG = `#version 300 es
   precision highp float;
   in vec2 vUv; out vec4 outColor;
-  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty;
-  uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet;
-  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet;
+  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo;
+  uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
+  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot;
+  uniform float uHover, uHoverAmt, uHasIds;              // garment under the pointer (slot + 1), fades in
+  uniform float uWinAmt, uHasWin;                        // outdoor video behind the window glass
+  uniform vec4 uWinBox, uVidMap; uniform vec3 uVidGrade;
   uniform vec4 uMap;          // plate uv = uMap.xy + vUv * uMap.zw
   uniform vec2 uParallax;     // uv shift at depth 0 relative to the focus plane
   uniform float uFocus, uExposure, uMode, uDim, uContrast, uSat, uHasDepth;
@@ -58,10 +62,21 @@
     if (uMode < 0.5) {
       vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
                + dec(tNeon, uv, sNeon) * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
-               + dec(tStreet, uv, sStreet) * wStreet;
+               + dec(tStreet, uv, sStreet) * wStreet + dec(tSpot, uv, sSpot) * wSpot;
       c = agx(lin * exp2(uExposure));
     } else {
       c = texture(tBeauty, uv).rgb * uGrade;
+    }
+    if (uHasWin > 0.5 && uWinAmt > 0.001) {              // the Bolzplatz across the street, seen through the glass
+      float m = texture(tWin, uv).r * uWinAmt;
+      vec2 wv = (uv - uWinBox.xy) / max(uWinBox.zw - uWinBox.xy, vec2(1e-4));
+      vec3 vid = texture(tVideo, uVidMap.xy + clamp(wv, 0.0, 1.0) * uVidMap.zw).rgb * uVidGrade;
+      c = mix(c, vid, m * 0.93);
+    }
+    if (uHasIds > 0.5 && uHoverAmt > 0.001) {            // the garment under the pointer lifts a little in light
+      float id = floor(texture(tIds, uv).r * 255.0 / 32.0 + 0.5);
+      float on = 1.0 - step(0.5, abs(id - uHover));
+      c = c * (1.0 + 0.16 * uHoverAmt * on) + 0.014 * uHoverAmt * on;
     }
     outColor = vec4(clamp(c * uDim, 0.0, 1.0), 1.0);
   }`;
@@ -100,20 +115,22 @@
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       this.u = {};
-      const names = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty',
-        'wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet',
-        'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet',
-        'uMap', 'uParallax', 'uFocus', 'uExposure', 'uMode', 'uDim', 'uContrast', 'uSat', 'uHasDepth', 'uGrade'];
+      const names = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo',
+        'wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
+        'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot',
+        'uMap', 'uParallax', 'uFocus', 'uExposure', 'uMode', 'uDim', 'uContrast', 'uSat', 'uHasDepth', 'uGrade',
+        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade'];
       for (const n of names) this.u[n] = gl.getUniformLocation(p, n);
-      ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty'].forEach((n, i) => gl.uniform1i(this.u[n], i));
+      ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo'].forEach((n, i) => gl.uniform1i(this.u[n], i));
       this.blank = this.texture(null);
+      this.hover = 0; this.hoverAmt = 0; this.winAmt = 0; this.video = null; this.videoTex = null;
     }
 
-    texture(img) {
+    texture(img, nearest) {
       const gl = this.gl; const t = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, t);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, nearest ? gl.NEAREST : gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, nearest ? gl.NEAREST : gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       if (img) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
@@ -126,16 +143,25 @@
       const base = A.config.assetBase + key + '/';
       if (this.cache[key]) { if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; } return this.cache[key].mode; }
       const scales = (meta && meta[key]) || {};
-      const have = PASSES.every(p => scales[FILES[p]]);
+      const have = REQUIRED.every(p => scales[FILES[p]]);
       const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null };
-      const depth = await loadImage(base + 'depth.png');
+      // a chosen garment's view ('rail@2') shares depth, garment ids and window mask with its view ('rail')
+      const baseDir = A.config.assetBase + key.split('@')[0] + '/';
+      const [depth, ids, win] = await Promise.all([
+        loadImage(base + 'depth.png').then(im => im || (base !== baseDir ? loadImage(baseDir + 'depth.png') : null)),
+        key.includes('@') ? null : loadImage(baseDir + 'ids.png'),
+        loadImage(baseDir + 'window.png')]);
       if (have && this.gl) {
-        const imgs = await Promise.all(PASSES.map(p => loadImage(base + FILES[p] + '.webp')));
+        const list = PASSES.filter(p => scales[FILES[p]]);
+        const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
         if (imgs.every(Boolean)) {
-          PASSES.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; });
+          list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; });
           v.size = [imgs[0].naturalWidth, imgs[0].naturalHeight]; v.mode = 'passes';
         }
       }
+      if (ids && this.gl) v.ids = this.texture(ids, true);
+      v.idsImg = ids;
+      if (win && this.gl) { v.win = this.texture(win); v.winBox = Compositor.maskBox(win); }
       if (v.mode === 'none') {
         const b = await loadImage(base + 'beauty.webp');
         if (b) { v.beautyImg = b; v.size = [b.naturalWidth, b.naturalHeight]; v.mode = 'beauty'; if (this.gl) v.tex.beauty = this.texture(b); }
@@ -177,8 +203,26 @@
       const v = this.view, u = this.u;
       gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       const bind = (unit, tex) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex || this.blank); };
-      PASSES.forEach((p, i) => bind(i, v.tex[p]));
-      bind(7, v.depth); bind(8, v.tex.beauty);
+      REQUIRED.forEach((p, i) => bind(i, v.tex[p]));
+      bind(7, v.depth); bind(8, v.tex.beauty); bind(9, v.tex.spot); bind(10, v.ids); bind(11, v.win);
+      // outdoor video: upload the current frame while it is visible
+      const vidOk = this.video && this.video.readyState >= 2 && v.win && this.winAmt > 0.001;
+      if (vidOk) {
+        if (!this.videoTex) this.videoTex = this.texture(null);
+        gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
+        try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video); } catch (e) { }
+      } else bind(12, null);
+      gl.uniform1f(u.uHasWin, vidOk ? 1 : 0); gl.uniform1f(u.uWinAmt, this.winAmt);
+      if (vidOk) {
+        const b = v.winBox, vw = this.video.videoWidth, vh = this.video.videoHeight;
+        gl.uniform4fv(u.uWinBox, b);
+        // cover the window box with the video (box measured in plate pixels)
+        const ba = ((b[2] - b[0]) * v.size[0]) / ((b[3] - b[1]) * v.size[1]), va = vw / vh;
+        let mw = 1, mh = 1; if (ba > va) mh = va / ba; else mw = ba / va;
+        gl.uniform4fv(u.uVidMap, [(1 - mw) / 2, (1 - mh) * 0.35, mw, mh]);
+        gl.uniform3fv(u.uVidGrade, this.videoGrade || [1, 1, 1]);
+      }
+      gl.uniform1f(u.uHasIds, v.ids ? 1 : 0); gl.uniform1f(u.uHover, this.hover); gl.uniform1f(u.uHoverAmt, this.hoverAmt);
       gl.uniform4fv(u.uMap, this.map);
       gl.uniform2fv(u.uParallax, this.parallax);
       gl.uniform1f(u.uFocus, this.focus || 0.6);
@@ -191,12 +235,23 @@
         const W = state.weights;
         gl.uniform3fv(u.wSky, W.sky); gl.uniform3fv(u.wSunLow, W.sunLow); gl.uniform3fv(u.wSunHigh, W.sunHigh);
         gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, W.ceiling); gl.uniform3fv(u.wStreet, W.street);
-        PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p]));
+        gl.uniform3fv(u.wSpot, v.tex.spot ? (W.spot || [0, 0, 0]) : [0, 0, 0]);
+        PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p] || 1));
         gl.uniform1f(u.uExposure, state.exposure);
       } else {
         gl.uniform3fv(u.uGrade, Compositor.beautyGrade(state));
       }
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    /* Bounding box (plate uv) of the white area of a mask image, e.g. the window opening. */
+    static maskBox(img) {
+      const w = 160, h = Math.max(1, Math.round(160 * img.naturalHeight / img.naturalWidth));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, w, h);
+      const d = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (d[(j * w + i) * 4] > 100) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+      return x1 < 0 ? [0, 0, 1, 1] : [x0 / w, y0 / h, (x1 + 1) / w, (y1 + 1) / h];
     }
 
     /* Without passes the golden-hour beauty plate is graded towards the time of day (approximation). */

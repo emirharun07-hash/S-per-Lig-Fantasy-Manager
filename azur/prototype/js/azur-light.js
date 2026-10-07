@@ -54,6 +54,7 @@
       lamp: mix(k0.lamp, k1.lamp, t),
       ceiling: mix(k0.ceiling, k1.ceiling, t),
       street: mix(k0.street, k1.street, t),
+      spot: mix(k0.spot || 0, k1.spot || 0, t),
       exposure: mix(k0.exposure, k1.exposure, t),
       window: mix(k0.window, k1.window, t),
       garment: mix3(k0.garment, k1.garment, t),
@@ -69,7 +70,7 @@
 
   /* Design-panel overrides (multipliers) live here; the app writes into it. */
   const overrides = {
-    timeHours: null, exposure: 0, sky: 1, sun: 1, neon: 1, lamp: 1, ceiling: 1, street: 1,
+    timeHours: null, exposure: 0, sky: 1, sun: 1, neon: 1, lamp: 1, ceiling: 1, street: 1, spot: 1,
     warmth: 0, contrast: 1, saturation: 1, window: 1
   };
 
@@ -90,7 +91,8 @@
       neon: glow.map(v => v * s.neon * o.neon),
       lamp: cfg.lampTint.map(v => v * s.lamp * o.lamp),
       ceiling: cfg.ceilingTint.map(v => v * s.ceiling * o.ceiling),
-      street: cfg.streetTint.map(v => v * s.street * o.street)
+      street: cfg.streetTint.map(v => v * s.street * o.street),
+      spot: (cfg.spotTint || [1, 1, 1]).map(v => v * s.spot * o.spot)
     };
     s.exposure += o.exposure;
     s.contrast = o.contrast; s.saturation = o.saturation;

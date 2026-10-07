@@ -1,9 +1,8 @@
 """AZUR camera moves: pre-rendered flights between views, replacing the prototype's fake pans.
 
 Renders room -> rail and room -> bed as image sequences (the way back plays them reversed).
-The garments are left out of the frames: the prototype's own garment layer flies along, placed per frame from the
-projected hanger positions and the drop bag's box stored in moves.json (so they look the same before, during and
-after the move).
+The garments are part of the frames (scene2: they are real 3D garments in the room). Each frame's projected hanger
+positions are stored in moves.json (track) for labels. Pull moves take one garment off the rail toward the camera.
 Two light variants per move: 'day' (the approved golden-hour look, graded toward the clock in the browser)
 and 'night' (the 22:30 mix of the light passes: night sky, neon, desk lamp, street light). The browser
 crossfades them by how dark it is. Day frames of every move render first, so a usable set exists early.
@@ -23,11 +22,17 @@ import render_queue as rq   # reuses scene loading, views, light setup and git s
 FRAMES = int(os.environ.get('AZUR_MOVES_FRAMES', 36))
 SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 48))
 RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1280x720').split('x'))
-OUT = os.environ.get('AZUR_MOVES_OUT') or os.path.join(rq.ROOT, 'prototype', 'assets', 'moves')
+OUT = os.environ.get('AZUR_MOVES_OUT') or os.path.join(rq.ROOT, 'prototype', 'assets', rq.SET, 'moves')
+PULL_FRAMES = int(os.environ.get('AZUR_PULL_FRAMES', 14))
 MOVES = {
     'room-rail': dict(a='room', b='rail', lift=0.18),     # the camera rises a little mid-flight, like a person stepping in
     'room-bed':  dict(a='room', b='bed', lift=0.08),
 }
+# a chosen garment is taken off the rail toward the camera (camera stays): 'rail-rail@2' = view rail to view rail@2
+PULL_RES = {'rail': (1280, 720), 'rail_m': (720, 800)}
+for _v in ('rail', 'rail_m'):
+    for _i in range(6):
+        MOVES[f'{_v}-{_v}@{_i}'] = dict(a=_v, b=f'{_v}@{_i}', pull=(_v, _i))
 
 
 def ease(t):          # smooth start and stop
@@ -61,12 +66,16 @@ def light_variant(sc, variant):
         s.rotation_euler = Vector(rq.SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
         nb.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); nb.inputs['Emission Strength'].default_value = 1.6
         sc.view_settings.exposure = 2.65
+        if 'L_spot' in bpy.data.objects:
+            P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * 0.35; P.data.color = (1.0, 0.82, 0.62)
     else:                         # azur-config.js daylight key h 22.3
         bg.default_value = 2.2; rq.world_tint(sc, (0.04, 0.055, 0.11))
         nb.inputs['Emission Color'].default_value = (*[g * 1.05 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
         L = bpy.data.objects['L_lamp']; L.hide_render = False; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
         S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.3; S.data.color = (0.95, 0.84, 0.7)
         sc.view_settings.exposure = 3.0
+        if 'L_spot' in bpy.data.objects:
+            P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * 0.7; P.data.color = (1.0, 0.82, 0.62)
 
 
 def drop_objects():
@@ -88,28 +97,45 @@ def render_move(sc, name, spec, variant):
     prefix = 'f' if variant == 'day' else 'n'
     light_variant(sc, variant)
     drops = [o for o in drop_objects() if not rq.BASE_HIDE.get(o.name)]
-    for o in rq.garments(): o.hide_render = True
-    sc.render.resolution_x, sc.render.resolution_y = RES
-    cam = sc.camera; cd = cam.data; cd.sensor_fit = 'AUTO'; cd.sensor_width = 36
+    pull = spec.get('pull')
+    frames = PULL_FRAMES if pull else FRAMES
+    if pull:
+        rq.set_view(sc, pull[0]); res = PULL_RES[pull[0]]
+    else:
+        res = RES
+    sc.render.resolution_x, sc.render.resolution_y = res
+    cam = sc.camera; cd = cam.data
+    if not pull: cd.sensor_fit = 'AUTO'; cd.sensor_width = 36
     saved = []; track = []
-    for i in range(FRAMES):
+    for i in range(frames):
         dst = os.path.join(d, f'{prefix}{i:03d}.webp')
-        t = i / (FRAMES - 1)
-        loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
-        cam.location = loc; cd.lens = lens
-        cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
-        cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
+        t = i / (frames - 1)
+        posed = None
+        if pull:
+            posed = rq.pose_garment(pull[0], pull[1], rq.ease(t))
+        else:
+            loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
+            cam.location = loc; cd.lens = lens
+            cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
+            cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
         bpy.context.view_layer.update()
         slots, neon = rq.project_slots(sc, cam); track.append(dict(slots=slots, neon=neon, drop=drop_box(sc, cam, drops)))
-        if os.path.exists(dst): continue
-        png = dst.replace('.webp', '.png'); secs = rq.render_to(sc, png); rq.to_webp(png, dst, q=80)
+        if os.path.exists(dst):
+            if posed: rq.unpose(posed)
+            continue
+        png = dst.replace('.webp', '.png')
+        try: secs = rq.render_to(sc, png)
+        finally:
+            if posed: rq.unpose(posed)
+        rq.to_webp(png, dst, q=80)
         rq.log('move', name, variant, i, secs, 's'); saved.append(dst)
         if len(saved) >= 6:                     # commit in small batches
             rq.git_save(saved, f'AZUR move {name} ({variant}): frames up to {i}'); saved = []
     meta = os.path.join(OUT, 'moves.json')
     m = json.load(open(meta)) if os.path.exists(meta) else {}
     e = m.setdefault(name, {})
-    e.update(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES), track=track)
+    e.update(from_=spec['a'], to=spec['b'], frames=frames, fps=30, res=list(res), track=track)
+    if pull: e['kind'] = 'pull'
     e['variants'] = sorted(set(e.get('variants', [])) | {variant})
     json.dump(m, open(meta, 'w'), indent=1)
     rq.git_save(saved + [meta], f'AZUR move {name} ({variant}): complete')
@@ -123,6 +149,7 @@ def main():
         for n in names:
             rq.restore_visibility()
             render_move(sc, n, MOVES[n], variant)
+    rq.git_push(force=True)
     rq.log('moves finished')
 
 

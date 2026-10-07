@@ -186,11 +186,31 @@ box('frame_t', fx0, fx1, y0, y1, z1 - fw, z1, M['pvc'], 0.004)
 box('frame_l', fx0, fx1, y0, y0 + fw, z0, z1, M['pvc'], 0.004)
 box('frame_r', fx0, fx1, y1 - fw, y1, z0, z1, M['pvc'], 0.004)
 sw = 0.055   # sash
-box('sash_b', fx0 - 0.02, fx1 - 0.03, y0 + fw, y1 - fw, z0 + fw, z0 + fw + sw, M['pvc'], 0.003)
-box('sash_t', fx0 - 0.02, fx1 - 0.03, y0 + fw, y1 - fw, z1 - fw - sw, z1 - fw, M['pvc'], 0.003)
-box('sash_l', fx0 - 0.02, fx1 - 0.03, y0 + fw, y0 + fw + sw, z0 + fw, z1 - fw, M['pvc'], 0.003)
-box('sash_r', fx0 - 0.02, fx1 - 0.03, y1 - fw - sw, y1 - fw, z0 + fw, z1 - fw, M['pvc'], 0.003)
-handle = box('handle', fx0 - 0.045, fx0 - 0.02, y1 - fw - sw * 0.5 - 0.012, y1 - fw - sw * 0.5 + 0.012, (z0 + z1) / 2 - 0.09, (z0 + z1) / 2 + 0.02, M['pvc'], 0.004)
+ym = (y0 + y1) / 2; mw = 0.045   # mullion: a double window (Dreh-Kipp), the most common German kind
+box('mullion', fx0, fx1, ym - mw, ym + mw, z0 + fw, z1 - fw, M['pvc'], 0.003)
+gasket = flat('gasket', (0.025, 0.025, 0.028), rough=0.55)
+M['alu'] = flat('alu', (0.82, 0.82, 0.83), rough=0.32, metal=1.0)
+for side, (sy0, sy1) in (('l', (y0 + fw, ym - mw)), ('r', (ym + mw, y1 - fw))):
+    box('sash_b' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy1, z0 + fw, z0 + fw + sw, M['pvc'], 0.003)
+    box('sash_t' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy1, z1 - fw - sw, z1 - fw, M['pvc'], 0.003)
+    box('sash_l' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy0 + sw, z0 + fw, z1 - fw, M['pvc'], 0.003)
+    box('sash_r' + side, fx0 - 0.02, fx1 - 0.03, sy1 - sw, sy1, z0 + fw, z1 - fw, M['pvc'], 0.003)
+    gx = fx0 - 0.005    # black glazing gasket where the sash meets the glass
+    box('gasket_b' + side, gx - 0.004, gx, sy0 + sw, sy1 - sw, z0 + fw + sw, z0 + fw + sw + 0.004, gasket)
+    box('gasket_t' + side, gx - 0.004, gx, sy0 + sw, sy1 - sw, z1 - fw - sw - 0.004, z1 - fw - sw, gasket)
+    box('gasket_l' + side, gx - 0.004, gx, sy0 + sw, sy0 + sw + 0.004, z0 + fw + sw, z1 - fw - sw, gasket)
+    box('gasket_r' + side, gx - 0.004, gx, sy1 - sw - 0.004, sy1 - sw, z0 + fw + sw, z1 - fw - sw, gasket)
+    # aluminium handle on the side that opens (next to the mullion), lever pointing down = closed
+    hy = (sy1 - sw / 2) if side == 'l' else (sy0 + sw / 2); hz = (z0 + z1) / 2 + 0.02
+    box('handle_plate' + side, fx0 - 0.032, fx0 - 0.02, hy - 0.016, hy + 0.016, hz - 0.035, hz + 0.035, M['alu'], 0.004)
+    cyl('handle_neck' + side, (fx0 - 0.032, hy, hz), (fx0 - 0.05, hy, hz), 0.011, M['alu'], verts=20)
+    cyl('handle_lever' + side, (fx0 - 0.05, hy, hz + 0.005), (fx0 - 0.055, hy, hz - 0.115), 0.0085, M['alu'], verts=16)
+# roller-shutter box behind a white cover above the window, belt winder on the wall beside it (very German)
+box('shutter_cover', W - 0.012, W, y0 - 0.06, y1 + 0.06, z1 + 0.03, z1 + 0.24, M['paint'], 0.003)
+box('shutter_cover_seam', W - 0.014, W - 0.012, y0 - 0.06, y1 + 0.06, z1 + 0.135, z1 + 0.137, gasket)
+box('belt_winder', W - 0.032, W, y1 + 0.11, y1 + 0.175, 0.93, 1.14, M['paint'], 0.006)
+box('belt_slot', W - 0.034, W - 0.032, y1 + 0.135, y1 + 0.15, 1.11, 1.135, gasket)
+box('belt', W - 0.008, W - 0.004, y1 + 0.132, y1 + 0.153, 1.13, z1 + 0.03, flat('belt', (0.78, 0.74, 0.66), rough=0.8))
 g = box('glass', fx0 + 0.008, fx0 + 0.016, y0 + fw + sw, y1 - fw - sw, z0 + fw + sw, z1 - fw - sw, M['glass'])
 g.visible_shadow = False
 box('sill', W - 0.16, W + 0.17, y0 - 0.03, y1 + 0.03, z0 - 0.025, z0, M['sill'], 0.003)
@@ -210,6 +230,46 @@ for tgt in (pl, getattr(pl, 'cycles', None)):
     except Exception as ex: print('portal', ex)
 po = link(bpy.data.objects.new('portal', pl)); po.location = (W + R - 0.01, (y0 + y1) / 2, (z0 + z1) / 2)
 po.rotation_euler = Vector((-1, 0, 0)).to_track_quat('-Z', 'Y').to_euler()
+
+# curtain: one linen panel pulled to the side of the window, gathered on a black rod
+rod_x, rod_z = W - 0.075, z1 + 0.3
+M['rod'] = flat('rod', (0.03, 0.03, 0.03), rough=0.35, metal=0.6)
+cyl('curtain_rod', (rod_x, y0 - 0.3, rod_z), (rod_x, y1 + 0.5, rod_z), 0.011, M['rod'], verts=20)
+for yy in (y0 - 0.25, y1 + 0.45):
+    cyl('rod_bracket', (W, yy, rod_z), (rod_x, yy, rod_z), 0.006, M['rod'], verts=12)
+cy0, cy1, cz1, cz0 = y1 - 0.04, y1 + 0.42, rod_z - 0.03, 0.04   # on the far side of the window: it frames it without hiding it
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=90, y_subdivisions=70, size=1.0)
+cur = bpy.context.object; cur.name = 'curtain'
+crnd = random.Random(7)
+ph = [crnd.uniform(0, 6.28) for _ in range(4)]
+for v in cur.data.vertices:
+    u, t = v.co.x + 0.5, v.co.y + 0.5          # u along the rod 0..1, t bottom 0 .. top 1
+    yy = cy0 + u * (cy1 - cy0) + (1 - t) * 0.05 * (u - 0.5)       # hem flares a little
+    lam = 0.105 + 0.02 * (1 - t)
+    amp = 0.028 + 0.012 * (1 - t) + 0.006 * math.sin(u * 9 + ph[0])
+    xx = rod_x - 0.012 - amp * (1 + math.sin((yy - cy0) / lam * 2 * math.pi + 0.3 * math.sin(t * 5 + ph[1]))) \
+         - 0.035 * (1 - t) ** 2 * (0.6 + 0.4 * math.sin(u * 4 + ph[2]))   # the hem swings a little into the room
+    zz = cz0 + t * (cz1 - cz0) - 0.01 * math.sin(u * 13 + ph[3]) * (1 - t) ** 3
+    v.co = (xx, yy, zz)
+cur.modifiers.new('sol', 'SOLIDIFY').thickness = 0.003
+cur.modifiers.new('sub', 'SUBSURF').levels = 1
+bpy.ops.object.shade_smooth()
+lin = pbr('curtain', 'rough_linen', tile=0.35, tint=(0.80, 0.70, 0.56), rough=(0.85, 1.0), nstr=0.6, coords='UV', sheen=0.3)
+lb = lin.node_tree.nodes['Principled BSDF']
+try: lb.inputs['Subsurface Weight'].default_value = 0.25; lb.inputs['Subsurface Radius'].default_value = (0.02, 0.015, 0.01)
+except Exception: pass
+cur.data.materials.append(lin)
+for i in range(14):   # rings on the rod
+    ry = cy0 + 0.02 + i * (cy1 - cy0 - 0.04) / 13
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.016, minor_radius=0.0025, location=(rod_x, ry, rod_z), rotation=(0, math.radians(90), 0))
+    rg = bpy.context.object; rg.name = 'curtain_ring'; rg.data.materials.append(M['rod'])
+
+# ceiling spot aimed at the rail (lights the jerseys; its light is its own pass, so the prototype can dose it)
+SPOT = dict(loc=(2.05, 2.1, ROOM['h'] - 0.08), aim=(1.55, 2.95, 1.25))
+cyl('spot_base', (SPOT['loc'][0], SPOT['loc'][1], ROOM['h']), (SPOT['loc'][0], SPOT['loc'][1], ROOM['h'] - 0.012), 0.04, M['rod'], verts=24)
+_d = (Vector(SPOT['aim']) - Vector(SPOT['loc'])).normalized()
+cyl('spot_arm', (SPOT['loc'][0], SPOT['loc'][1], ROOM['h'] - 0.012), SPOT['loc'], 0.006, M['rod'], verts=10)
+cyl('spot_can', Vector(SPOT['loc']) - _d * 0.02, Vector(SPOT['loc']) + _d * 0.09, 0.032, M['rod'], verts=24)
 
 # ---------------------------------------------------------------- sun
 sl = bpy.data.lights.new('sun', 'SUN'); sl.energy = SUN['strength']; sl.color = SUN['color']; sl.angle = math.radians(SUN['angle'])
@@ -339,7 +399,7 @@ def hanger(x, yaw):
     for i, p in enumerate([(-0.215, 0, -0.06), (0, 0, -0.012), (0.215, 0, -0.06)]):
         bp = sp2.bezier_points[i]; bp.co = p; bp.handle_left_type = bp.handle_right_type = 'AUTO'
     hb = link(bpy.data.objects.new('hanger', cu2)); hb.location = org; hb.rotation_euler = (0, 0, yaw); hb.data.materials.append(M['hanger'])
-    hb.scale = (1, 1.0, 1.0)
+    hb.scale = (1, 1.0, 1.0); hanger.body = hb
     return Matrix.Translation(org + Vector((0, 0, -0.008))) @ Matrix.Rotation(yaw, 4, 'Z')
 
 def garment_plane(name, image_path, aspect, mtx, h=JERSEY_H, push=0.012, tint=(1, 1, 1)):
@@ -367,12 +427,90 @@ def garment_plane(name, image_path, aspect, mtx, h=JERSEY_H, push=0.012, tint=(1
     o.data.materials.append(m)
     return o
 
+# Jerseys as real garments: a thin fabric shell built from the shop's own front and back photos.
+# The photos' outline becomes the mesh, the space between front and back is inflated (fuller at the shoulders,
+# where the hanger spreads the shirt, thinner toward the hem), soft gravity folds run down the body.
+# The photos' alpha draws the exact silhouette; front and back meet at the outline, so the shell is closed.
+JERSEY_PHOTOS = {k: (f'{A}/jerseys/back/{k}-vorne{v}.webp', f'{A}/jerseys/back/{k}-hinten{v}.webp')
+                 for k, v in (('frankfurt', '-v2'), ('berlin', ''), ('brasilien', '-v2'), ('deutschland', '-v2'), ('tuerkei', '-v2'))}
+
+def jersey_mesh(name, front_path, back_path, h=JERSEY_H, cell=0.011, depth=0.055):
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+    fr = Image.open(front_path).convert('RGBA'); bk = Image.open(back_path).convert('RGBA')
+    frc = fr.crop(fr.getchannel('A').getbbox())
+    bkc = bk.crop(bk.getchannel('A').getbbox()).transpose(Image.FLIP_LEFT_RIGHT).resize(frc.size, Image.LANCZOS)  # seen from behind
+    tdir = os.path.join(ROOT, '.cache', 'jersey_tex'); os.makedirs(tdir, exist_ok=True)
+    fpath, bpath = os.path.join(tdir, name + '_front.png'), os.path.join(tdir, name + '_back.png')
+    frc.save(fpath); bkc.save(bpath)
+    W, H = frc.size; w = h * W / H
+    rows, cols = int(round(h / cell)), int(round(w / cell))
+    af = np.asarray(frc.getchannel('A').resize((cols, rows), Image.BOX), dtype=np.float32) / 255
+    ab = np.asarray(bkc.getchannel('A').resize((cols, rows), Image.BOX), dtype=np.float32) / 255
+    cells = ndimage.binary_dilation(np.maximum(af, ab) > 0.35, iterations=1)   # one cell of margin: the alpha cuts the edge
+    dist = ndimage.distance_transform_edt(cells) * cell
+    k = depth / math.sqrt(max(dist.max(), 1e-6))
+    # per-vertex thickness: mean over the cells around it, zero on the outline (front and back meet there)
+    pad = np.pad(cells, 1); dpad = np.pad(dist, 1)
+    used = {}; verts = []; uvs = []
+    def vid(r, c, layer):
+        key = (r, c, layer)
+        if key in used: return used[key]
+        around = [(r - 1, c - 1), (r - 1, c), (r, c - 1), (r, c)]
+        ins = [pad[rr + 1, cc + 1] for rr, cc in around]
+        boundary = not all(ins)
+        if boundary and layer == 1 and (r, c, 0) in used:      # share the outline vertex with the front layer
+            used[key] = used[(r, c, 0)]; return used[key]
+        d = 0.0 if boundary else float(np.mean([dpad[rr + 1, cc + 1] for rr, cc in around]))
+        zz = r / rows; x = (c / cols - 0.5) * w; z = -zz * h
+        t = k * math.sqrt(d) * (1.0 if zz < 0.32 else 1.0 - 0.5 * (zz - 0.32) / 0.68)
+        fold = 0.010 * zz ** 1.6 * (0.6 * math.sin(x * 23 + 1.1) + 0.4 * math.sin(x * 41 + 2.3)) + 0.02 * zz ** 2
+        y = (-t / 2 if layer == 0 else t / 2) + fold
+        verts.append((x, y, z)); used[key] = len(verts) - 1
+        return used[key]
+    faces = []; fmat = []; fuv = []
+    for r in range(rows):
+        for c in range(cols):
+            if not cells[r, c]: continue
+            q = [(r, c), (r + 1, c), (r + 1, c + 1), (r, c + 1)]
+            uv = [(cc / cols, 1 - rr / rows) for rr, cc in q]
+            faces.append([vid(rr, cc, 0) for rr, cc in q]); fmat.append(0); fuv.append(uv)
+    for r in range(rows):
+        for c in range(cols):
+            if not cells[r, c]: continue
+            q = [(r, c), (r, c + 1), (r + 1, c + 1), (r + 1, c)]     # reversed winding: normals point backwards
+            uv = [(cc / cols, 1 - rr / rows) for rr, cc in q]
+            faces.append([vid(rr, cc, 1) for rr, cc in q]); fmat.append(1); fuv.append(uv)
+    me = bpy.data.meshes.new(name); me.from_pydata(verts, [], faces); me.update()
+    ul = me.uv_layers.new(name='UVMap')
+    li = 0
+    for fi, poly in enumerate(me.polygons):
+        poly.material_index = fmat[fi]
+        for j, loop in enumerate(poly.loop_indices): ul.data[loop].uv = fuv[fi][j]
+    o = link(bpy.data.objects.new(name, me))
+    o.modifiers.new('sub', 'SUBSURF').levels = 1
+    for p_ in me.polygons: p_.use_smooth = True
+    knit = tex_paths('cotton_jersey')
+    for path in (fpath, bpath):
+        m = bpy.data.materials.new(name + ('_front' if path == fpath else '_back')); m.use_nodes = True
+        nt = m.node_tree; N2 = nt.nodes; b = N2['Principled BSDF']
+        it = N2.new('ShaderNodeTexImage'); it.image = img(path); it.extension = 'CLIP'; it.interpolation = 'Cubic'
+        nt.links.new(it.outputs['Color'], b.inputs['Base Color']); nt.links.new(it.outputs['Alpha'], b.inputs['Alpha'])
+        b.inputs['Roughness'].default_value = 0.58; b.inputs['Sheen Weight'].default_value = 0.35; b.inputs['Sheen Roughness'].default_value = 0.35
+        tc2 = N2.new('ShaderNodeTexCoord'); mp2 = N2.new('ShaderNodeMapping'); mp2.inputs['Scale'].default_value = (38, 38, 38)
+        nn = N2.new('ShaderNodeTexImage'); nn.image = img(knit['nor_gl'], 'Non-Color'); nm = N2.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.22
+        nt.links.new(tc2.outputs['UV'], mp2.inputs[0]); nt.links.new(mp2.outputs[0], nn.inputs[0]); nt.links.new(nn.outputs[0], nm.inputs['Color']); nt.links.new(nm.outputs[0], b.inputs['Normal'])
+        o.data.materials.append(m)
+    return o
+
 meta = json.load(open(A + '/jerseys/meta.json'))
 n = len(JERSEYS) + 1
 xs = [RAIL['x0'] + 0.20 + i * (RAIL['x1'] - RAIL['x0'] - 0.40) / (n - 1) for i in range(n)]
 for i, k in enumerate(JERSEYS):
     mt = hanger(xs[i], FAN + random.uniform(-0.04, 0.04))
-    garment_plane('jersey_' + k, f'{A}/jerseys/{k}.png', meta[k]['w'] / meta[k]['h'], mt)
+    jo = jersey_mesh('jersey_' + k, *JERSEY_PHOTOS[k]); jo.matrix_world = mt
+    hanger.body.hide_render = True
 
 # 6th hanger: the covered "Nächster Drop" garment bag
 mt = hanger(xs[-1], FAN * 0.6)
@@ -638,17 +776,65 @@ group('chair', ch, loc=(0.86, 2.98, 0), rot_z=math.radians(-28))
 
 # football boots: dropped by the bed, one on its side (metaball upper, rubber soleplate, studs)
 def boot(name, loc, rot, tilt=0.0):
-    mb = bpy.data.metaballs.new(name); mb.resolution = 0.01; mb.render_resolution = 0.006
-    for co, r, sz in [((0, 0.075, 0.042), 0.07, (0.62, 1.55, 0.55)), ((0, -0.055, 0.055), 0.066, (0.66, 1.05, 0.85)),
-                      ((0, -0.04, 0.1), 0.05, (0.62, 0.8, 0.8)), ((0, 0.135, 0.036), 0.05, (0.7, 1.0, 0.55))]:
-        e = mb.elements.new(); e.type = 'ELLIPSOID'; e.co = co; e.radius = r; e.size_x, e.size_y, e.size_z = sz
-    up = link(bpy.data.objects.new(name, mb)); up.data.materials.append(flat('boot', (0.012, 0.012, 0.014), rough=0.32, **{'Coat Weight': 0.4}))
-    sole = box(name + '_sole', -0.045, 0.045, -0.135, 0.165, 0.0, 0.016, flat('sole', (0.85, 0.83, 0.78), rough=0.45), 0.012)
-    parts = [up, sole]
-    for sx, sy in [(-0.028, -0.1), (0.028, -0.1), (-0.03, 0.02), (0.03, 0.03), (-0.025, 0.1), (0.025, 0.11), (0, 0.145)]:
-        parts.append(cyl(name + '_stud', (sx, sy, 0.0), (sx, sy, -0.012), 0.0075, M['rubber'], verts=10))
-    for i in range(5):   # laces
-        parts.append(box(name + '_lace', -0.03, 0.03, 0.03 + i * 0.022, 0.036 + i * 0.022, 0.085 - i * 0.006, 0.09 - i * 0.006, flat('lace', (0.92, 0.92, 0.9), rough=0.7), 0.002))
+    """Football boot, lofted from cross-sections heel to toe: black synthetic upper with an azure side stripe,
+    white laces over the instep, a dark collar opening, grey sole plate with conical studs (no real brand)."""
+    L, N = 0.27, 28                      # length (kid's size), points per ring
+    secs = [  # t (heel 0 .. toe 1), half width, height of the upper
+        (0.00, 0.026, 0.085), (0.04, 0.033, 0.098), (0.12, 0.036, 0.100), (0.24, 0.038, 0.088), (0.36, 0.041, 0.078),
+        (0.50, 0.045, 0.068), (0.64, 0.047, 0.056), (0.76, 0.046, 0.045), (0.86, 0.041, 0.036), (0.94, 0.031, 0.027),
+        (0.985, 0.017, 0.018), (1.0, 0.004, 0.010)]
+    bm = bmesh.new(); rings = []
+    for t, hw, hh in secs:
+        ring = []
+        for j in range(N):
+            a = 2 * math.pi * j / N
+            ca, sa = math.cos(a), math.sin(a)
+            x = hw * math.copysign(abs(ca) ** 0.7, ca)
+            z = hh * math.copysign(abs(sa) ** 0.8, sa) if sa > 0 else 0.004 * sa     # flat bottom
+            ring.append(bm.verts.new((x, -0.12 + t * L, 0.016 + z)))
+        rings.append(ring)
+    for r0, r1 in zip(rings, rings[1:]):
+        for j in range(N):
+            bm.faces.new((r0[j], r0[(j + 1) % N], r1[(j + 1) % N], r1[j]))
+    bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    up = link(bpy.data.objects.new(name, me))
+    up.modifiers.new('sub', 'SUBSURF').levels = 2
+    for p_ in me.polygons: p_.use_smooth = True
+    # upper material: black synthetic with clear coat, azure stripe along the side (object coordinates)
+    m = bpy.data.materials.new(name + '_upper'); m.use_nodes = True; nt = m.node_tree; Nn = nt.nodes; b = Nn['Principled BSDF']
+    tc = Nn.new('ShaderNodeTexCoord'); sep = Nn.new('ShaderNodeSeparateXYZ'); nt.links.new(tc.outputs['Object'], sep.inputs[0])
+    def band(src, lo, hi, soft=0.004):
+        g1 = Nn.new('ShaderNodeMapRange'); g1.inputs['From Min'].default_value = lo - soft; g1.inputs['From Max'].default_value = lo + soft
+        g2 = Nn.new('ShaderNodeMapRange'); g2.inputs['From Min'].default_value = hi + soft; g2.inputs['From Max'].default_value = hi - soft
+        nt.links.new(src, g1.inputs['Value']); nt.links.new(src, g2.inputs['Value'])
+        mm = Nn.new('ShaderNodeMath'); mm.operation = 'MULTIPLY'; nt.links.new(g1.outputs[0], mm.inputs[0]); nt.links.new(g2.outputs[0], mm.inputs[1]); return mm.outputs[0]
+    zb = band(sep.outputs['Z'], 0.038, 0.050); yb = band(sep.outputs['Y'], -0.02, 0.07, 0.02)
+    mk = Nn.new('ShaderNodeMath'); mk.operation = 'MULTIPLY'; nt.links.new(zb, mk.inputs[0]); nt.links.new(yb, mk.inputs[1])
+    mix = Nn.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.inputs[6].default_value = (0.012, 0.012, 0.015, 1); mix.inputs[7].default_value = (0.0, 0.42, 0.85, 1)
+    nt.links.new(mk.outputs[0], mix.inputs['Factor']); nt.links.new(mix.outputs[2], b.inputs['Base Color'])
+    b.inputs['Roughness'].default_value = 0.38; b.inputs['Coat Weight'].default_value = 0.45; b.inputs['Coat Roughness'].default_value = 0.2
+    up.data.materials.append(m)
+    parts = [up]
+    # collar opening (dark, slightly sunken) and a padded rim
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1.0, location=(0, -0.075, 0.016 + 0.099))
+    op = bpy.context.object; op.name = name + '_opening'; op.scale = (0.024, 0.042, 0.006); bpy.ops.object.shade_smooth()
+    op.data.materials.append(flat('boot_inside', (0.006, 0.006, 0.007), rough=0.9)); parts.append(op)
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.12, location=(0, -0.075, 0.016 + 0.1))
+    rim = bpy.context.object; rim.name = name + '_collar'; rim.scale = (0.027, 0.046, 0.06); bpy.ops.object.shade_smooth()
+    rim.data.materials.append(m); parts.append(rim)
+    # sole plate and studs
+    sole = box(name + '_sole', -0.044, 0.044, -0.122, 0.148, 0.004, 0.018, flat('sole', (0.55, 0.56, 0.58), rough=0.4), 0.008)
+    parts.append(sole)
+    for sx, sy in [(-0.026, -0.095), (0.026, -0.095), (-0.022, -0.055), (0.022, -0.055), (-0.03, 0.03), (0.03, 0.035),
+                   (-0.03, 0.075), (0.03, 0.08), (-0.02, 0.115), (0.02, 0.118), (0.0, 0.135)]:
+        bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.0075, radius2=0.004, depth=0.013, location=(sx, sy, -0.0025))
+        st = bpy.context.object; st.name = name + '_stud'; st.rotation_euler = (math.pi, 0, 0); st.data.materials.append(M['rubber']); parts.append(st)
+    lace_m = flat('lace', (0.92, 0.92, 0.9), rough=0.7)
+    for i in range(6):   # laces across the instep, following the top of the upper
+        t = 0.36 + i * 0.07; yy = -0.12 + t * L
+        hh = 0.078 - (t - 0.36) * 0.16
+        parts.append(cyl(name + '_lace', (-0.022, yy, 0.016 + hh - 0.002), (0.022, yy + 0.004, 0.016 + hh - 0.002), 0.0028, lace_m, verts=8))
     r = group(name + '_root', parts, loc=loc, rot_z=rot)
     r.rotation_euler = (0, tilt, rot)
     return r
