@@ -57,20 +57,29 @@ def main():
         key = o.name[len('jersey_'):]
         hg = bpy.data.objects.get(o.name + '_hanger')
         yaw = o.matrix_world.to_euler().z
+        # the chrome hook it hangs from, in the jersey's own space
+        hooks = [h for h in bpy.data.objects if h.name.split('.')[0] == 'hook']
+        hk = min(hooks, key=lambda h: (h.matrix_world.translation - o.matrix_world.translation).length) if hooks else None
+        if hk and (hk.matrix_world.translation - o.matrix_world.translation).length > 0.08: hk = None
+        hk_local = o.matrix_world.inverted() @ hk.matrix_world if hk else None
         for x in [o] + ([hg] if hg else []):
             x.matrix_world = Matrix.Identity(4)        # own space: hook point at the origin, front toward -Y
             for m in [m for m in x.modifiers if m.type in ('SOLIDIFY', 'SUBSURF')]: x.modifiers.remove(m)   # light: the browser smooths
         simplify_materials(o)
         if hg: plain_wood(hg)
+        hk_was = hk.matrix_world.copy() if hk else None
+        if hk: hk.matrix_world = hk_local
         bpy.ops.object.select_all(action='DESELECT')
         o.select_set(True)
         if hg: hg.select_set(True)
+        if hk: hk.select_set(True)
         bpy.context.view_layer.objects.active = o
         dst = os.path.join(OUT, key + '.glb')
         bpy.ops.export_scene.gltf(filepath=dst, export_format='GLB', use_selection=True, export_apply=True,
                                   export_yup=True, export_texcoords=True, export_normals=True, export_materials='EXPORT',
                                   export_image_format='WEBP', export_image_quality=86, export_cameras=False,
                                   export_lights=False, export_animations=False, export_extras=False)
+        if hk: hk.matrix_world = hk_was                 # the next jersey may share nothing, but keep the scene as it was
         pts = [v.co for v in o.data.vertices]
         meta[key] = dict(file=f'models/{key}.glb', bytes=os.path.getsize(dst), source='cloth-sim from shop photos',
                          height=round(-min(p.z for p in pts), 3), width=round(max(p.x for p in pts) - min(p.x for p in pts), 3),

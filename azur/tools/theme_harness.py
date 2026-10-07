@@ -45,7 +45,10 @@ def render_section():
     env.filters['image_url'] = lambda v, width=None: (v or {}).get('url', '')
     settings = {s['id']: s.get('default') for s in schema['settings'] if 'id' in s}
     for i, p in enumerate(PRODUCTS, 1): settings[f'product_{i}'] = product(*p)
-    ctx = {'section': {'settings': settings, 'id': 'room'}, 'shop': {'name': 'Azur'}, 'cart': {'currency': {'iso_code': 'EUR'}},
+    links = [{'title': t, 'url': u} for t, u in (('Berlin 030', '/collections/berlin'), ('Frankfurt 069', '/collections/frankfurt'), ('Shop', '/collections/all'), ('Über Azur', '/pages/ueber-uns'))]
+    ctx = {'section': {'settings': settings, 'id': 'room', 'blocks': []}, 'shop': {'name': 'Azur', 'customer_accounts_enabled': True},
+           'cart': {'currency': {'iso_code': 'EUR'}, 'item_count': len(Handler.cart)},
+           'linklists': {'main-menu': {'links': links}}, 'routes': {'root_url': '/', 'account_url': '/account'},
            'settings': {'shipping_cost': 'in Deutschland 1,99 €, ab 90 € kostenlos'}}
     return env.from_string(src).render(**ctx)
 
@@ -85,6 +88,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def translate_path(self, path):
         path = path.split('?')[0]
         if path.startswith('/theme/assets/azur-logo'): return os.path.join(PROTO, 'assets', 'brand', path[14:])
+        if path == '/cart.js': return '/nonexistent'
         if path.startswith('/theme/'): return os.path.join(THEME, path[7:])
         if path.startswith('/proto/'): return os.path.join(PROTO, path[7:])
         if path.startswith('/live/'): return os.path.join(LIVE, path[6:])
@@ -93,6 +97,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return super().translate_path(path)
 
     def do_GET(self):
+        if self.path.split('?')[0] == '/cart.js':      # what Shopify's cart.js answers (enough for count and total)
+            total = sum(int(i.get('quantity', 1)) * 6499 for i in Handler.cart)
+            body = json.dumps({'item_count': sum(int(i.get('quantity', 1)) for i in Handler.cart), 'total_price': total}).encode()
+            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers()
+            self.wfile.write(body); return
         if self.path.split('?')[0] in ('/', '/index.html'):
             body = PAGE.replace('__SECTION__', render_section()).encode()
             self.send_response(200); self.send_header('Content-Type', 'text/html; charset=utf-8'); self.send_header('Content-Length', str(len(body))); self.end_headers()

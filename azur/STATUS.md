@@ -86,7 +86,7 @@ Owner decisions: PDP shows a real 3D jersey in the browser (rotate + zoom; light
 night = teen only suggested (body shape under the duvet, hair on the pillow, an arm out); after add-to-cart only the
 free-shipping hint (real rule: free in DE from 90 €); the new minimal header only over the room (rest of the shop keeps
 the theme header). Later the owner may deliver 3D scans of the jerseys: keep the jersey source swappable.
-Renders run on the owner's PC through `render_on_windows.ps1 watch` (polls `azur/render_request.json` every 5 min).
+Renders run on the owner's PC through `render_on_windows.ps1 watch` (see "Round 3: where it stands").
 
 Scene (build_room.py, new set `scene3`):
 1. jerseys = cloth-simulated shell from the shop photos over a real wooden hanger (hook out of the collar)
@@ -102,18 +102,35 @@ shipping progress after add; header over the room: no logo (logo dimmed top-left
 (visible when the cart has items), other links behind three glowing white dots; magazine pages as data (Shopify
 section blocks); fix the room staying blurred after closing the PDP (selection blur in plate mode).
 
-## Next
+## Round 3: where it stands (2026-10-07, 23:05 UTC)
 
-**Artifact version 15 is live** (17:12 UTC): everything of scene2. Views room / rail / rail_m / bed and all
-`rail@i` / `rail_m@i`, the magazine, the window video, and the real camera moves (room→rail, room→bed, the 12 pull
-moves), day + night, packed into strips by `tools/build_artifact.py` (248 files). Old scene1 files are gone from the
-artifact (v13 added scene2, v14 removed scene1, v15 added the moves). Rendering on the owner's PC: views and passes about
-20 s per image, chosen-garment views about 2.5 min each, moves about 8.5 s per frame (480 frames, 70 min).
-Waiting for the owner's feedback on version 15.
+Built and pushed:
+- Scene `scene3` (build_room.py + garment.py): cloth-draped jerseys on wooden hangers, rail out of the desk (x 0.76–2.76),
+  neon centred over it (x 1.76), messier duvet, pens resting on the desk, states tagged `azur_state`
+  (morning: pyjama + phone; evening/night: school bag, exercise books, pencil case; night: duvet over a sleeping shape,
+  a socked foot, the magazine slid onto the floor; hoodie over the chair always).
+- Pipeline (render_queue.py): 2400×1350 plates (rail_m 1800×2000), 384 samples, encoding with more codes in the dark
+  (ENC_REF 1.5, webp q94, neon q97), masks.png/glow.png (+ _night) for hover outlines, times of day as patches
+  (`passes.json` → `states[view][state] = {rects, passes, res}`, files `<view>/<state>/<pass>_<n>.webp`, rendered
+  only around the changed objects + sun shadows, compared with the kept day EXRs), no posed `@i` views, no pulls.
+  render_moves.py: variants day (midday) / evening (golden hour) / night (lamp off), each with its state's objects.
+  export_models.py: one GLB per jersey (shell + hanger + hook, ~250–310 KB). render_preview.py: quick looks.
+- PC watch mode v2: `render_on_windows.ps1 watch` runs `tools/render_step.ps1` every 2 min (re-read each round),
+  reports to `azur/render_status.json`, request fields `id, set, rebuild, redo, jobs`; a newer request stops a stale
+  run. Scripts started by an old copy hand over to v2 by themselves (new window, old one closes).
+- Web (prototype): white outlines + dots (bed, rail, magazine), swaying jerseys (pendulums bend the plate around the
+  hooks), click → product view with the 3D jersey (azur-viewer.js), shipping progress after add + "Weiter umsehen",
+  header = sports bag (when the cart has items) + three glowing dots, ghost logo behind overlays, states with crossfade,
+  chips Bett | Zimmer | Ständer, magazine pages as data (Shopify blocks "Heftseite"), half-size first load (`_lo`).
+- Shopify section updated (not yet pushed to the draft theme): new header, menu (link list), free shipping setting,
+  magazine blocks, Files prefix `azr2-`.
 
-1. Owner feedback on version 15 (open question: founder names in the magazine editorial?).
-2. Renders run on the owner's PC (`azur\tools\render_on_windows.ps1`); the Mac route stays parked (work-account git).
-3. Phase 2 (Shopify theme) only after explicit approval.
+Running: the owner's PC renders request r3-1 (old watch loop); r3-3 (preview, models, masks again without the
+footballs, rest of the queue, moves) follows in watch mode v2 after the hand-over.
+
+Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
+artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
+batches), themeFilesUpsert into the draft theme 208669016403, test with `tools/theme_harness.py`.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
