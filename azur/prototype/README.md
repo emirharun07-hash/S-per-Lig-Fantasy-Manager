@@ -30,7 +30,9 @@ Produced by `../scene/render_queue.py` from the Blender scene:
 - `<view>/depth.png`: depth for parallax (near = white)
 - `hanger.webp`, `<view>/drop.webp`, `sprites.json`: hanger and covered-garment layers
 
-Camera moves (`assets/moves/`, from `../scene/render_moves.py`) replace the fake pans automatically once their frames exist.
+Camera moves (`assets/moves/<move>/f###.webp` golden hour, `n###.webp` night, `moves.json`; from `../scene/render_moves.py`) replace the fake pans automatically once all frames of the needed set exist. The player grades the day frames toward the clock and lays the night frames over them by how dark it is; only the sets the current light needs are downloaded. Phones keep the fake pan.
+
+`../tools/clean_sprite.py <view>` removes stray specks from a drop sprite and corrects its box (the queue runs it automatically).
 
 ## Changing things
 
