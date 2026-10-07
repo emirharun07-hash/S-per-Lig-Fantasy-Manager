@@ -26631,7 +26631,8 @@
   ],
   "kind": "pull",
   "variants": [
-   "day"
+   "day",
+   "night"
   ]
  }
 }
