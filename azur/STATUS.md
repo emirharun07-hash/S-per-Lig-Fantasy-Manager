@@ -80,6 +80,28 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Not testable from the cloud: the storefront is password-protected. Local stand-in: `tools/theme_harness.py`.
 - Publishing the draft (making it live) is the owner's step in the admin, after the preview looks right.
 
+## Round 3 (owner feedback 2026-10-07 evening, after the Shopify draft): plan and decisions
+
+Owner decisions: PDP shows a real 3D jersey in the browser (rotate + zoom; light model, own tiny WebGL viewer);
+night = teen only suggested (body shape under the duvet, hair on the pillow, an arm out); after add-to-cart only the
+free-shipping hint (real rule: free in DE from 90 €); the new minimal header only over the room (rest of the shop keeps
+the theme header). Later the owner may deliver 3D scans of the jerseys: keep the jersey source swappable.
+Renders run on the owner's PC through `render_on_windows.ps1 watch` (polls `azur/render_request.json` every 5 min).
+
+Scene (build_room.py, new set `scene3`):
+1. jerseys = cloth-simulated shell from the shop photos over a real wooden hanger (hook out of the collar)
+2. rail no longer inside the desk; pens rest on the desk; neon sign cleaner (day: glass tubes, night: glow)
+3. messy teen bed; time-of-day states as patches: night (sleeping teen), morning (crumpled duvet, alarm),
+   day (tidier, kid outside), evening (school bag, books on the floor)
+4. masks: object mask (bed / rail / magazine) for white hover outlines; clean plates without garments (sway)
+5. renders 2400 px wide (1600 copies for small screens); less quantization (neon lossless)
+6. export a light jersey model per product for the PDP viewer
+Web: chips Bett | Zimmer | Ständer; white outline glow + white glint dots (bed, rail, magazine); jerseys sway (shader,
+ids mask over the clean plate); click on a jersey opens the PDP at once (hover info stays); PDP 3D viewer + shop link;
+shipping progress after add; header over the room: no logo (logo dimmed top-left only behind overlays), bag icon
+(visible when the cart has items), other links behind three glowing white dots; magazine pages as data (Shopify
+section blocks); fix the room staying blurred after closing the PDP (selection blur in plate mode).
+
 ## Next
 
 **Artifact version 15 is live** (17:12 UTC): everything of scene2. Views room / rail / rail_m / bed and all

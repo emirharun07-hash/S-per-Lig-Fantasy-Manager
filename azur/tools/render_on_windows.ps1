@@ -6,6 +6,11 @@
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 moves    only the camera moves
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 queue    only view plates and passes
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 test     set up + one timed test render
+#   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 watch    wait for render jobs (see below)
+#
+# watch: leave the window open. Every 5 minutes it pulls the branch; when azur/render_request.json has a new "id",
+# it renders what the request names ("set", "jobs": queue / moves, "rebuild": rebuild the scene first) and uploads
+# the results. While it runs, Windows does not go to sleep (only for this window; nothing in the settings changes).
 #
 # Needs: Git for Windows (git-scm.com; its credential manager opens a browser for the GitHub login on the first push)
 # and a current AMD Adrenalin driver. First run installs uv, Python 3.11 and Blender's Python module into azur\.venv
@@ -34,6 +39,46 @@ uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
 
 $env:AZUR_GPU = "1"
 $ErrorActionPreference = "Continue"
+
+function Push-Results {
+  git add azur/prototype/assets
+  git commit -q -m "AZUR renders from the PC"
+  git pull -q --rebase origin $Branch
+  git push -q origin "HEAD:$Branch"
+}
+
+if ($Mode -eq "watch") {
+  # keep the PC awake while this window runs (ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+  Add-Type -Namespace Azur -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint f);'
+  [Azur.Power]::SetThreadExecutionState([uint32]"0x80000001") | Out-Null
+  $doneFile = "azur\.cache\render_request_done.txt"
+  New-Item -ItemType Directory -Force -Path "azur\.cache" | Out-Null
+  Write-Host "Warte auf Render-Auftraege (alle 5 Minuten). Fenster offen lassen, Strg+C beendet."
+  while ($true) {
+    git pull -q --rebase origin $Branch 2>$null
+    $last = if (Test-Path $doneFile) { (Get-Content $doneFile -Raw).Trim() } else { "" }
+    if (Test-Path "azur\render_request.json") {
+      $req = Get-Content "azur\render_request.json" -Raw | ConvertFrom-Json
+      if ($req.id -and $req.id -ne $last) {
+        Write-Host ("[{0}] Neuer Auftrag {1}: {2}" -f (Get-Date -Format "HH:mm"), $req.id, $req.note)
+        if ($req.set) { $env:AZUR_SET = $req.set }
+        if ($req.rebuild) { Remove-Item ("azur\.cache\azur_room_" + $env:AZUR_SET + ".blend") -ErrorAction SilentlyContinue }
+        uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
+        foreach ($job in $req.jobs) {
+          switch ($job) {
+            "queue" { python azur\scene\render_queue.py }
+            "moves" { python azur\scene\render_moves.py }
+            "export" { python azur\scene\export_models.py }
+          }
+          Push-Results
+        }
+        Set-Content -Path $doneFile -Value $req.id
+        Write-Host ("[{0}] Auftrag {1} fertig und hochgeladen." -f (Get-Date -Format "HH:mm"), $req.id)
+      }
+    }
+    Start-Sleep -Seconds 300
+  }
+}
 if ($Mode -eq "test") {
   python azur\scene\bench.py
   Select-String -Path "azur\.cache\queue.log" -Pattern "render device|bench:" | Select-Object -Last 2
