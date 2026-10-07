@@ -7,6 +7,8 @@ window.AZUR = window.AZUR || {};
 
 AZUR.config = {
   assetBase: 'assets/views/',
+  scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
+  outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
 
   /* Accent systems. A is the chosen one; the others stay switchable in the design panel. */
   palettes: {
@@ -25,10 +27,22 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, masks: false },   // exposure: extra stops on top of the clock
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, ids: false, window: false },   // exposure: extra stops on top of the clock
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },
+  /* Hover outlines (scene3 glow.png) and the white dots that invite a click: where each view can go. */
+  targets: {
+    room: ['bed', 'rail'],
+    rail: ['bed'],
+    bed: ['mag', 'rail'],
+    rail_m: []
+  },
+  outline: { strength: 0.95, ease: 9 },
+
+  /* The room through the day, on the visitor's clock (hours). Night: he is asleep; morning: the duvet thrown back;
+     day: he is out (fewer things on the floor); evening: the school bag is back. */
+  dayStates: [{ from: 6.5, state: 'morning' }, { from: 9, state: 'day' }, { from: 17, state: 'evening' }, { from: 23, state: 'night' }],
   mobileQuery: '(max-width: 760px), (pointer: coarse) and (max-width: 1024px) and (orientation: portrait)',
 
   /* Garments on the rail. The 3D rail fans them 25° toward the window; CSS mirrors that. */
@@ -48,6 +62,8 @@ AZUR.config = {
     hover:  { lift: 0.035, forward: 0.045, turnDeg: -9, tiltDeg: 1.4, bright: 1.07, neighbourPush: 0.16, falloff: 0.45 },
     select: { lift: 0.06, forward: 0.16, turnDeg: -24, push: 0.42, dimRoom: 0.62, blurRoom: 2.5 },
     labelDelay: 90,
+    /* scene3: the jerseys in the render swing on their hooks (degrees, per second); ripple = cloth wave in plate px */
+    sway: { stiffness: 9, damping: 1.5, maxDeg: 2.6, hoverKick: 2.2, leaveKick: 1.0, brush: 0.00025, clickKick: 4.5, idleDeg: 0.22, ripple: 2.4, neighbour: 0.35 },
     pan: { outMs: 520, inMs: 820, zoom: 1.32, blurPx: 14, drift: 0.04 },   // fake camera move between views
     parallaxEase: 0.06        // how fast the room follows the pointer
   },
@@ -67,6 +83,7 @@ AZUR.config = {
     { h: 19.6, sky: [0.62, 0.45, 0.42],    sunLow: [0.85, 0.36, 0.14], sunHigh: 0, neon: 0.75, lamp: 0.25, ceiling: 0, spot: 0.6, street: 0, exposure: 2.85, window: 0.8, garment: [0.78, 0.4, 0.05] },
     { h: 20.6, sky: [0.17, 0.22, 0.42],    sunLow: 0, sunHigh: 0, neon: 1.0, lamp: 0.75, ceiling: 0.0, spot: 0.7, street: 0.15, exposure: 2.95, window: 0.55, garment: [0.48, 0.12, 0.3] },
     { h: 22.3, sky: [0.04, 0.055, 0.11],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.85, ceiling: 0.0, spot: 0.7, street: 0.3, exposure: 3.0, window: 0.25, garment: [0.32, 0.04, 0.36] },
+    { h: 23.0, sky: [0.02, 0.028, 0.06],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0, spot: 0.55, street: 0.3, exposure: 3.0, window: 0.18, garment: [0.3, 0.0, 0.4] },   // lights out
     { h: 24.0, sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  spot: 0.5, street: 0.3,  exposure: 3.0, window: 0.15, garment: [0.28, 0.0, 0.42] }
   ],
   lampTint: [1.0, 0.62, 0.32],        // warm bulb in the desk lamp
@@ -120,7 +137,9 @@ AZUR.config = {
       storyQuote: 'Getragen auf dem Platz und danach.',
       lookKicker: 'Lookbook',
       tocKicker: 'In diesem Heft',
-      toRail: 'Am Ständer ansehen', toShop: 'Im Shop',
+      toRail: 'Am Ständer ansehen', toProduct: 'Ansehen', toShop: 'Im Shop',
+      /* pages: null = the default issue (cover, editorial, photo, all jerseys, drop, back); see azur-mag.js */
+      pages: null,
       dropKicker: 'Vorschau',
       dropHead: 'Nächster Drop',
       dropText: 'Am Ständer hängt noch etwas unter der Hülle. Noch unter Verschluss. Trag dich ein, dann erfährst du es zuerst.',
@@ -129,6 +148,15 @@ AZUR.config = {
       credits: 'Fotos: sasint, Negative Space (CC0)'
     },
     roomHint: 'Klick auf den Ständer oder aufs Bett',
+    goBed: 'Zum Bett', goRail: 'Zum Ständer',
+    menu: 'Menü', menuClose: 'Menü schließen', bag: 'Sporttasche (Warenkorb)',
+    menuLinks: [['Shop', 'rail'], ['Kollektion', 'rail'], ['Über uns', 'mag'], ['Zimmer', 'room']],
+    viewerHint: 'Ziehen zum Drehen · Scrollen zum Zoomen',
+    viewerHintTouch: 'Wischen zum Drehen · Zwei Finger zum Zoomen',
+    shipTo: 'Noch {x} bis zum kostenlosen Versand',
+    shipFree: 'Versand ist kostenlos',
+    keepLooking: 'Weiter umsehen', toCart: 'Zur Tasche',
+    openInShop: 'Im Shop öffnen',
     prototypeNote: 'Prototyp · Warenkorb und Anmeldung sind simuliert'
   }
 };
@@ -265,12 +293,21 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
 /* AZUR — room compositor.
    Draws one view of the room from its rendered light passes (WebGL2): decodes each pass back to linear light,
    mixes them with the time-of-day weights, applies depth-based parallax and an AgX-style tone curve so the
-   result matches the Blender stills. Falls back to the pre-graded beauty plate, and to a plain <img> without WebGL. */
+   result matches the Blender stills. Falls back to the pre-graded beauty plate, and to a plain <img> without WebGL.
+
+   scene3 adds three things on top:
+   - the jerseys sway: a smooth displacement field per garment (built here from the rendered id mask) bends the
+     plate around each hook, driven by the rail's pendulums (setSway)
+   - hover outlines: glow.png holds the bed, the rail and the magazine as white glows (R, G, B), faded in by setGlow
+   - times of day: morning, evening and night are rectangles rendered over the day passes (passes.json 'states');
+     setState copies them into the day textures (and puts the day pixels back when the state ends) */
 (function () {
   const A = window.AZUR = window.AZUR || {};
   const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street', 'spot'];
   const REQUIRED = PASSES.slice(0, 7);          // 'spot' (ceiling spot on the rail) exists from scene2 on
   const FILES = { sky: 'sky', sunLow: 'sun_low', sunHigh: 'sun_high', neon: 'neon', lamp: 'lamp', ceiling: 'ceiling', street: 'street', spot: 'spot' };
+  const KEY_OF = Object.fromEntries(Object.entries(FILES).map(([k, f]) => [f, k]));
+  const MAX_SWAY = 6;
 
   const VERT = `#version 300 es
   in vec2 aPos; out vec2 vUv;
@@ -279,7 +316,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   const FRAG = `#version 300 es
   precision highp float;
   in vec2 vUv; out vec4 outColor;
-  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo;
+  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo, tGlow, tSwayA, tSwayB;
   uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
   uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot;
   uniform float uHover, uHoverAmt, uHasIds;              // garment under the pointer (slot + 1), fades in
@@ -289,6 +326,9 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   uniform vec2 uParallax;     // uv shift at depth 0 relative to the focus plane
   uniform float uFocus, uExposure, uMode, uDim, uContrast, uSat, uHasDepth;
   uniform vec3 uGrade;        // beauty mode only: rough time-of-day grade
+  uniform vec3 uGlowAmt; uniform float uHasGlow;         // hover outlines: bed, rail, magazine
+  uniform float uHasSway, uTime; uniform vec2 uPlatePx;
+  uniform vec4 uSwayHook[${MAX_SWAY}];                   // per garment: hook (plate uv), swing angle (rad), ripple (px)
 
   vec3 dec(sampler2D t, vec2 uv, float s) {
     vec3 e = texture(t, uv).rgb;
@@ -318,10 +358,31 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     v = l + (1.08 * uSat) * (v - l);
     return mi * v;
   }
+  // where the plate moves under a swinging garment (rotation about its hook, a ripple running down the cloth)
+  vec2 sway(vec2 uv) {
+    vec4 wa = texture(tSwayA, uv); vec4 wb = texture(tSwayB, uv);
+    float w[6] = float[6](wa.r, wa.g, wa.b, wa.a, wb.r, wb.g);
+    float sum = w[0] + w[1] + w[2] + w[3] + w[4] + w[5];
+    if (sum < 0.002) return vec2(0.0);
+    vec2 d = vec2(0.0);
+    for (int i = 0; i < ${MAX_SWAY}; i++) {
+      if (w[i] < 0.002) continue;
+      vec4 h = uSwayHook[i];
+      vec2 p = (uv - h.xy) * uPlatePx;
+      float c = cos(h.z), s = sin(h.z);
+      vec2 r = vec2(p.x * c - p.y * s, p.x * s + p.y * c) - p;
+      float below = max(p.y, 0.0);
+      r.x += h.w * sin(below * 0.018 - uTime * 3.1 + float(i) * 1.7) * min(1.0, below / 200.0);
+      d += w[i] * r;
+    }
+    return d / max(sum, 1.0) / uPlatePx;
+  }
   void main() {
     vec2 uv = uMap.xy + vUv * uMap.zw;
     float d = uHasDepth > 0.5 ? texture(tDepth, uv).r : uFocus;
     uv += uParallax * (d - uFocus);
+    vec2 guv = uv;
+    if (uHasSway > 0.5) uv -= sway(uv);
     vec3 c;
     if (uMode < 0.5) {
       vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
@@ -342,7 +403,12 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       float on = 1.0 - step(0.5, abs(id - uHover));
       c = c * (1.0 + 0.16 * uHoverAmt * on) + 0.014 * uHoverAmt * on;
     }
-    outColor = vec4(clamp(c * uDim, 0.0, 1.0), 1.0);
+    c = clamp(c * uDim, 0.0, 1.0);
+    if (uHasGlow > 0.5) {                                // white outline of what the pointer is on (screen blend)
+      float g = clamp(dot(texture(tGlow, guv).rgb, uGlowAmt), 0.0, 1.0);
+      c = 1.0 - (1.0 - c) * (1.0 - g * vec3(0.97, 0.99, 1.0));
+    }
+    outColor = vec4(c, 1.0);
   }`;
 
   function loadImage(src) {
@@ -362,6 +428,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.view = null; this.mode = 'none';
       this.map = [0, 0, 1, 1]; this.parallax = [0, 0]; this.pan = 0.5; this.overscan = 0.03;
       this.dim = 1; this.cache = {};
+      this.glow = [0, 0, 0]; this.swayHooks = new Float32Array(MAX_SWAY * 4); this.swayOn = false; this.time = 0;
+      this.state = 'day';
       if (this.gl) this.init();
     }
     get ok() { return !!this.gl; }
@@ -379,13 +447,14 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       this.u = {};
-      const names = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo',
-        'wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
+      this.units = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'];
+      const names = this.units.concat(['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot',
         'uMap', 'uParallax', 'uFocus', 'uExposure', 'uMode', 'uDim', 'uContrast', 'uSat', 'uHasDepth', 'uGrade',
-        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade'];
+        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade',
+        'uGlowAmt', 'uHasGlow', 'uHasSway', 'uTime', 'uPlatePx', 'uSwayHook']);
       for (const n of names) this.u[n] = gl.getUniformLocation(p, n);
-      ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo'].forEach((n, i) => gl.uniform1i(this.u[n], i));
+      this.units.forEach((n, i) => gl.uniform1i(this.u[n], i));
       this.blank = this.texture(null);
       this.hover = 0; this.hoverAmt = 0; this.winAmt = 0; this.video = null; this.videoTex = null;
     }
@@ -401,41 +470,193 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
       return t;
     }
+    dataTexture(w, h, data) {
+      const gl = this.gl, t = this.texture(null);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      return t;
+    }
 
-    /* Load a view. Resolves to 'passes', 'beauty' or 'none'. Textures are cached per view. */
+    /* Load a view. Resolves to 'passes', 'beauty' or 'none'. Textures are cached per view.
+       With low-resolution copies (passes.json _lo, published builds) those come first and the full plates follow. */
     async load(key, meta, activate = true) {
       const base = A.config.assetBase + key + '/';   // loadImage() turns these into real URLs (A.url)
-      if (this.cache[key]) { if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; } return this.cache[key].mode; }
+      if (this.cache[key]) {
+        if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; }
+        await this.cache[key].ready;
+        return this.cache[key].mode;
+      }
+      const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null, imgs: {}, state: 'day', meta };
+      this.cache[key] = v;
+      let done; v.ready = new Promise(r => { done = r; });
       const scales = (meta && meta[key]) || {};
       const have = REQUIRED.every(p => scales[FILES[p]]);
-      const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null };
       // a chosen garment's view ('rail@2') shares depth, garment ids and window mask with its view ('rail')
-      const baseDir = A.config.assetBase + key.split('@')[0] + '/';
-      const masks = (A.config.views[key.split('@')[0]] || {}).masks !== false;   // the bed view has no garments or window
-      const [depth, ids, win] = await Promise.all([
+      const baseKey = key.split('@')[0], baseDir = A.config.assetBase + baseKey + '/';
+      const vc = A.config.views[baseKey] || {};
+      const wantIds = vc.ids !== false && vc.masks !== false, wantWin = vc.window !== false && vc.masks !== false;
+      const s3 = !!A.config.scene3;
+      const [depth, ids, win, masks, glow] = await Promise.all([
         loadImage(baseDir + 'depth.png'),
-        key.includes('@') || !masks ? null : loadImage(baseDir + 'ids.png'),
-        masks ? loadImage(baseDir + 'window.png') : null]);
+        key.includes('@') || !wantIds ? null : loadImage(baseDir + 'ids.png'),
+        wantWin ? loadImage(baseDir + 'window.png') : null,
+        s3 ? loadImage(baseDir + 'masks.png') : null,
+        s3 ? loadImage(baseDir + 'glow.png') : null]);
       if (have && this.gl) {
+        const lo = meta && meta._lo && !key.includes('@');
         const list = PASSES.filter(p => scales[FILES[p]]);
-        const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
+        const imgs = await Promise.all(list.map(p => loadImage(base + (lo ? 'lo/' : '') + FILES[p] + '.webp')));
         if (imgs.every(Boolean)) {
-          list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; });
+          list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; v.imgs[p] = imgs[i]; });
           v.size = [imgs[0].naturalWidth, imgs[0].naturalHeight]; v.mode = 'passes';
+          v.texW = imgs[0].naturalWidth;
+          if (lo) v.upgrade = () => this.upgrade(v, list, base);
         }
       }
       if (ids && this.gl) v.ids = this.texture(ids, true);
-      v.idsImg = ids;
+      v.idsImg = ids; v.masksImg = masks; v.masksDay = masks;
+      if (glow && this.gl) { v.glow = v.glowDay = this.texture(glow); }
       if (win && this.gl) { v.win = this.texture(win); v.winBox = Compositor.maskBox(win); }
+      const vd = this.viewsData && this.viewsData[baseKey];
+      v.platePx = (vd && vd.res) || v.size;            // full plate size (the textures may be the low-resolution copies)
       if (v.mode === 'none') {
         const b = await loadImage(base + 'beauty.webp');
         if (b) { v.beautyImg = b; v.size = [b.naturalWidth, b.naturalHeight]; v.mode = 'beauty'; if (this.gl) v.tex.beauty = this.texture(b); }
       }
       v.depth = depth && this.gl ? this.texture(depth) : null;
-      this.cache[key] = v;
+      if (!v.platePx) v.platePx = v.size;
       if (activate) { this.view = v; this.mode = v.mode; }
+      done();
+      if (this.state !== 'day') await this.applyState(v, this.state);
       return v.mode;
     }
+
+    /* Swap a view's low-resolution passes for the full ones (idle time after the first frames). */
+    async upgrade(v, list, base) {
+      v.upgrade = null;
+      const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
+      if (!imgs.every(Boolean)) return;
+      const gl = this.gl;
+      v.chain = (v.chain || Promise.resolve()).then(async () => {
+        list.forEach((p, i) => { gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgs[i]); v.imgs[p] = imgs[i]; });
+        v.texW = imgs[0].naturalWidth;
+        const st = v.state; v.state = 'day'; v.patched = null;      // the full plates carry no patches yet
+        if (st !== 'day') await this.applyStateNow(v, st);
+      });
+      await v.chain;
+      this.onChange && this.onChange();
+    }
+
+    /* ---------------------------------------------------------------- times of day (scene3) */
+    /* The state every loaded view should show; returns once the active view shows it. */
+    async setState(state) {
+      this.state = state;
+      const jobs = Object.values(this.cache).map(v => v.ready.then(() => this.applyState(v, state)));
+      await Promise.all(jobs);
+    }
+    applyState(v, state) {                       // one change at a time per view
+      v.chain = (v.chain || Promise.resolve()).then(() => this.applyStateNow(v, state)).catch(e => console.warn(e));
+      return v.chain;
+    }
+    async applyStateNow(v, state) {
+      if (!this.gl || v.mode !== 'passes' || v.state === state) return;
+      const info = v.meta && v.meta.states && v.meta.states[v.key];
+      const gl = this.gl, kOf = st => v.texW / ((st && st.res && st.res[0]) || v.platePx[0]);
+      const want = state !== 'day' && info && info[state] && info[state].rects.length ? info[state] : null;
+      // load what the new state needs before touching the textures, so a view never shows half of it
+      let patches = null;
+      if (want) {
+        const dir = A.config.assetBase + v.key + '/' + state + '/';
+        patches = await Promise.all(want.passes.map(f => Promise.all(want.rects.map((_, i) => loadImage(dir + f + '_' + i + '.webp')))));
+        if (patches.some(arr => arr.some(x => !x))) patches = null;
+      }
+      const night = state === 'night';
+      const [masksN, glowN] = A.config.scene3 && night && !v.masksNight
+        ? await Promise.all([loadImage(A.config.assetBase + v.key.split('@')[0] + '/masks_night.png'), loadImage(A.config.assetBase + v.key.split('@')[0] + '/glow_night.png')]) : [null, null];
+      if (v.state === state) return;            // another call got there first
+      const put = (tex, img, r, k) => {
+        const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        if (Math.abs(k - 1) < 1e-3 && img.naturalWidth === w && img.naturalHeight === h) {
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        } else {
+          const c = Compositor.scratch(w, h); const g = c.getContext('2d');
+          g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
+        }
+      };
+      // the previous state's rectangles go back to day
+      if (v.patched) {
+        const { rects, passes } = v.patched, k = kOf(v.patched);
+        passes.forEach(f => {
+          const p = KEY_OF[f], day = v.imgs[p]; if (!day || !v.tex[p]) return;
+          rects.forEach(r => {
+            const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+            const c = Compositor.scratch(w, h); const g = c.getContext('2d');
+            g.clearRect(0, 0, w, h); g.drawImage(day, x, y, w, h, 0, 0, w, h);
+            gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
+          });
+        });
+        v.patched = null;
+      }
+      if (want && patches) {
+        const k = kOf(want);
+        want.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) want.rects.forEach((r, i) => put(v.tex[p], patches[j][i], r, k)); });
+        v.patched = want;
+      }
+      if (masksN) v.masksNight = masksN;
+      if (glowN) v.glowNight = this.texture(glowN);
+      v.masksImg = night && v.masksNight ? v.masksNight : v.masksDay;
+      v.masksData = null;
+      v.glow = night && v.glowNight ? v.glowNight : v.glowDay;
+      v.state = state;
+    }
+    static scratch(w, h) {
+      const c = Compositor._scratch || (Compositor._scratch = document.createElement('canvas'));
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+      return c;
+    }
+
+    /* ---------------------------------------------------------------- swaying garments (scene3) */
+    /* Smooth weights per garment from the id mask (two RGBA textures, quarter size): 1 on the garment, fading out
+       a little beyond its edge, so the plate bends instead of tearing where a garment moves. */
+    buildSway(v, n) {
+      if (!this.gl || !v.idsImg || v.swayA) return;
+      const im = v.idsImg, W = Math.max(64, Math.round(im.naturalWidth / 4)), H = Math.max(36, Math.round(im.naturalHeight / 4));
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, W, H);
+      const src = g.getImageData(0, 0, W, H).data;
+      const out = [new Uint8Array(W * H * 4), new Uint8Array(W * H * 4)];
+      const m = new Float32Array(W * H), t = new Float32Array(W * H);
+      const r = Math.max(2, Math.round(W / 220));             // ~11 plate pixels at 2400 wide
+      const boxH = (a, b, rad) => { for (let y = 0; y < H; y++) { let s = 0; const o = y * W;
+        for (let x = -rad; x <= rad; x++) s += a[o + Math.min(W - 1, Math.max(0, x))];
+        for (let x = 0; x < W; x++) { b[o + x] = s / (2 * rad + 1); s += a[o + Math.min(W - 1, x + rad + 1)] - a[o + Math.max(0, x - rad)]; } } };
+      const boxV = (a, b, rad) => { for (let x = 0; x < W; x++) { let s = 0;
+        for (let y = -rad; y <= rad; y++) s += a[Math.min(H - 1, Math.max(0, y)) * W + x];
+        for (let y = 0; y < H; y++) { b[y * W + x] = s / (2 * rad + 1); s += a[Math.min(H - 1, y + rad + 1) * W + x] - a[Math.max(0, y - rad) * W + x]; } } };
+      for (let k = 0; k < Math.min(n, MAX_SWAY); k++) {
+        const id = (k + 1) * 32;
+        for (let i = 0; i < W * H; i++) m[i] = Math.abs(src[i * 4] - id) < 16 ? 1 : 0;
+        boxH(m, t, r); boxV(t, m, r);                           // dilate a little (values > 0 near the garment) ...
+        for (let i = 0; i < W * H; i++) m[i] = Math.min(1, m[i] * 2);
+        boxH(m, t, r); boxV(t, m, r);                           // ... then soften
+        const o = out[k >> 2], ch = k & 3;
+        for (let i = 0; i < W * H; i++) o[i * 4 + ch] = Math.round(m[i] * 255);
+      }
+      v.swayA = this.dataTexture(W, H, out[0]); v.swayB = this.dataTexture(W, H, out[1]);
+    }
+    /* hooks: per garment [u, v] of its hook in plate uv; angles in radians; ripple in plate pixels */
+    setSway(hooks, angles, ripple) {
+      const a = this.swayHooks; let on = false;
+      for (let i = 0; i < MAX_SWAY; i++) {
+        const h = hooks[i];
+        a[i * 4] = h ? h[0] : -10; a[i * 4 + 1] = h ? h[1] : -10; a[i * 4 + 2] = angles[i] || 0; a[i * 4 + 3] = ripple[i] || 0;
+        if (Math.abs(angles[i] || 0) > 2e-5 || Math.abs(ripple[i] || 0) > 0.02) on = true;
+      }
+      this.swayOn = on;
+    }
+    setGlow(rgb) { this.glow = rgb; }
 
     /* Cover-fit the plate into the canvas; pan (0..1) chooses which part shows when the plate is wider. */
     layout(w, h, dpr) {
@@ -459,6 +680,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const pu = u - this.parallax[0] * (d - f), pv = v - this.parallax[1] * (d - f);
       return [(pu - ox) / zx * this.cssW, (pv - oy) / zy * this.cssH];
     }
+    /* CSS pixels -> plate uv (no parallax). */
+    toPlate(x, y) { const [ox, oy, zx, zy] = this.map; return [ox + x / this.cssW * zx, oy + y / this.cssH * zy]; }
     /* Scale from plate fraction to CSS pixels (horizontal). */
     get pxPerPlateX() { return this.cssW / this.map[2]; }
     get pxPerPlateY() { return this.cssH / this.map[3]; }
@@ -470,6 +693,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const bind = (unit, tex) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex || this.blank); };
       REQUIRED.forEach((p, i) => bind(i, v.tex[p]));
       bind(7, v.depth); bind(8, v.tex.beauty); bind(9, v.tex.spot); bind(10, v.ids); bind(11, v.win);
+      bind(13, v.glow); bind(14, v.swayA); bind(15, v.swayB);
       // outdoor video: upload the current frame while it is visible
       const vidOk = this.video && this.video.readyState >= 2 && v.win && this.winAmt > 0.001;
       if (vidOk) {
@@ -488,6 +712,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         gl.uniform3fv(u.uVidGrade, this.videoGrade || [1, 1, 1]);
       }
       gl.uniform1f(u.uHasIds, v.ids ? 1 : 0); gl.uniform1f(u.uHover, this.hover); gl.uniform1f(u.uHoverAmt, this.hoverAmt);
+      const glowOn = !!v.glow && (this.glow[0] + this.glow[1] + this.glow[2]) > 0.002;
+      gl.uniform1f(u.uHasGlow, glowOn ? 1 : 0); gl.uniform3fv(u.uGlowAmt, this.glow);
+      const swayOn = !!v.swayA && this.swayOn;
+      gl.uniform1f(u.uHasSway, swayOn ? 1 : 0);
+      if (swayOn) { gl.uniform4fv(u.uSwayHook, this.swayHooks); gl.uniform1f(u.uTime, this.time); gl.uniform2fv(u.uPlatePx, v.platePx || v.size || [1, 1]); }
       gl.uniform4fv(u.uMap, this.map);
       gl.uniform2fv(u.uParallax, this.parallax);
       gl.uniform1f(u.uFocus, this.focus || 0.6);
@@ -499,7 +728,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (v.mode === 'passes') {
         const W = state.weights;
         gl.uniform3fv(u.wSky, W.sky); gl.uniform3fv(u.wSunLow, W.sunLow); gl.uniform3fv(u.wSunHigh, W.sunHigh);
-        gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, W.ceiling); gl.uniform3fv(u.wStreet, W.street);
+        gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, v.tex.ceiling ? W.ceiling : [0, 0, 0]); gl.uniform3fv(u.wStreet, W.street);
         gl.uniform3fv(u.wSpot, v.tex.spot ? (W.spot || [0, 0, 0]) : [0, 0, 0]);
         PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p] || 1));
         const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
@@ -763,7 +992,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (i === this.hover) return;
       const prev = this.hover; this.hover = i;
       const mi = A.config.motion.intensity * A.config.interactionStrength;
-      const sw = A.config.motion.swing;
+      const sw = this.plate && A.config.motion.sway ? A.config.motion.sway : A.config.motion.swing;   // scene3: the rendered jerseys swing
       if (prev >= 0 && this.items[prev]) this.items[prev].kick(sw.leaveKick * mi * (Math.random() > 0.5 ? 1 : -1));
       if (i >= 0 && this.items[i]) this.items[i].kick(-sw.hoverKick * mi * Math.sign(this.pointer.vx || 1));
       this.app.onHover(i, fromKeyboard);
@@ -785,6 +1014,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (this.plate) {             // exact garment shape from the rendered id mask
         const id = this.app.garmentAt(x, y);
         this.pointer.inside = id >= 0;
+        const sw = A.config.motion.sway;                          // brushing past a jersey sets it swinging
+        if (id >= 0 && sw && this.items[id]) this.items[id].omega += Math.max(-600, Math.min(600, vx)) * sw.brush * A.config.motion.intensity * A.config.interactionStrength;
         if (this.selected < 0 || this.view === 'room') this.setHover(id);
         return;
       }
@@ -843,10 +1074,41 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       el.classList.add('is-on');
     }
 
+    /* A push on one jersey (a click, a hover): it swings, its neighbours a little (they touch on the rail). */
+    kickGarment(i, degPerS) {
+      const sw = A.config.motion.sway, g = this.items[i]; if (!g) return;
+      const dir = Math.sign(this.pointer.vx || (Math.random() - 0.5)) || 1, mi = A.config.motion.intensity * A.config.interactionStrength;
+      g.omega += degPerS * dir * mi;
+      [i - 1, i + 1].forEach(j => { if (this.items[j]) this.items[j].omega += degPerS * dir * (sw ? sw.neighbour : 0.3) * mi; });
+    }
+    /* Everything on the rail waves once, left to right (after something went into the bag: there is more). */
+    wave() {
+      this.items.forEach((g, i) => setTimeout(() => this.kickGarment(i, (A.config.motion.sway || {}).hoverKick || 2), 90 * i));
+    }
+    /* scene3 pendulums: angle (rad) and cloth ripple (plate px) per garment for the compositor. Returns true while
+       something swings (beyond the idle breathing). */
+    stepSway(dt, reduced) {
+      const sw = A.config.motion.sway, mi = A.config.motion.intensity * A.config.interactionStrength, n = this.items.length;
+      if (!this.swayAng) { this.swayAng = new Array(n).fill(0); this.swayRip = new Array(n).fill(0); }
+      let moving = false;
+      this.items.forEach((g, i) => {
+        if (reduced) { g.theta = 0; g.omega = 0; g.rip = 0; this.swayAng[i] = 0; this.swayRip[i] = 0; return; }
+        const acc = -sw.stiffness * g.theta - sw.damping * g.omega;
+        g.omega = Math.max(-40, Math.min(40, g.omega + acc * dt)); g.theta += g.omega * dt;
+        if (Math.abs(g.theta) > sw.maxDeg) { g.theta = Math.sign(g.theta) * sw.maxDeg; g.omega *= -0.3; }
+        const idle = sw.idleDeg * mi * Math.sin(this.t * 1.13 + g.phase) * (0.55 + 0.45 * Math.sin(this.t * 0.31 + g.phase * 2.3));
+        const ripT = (i === this.hover ? sw.ripple : 0) + Math.min(sw.ripple * 1.5, Math.abs(g.omega) * 0.5);
+        g.rip = (g.rip || 0) + (ripT * mi - (g.rip || 0)) * Math.min(1, dt * 3);
+        this.swayAng[i] = (g.theta + idle) * Math.PI / 180; this.swayRip[i] = g.rip;
+        if (Math.abs(g.omega) > 0.02 || Math.abs(g.theta) > 0.01 || g.rip > 0.05) moving = true;
+      });
+      return moving;
+    }
+
     /* Physics + DOM transforms. Returns true while anything is still moving. */
     step(dt, reduced) {
       this.t += dt;
-      if (this.plate) { this.positionOverlays(); return false; }
+      if (this.plate) { const m = A.config.scene3 && A.config.motion.sway ? this.stepSway(dt, reduced) : false; this.positionOverlays(); return m; }
       const cfg = A.config, m = cfg.motion, mi = m.intensity * cfg.interactionStrength;
       const k = m.spring.stiffness, c = m.spring.damping;
       const h = this.hover, s = (this.view === 'room') ? -1 : this.selected;
@@ -1080,11 +1342,256 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   A.Drop = Drop;
 })();
 
+/* ---- azur-viewer.js ---- */
+/* AZUR — the jersey as a 3D model in the product view (scene/export_models.py: draped shell on its wooden hanger).
+   A small GLB reader (positions, normals, UVs, base colour textures, node transforms) and a WebGL2 view of it:
+   drag to turn, wheel or pinch to zoom, double click to reset; it sways a little until it is touched.
+   Renders only while something moves. A 3D scan of a product can replace its GLB under the same name. */
+(function () {
+  const A = window.AZUR = window.AZUR || {};
+
+  async function readGLB(url) {
+    const res = await fetch(url); if (!res.ok) throw new Error('model ' + res.status);
+    const buf = await res.arrayBuffer(), dv = new DataView(buf);
+    if (dv.getUint32(0, true) !== 0x46546C67) throw new Error('not a GLB');
+    let off = 12, json = null, bin = null;
+    while (off + 8 <= buf.byteLength) {
+      const len = dv.getUint32(off, true), type = dv.getUint32(off + 4, true);
+      if (type === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, off + 8, len)));
+      else if (type === 0x004E4942) bin = buf.slice(off + 8, off + 8 + len);
+      off += 8 + len;
+    }
+    if (!json || !bin) throw new Error('GLB without data');
+    return { json, bin };
+  }
+
+  /* ---------------------------------------------------------------- small matrix helpers (column-major) */
+  const M = {
+    id: () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    mul(a, b) { const o = new Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    trs(t = [0, 0, 0], q = [0, 0, 0, 1], s = [1, 1, 1]) {
+      const [x, y, z, w] = q, xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
+      return [(1 - 2 * (yy + zz)) * s[0], 2 * (xy + wz) * s[0], 2 * (xz - wy) * s[0], 0,
+              2 * (xy - wz) * s[1], (1 - 2 * (xx + zz)) * s[1], 2 * (yz + wx) * s[1], 0,
+              2 * (xz + wy) * s[2], 2 * (yz - wx) * s[2], (1 - 2 * (xx + yy)) * s[2], 0, t[0], t[1], t[2], 1];
+    },
+    persp(fovy, asp, n, f) { const t = 1 / Math.tan(fovy / 2); return [t / asp, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]; },
+    look(e, c, up) {
+      const z = norm([e[0] - c[0], e[1] - c[1], e[2] - c[2]]), x = norm(cross(up, z)), y = cross(z, x);
+      return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, e), -dot(y, e), -dot(z, e), 1];
+    },
+    apply(m, p) { return [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]]; }
+  };
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+
+  const VS = `#version 300 es
+  in vec3 aPos; in vec3 aNor; in vec2 aUv;
+  uniform mat4 uVP, uModel; out vec3 vN; out vec2 vUv; out vec3 vW;
+  void main() { vec4 w = uModel * vec4(aPos, 1.0); vW = w.xyz; vN = mat3(uModel) * aNor; vUv = aUv; gl_Position = uVP * w; }`;
+  const FS = `#version 300 es
+  precision highp float;
+  in vec3 vN; in vec2 vUv; in vec3 vW; out vec4 o;
+  uniform sampler2D tBase; uniform vec4 uBase; uniform float uHasTex; uniform vec3 uEye;
+  void main() {
+    vec3 base = uBase.rgb;
+    if (uHasTex > 0.5) base *= pow(texture(tBase, vUv).rgb, vec3(2.2));
+    vec3 n = normalize(vN), v = normalize(uEye - vW);
+    if (dot(n, v) < 0.0) n = -n;                                  // the cloth is seen from both sides at the hem
+    vec3 key = normalize(vec3(-0.45, 0.75, 0.75)), fill = normalize(vec3(0.8, 0.1, 0.45));
+    float d1 = max(dot(n, key), 0.0), d2 = max(dot(n, fill), 0.0);
+    float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+    vec3 amb = mix(vec3(0.07, 0.075, 0.09), vec3(0.30, 0.29, 0.28), n.y * 0.5 + 0.5);
+    vec3 c = base * (amb + vec3(1.0, 0.96, 0.9) * d1 * 1.1 + vec3(0.62, 0.74, 0.95) * d2 * 0.4) + vec3(0.55, 0.72, 1.0) * rim * 0.16;
+    c = c / (1.0 + c * 0.12);
+    o = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);
+  }`;
+
+  class Viewer {
+    constructor(canvas, onReady) {
+      this.canvas = canvas; this.onReady = onReady;
+      this.gl = null;
+      try { this.gl = canvas.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: true }); } catch (e) { }
+      this.parts = []; this.cache = {};
+      this.yaw = 0; this.pitch = 0.06; this.zoom = 1; this.vyaw = 0; this.touched = false; this.t0 = performance.now();
+      if (this.gl) { this.init(); this.bind(); }
+    }
+    get ok() { return !!this.gl; }
+
+    init() {
+      const gl = this.gl, sh = (t, s) => { const x = gl.createShader(t); gl.shaderSource(x, s); gl.compileShader(x);
+        if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+      const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
+      gl.bindAttribLocation(p, 0, 'aPos'); gl.bindAttribLocation(p, 1, 'aNor'); gl.bindAttribLocation(p, 2, 'aUv'); gl.linkProgram(p);
+      this.prog = p; this.u = {};
+      ['uVP', 'uModel', 'tBase', 'uBase', 'uHasTex', 'uEye'].forEach(n => { this.u[n] = gl.getUniformLocation(p, n); });
+    }
+
+    /* Show a product's model (cached per URL). Resolves true when it is on screen, false without a model. */
+    async show(url) {
+      this.url = url; this.reset(true);
+      if (!this.gl) return false;
+      try {
+        const m = this.cache[url] || (this.cache[url] = this.upload(await readGLB(url)));
+        const parts = await m;
+        if (this.url !== url) return false;            // another jersey was opened meanwhile
+        this.parts = parts.list; this.bounds = parts.bounds;
+        this.start(); return true;
+      } catch (e) { delete this.cache[url]; return false; }
+    }
+    stop() { this.running = false; cancelAnimationFrame(this.raf); }
+    reset(instant) {
+      this.touched = false; this.vyaw = 0; this.t0 = performance.now();
+      if (instant) { this.yaw = 0; this.pitch = 0.06; this.zoom = 1; } else { this.resetFrom = [this.yaw, this.pitch, this.zoom]; this.resetT = performance.now(); }
+      this.kick();
+    }
+
+    async upload({ json, bin }) {
+      const gl = this.gl, acc = i => {
+        const a = json.accessors[i], bv = json.bufferViews[a.bufferView];
+        const C = { 5126: Float32Array, 5125: Uint32Array, 5123: Uint16Array, 5121: Uint8Array }[a.componentType];
+        const n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type];
+        return new C(bin, (bv.byteOffset || 0) + (a.byteOffset || 0), a.count * n);
+      };
+      const images = await Promise.all((json.images || []).map(im => {
+        const bv = json.bufferViews[im.bufferView];
+        const blob = new Blob([new Uint8Array(bin, bv.byteOffset || 0, bv.byteLength)], { type: im.mimeType });
+        return createImageBitmap(blob).catch(() => null);
+      }));
+      const texOf = new Map();
+      const texture = idx => {
+        if (texOf.has(idx)) return texOf.get(idx);
+        const tx = json.textures[idx] || {}, ext = tx.extensions || {};
+        const src = tx.source != null ? tx.source : (ext.EXT_texture_webp || ext.KHR_texture_basisu || {}).source, img = images[src];   // WebP images come as EXT_texture_webp
+        let t = null;
+        if (img) {
+          t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); gl.generateMipmap(gl.TEXTURE_2D);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        }
+        texOf.set(idx, t); return t;
+      };
+      const list = [], lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+      const visit = (ni, parent) => {
+        const nd = json.nodes[ni];
+        const local = nd.matrix ? nd.matrix.slice() : M.trs(nd.translation, nd.rotation, nd.scale);
+        const world = M.mul(parent, local);
+        if (nd.mesh != null) json.meshes[nd.mesh].primitives.forEach(pr => {
+          const at = pr.attributes; if (at.POSITION == null) return;
+          const pos = acc(at.POSITION), nor = at.NORMAL != null ? acc(at.NORMAL) : null, uv = at.TEXCOORD_0 != null ? acc(at.TEXCOORD_0) : null;
+          for (let i = 0; i < pos.length; i += 3) { const w = M.apply(world, [pos[i], pos[i + 1], pos[i + 2]]); for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], w[k]); hi[k] = Math.max(hi[k], w[k]); } }
+          const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+          const vb = (data, loc, size) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0); };
+          vb(pos, 0, 3);
+          if (nor) vb(nor, 1, 3); else { gl.disableVertexAttribArray(1); gl.vertexAttrib3f(1, 0, 0, 1); }
+          if (uv) vb(uv, 2, 2); else { gl.disableVertexAttribArray(2); gl.vertexAttrib2f(2, 0, 0); }
+          let count = pos.length / 3, type = null;
+          if (pr.indices != null) {
+            const ix = acc(pr.indices), b = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ix, gl.STATIC_DRAW);
+            count = ix.length; type = ix instanceof Uint32Array ? gl.UNSIGNED_INT : ix instanceof Uint16Array ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
+          }
+          gl.bindVertexArray(null);
+          const mat = pr.material != null ? json.materials[pr.material] : {}, pbr = mat.pbrMetallicRoughness || {};
+          const bt = pbr.baseColorTexture;
+          list.push({ vao, count, type, model: world, base: pbr.baseColorFactor || [1, 1, 1, 1], tex: bt ? texture(bt.index) : null });
+        });
+        (nd.children || []).forEach(c => visit(c, world));
+      };
+      const scene = json.scenes[json.scene || 0];
+      (scene ? scene.nodes : json.nodes.map((_, i) => i)).forEach(n => visit(n, M.id()));
+      const center = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+      const radius = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2;
+      return { list, bounds: { center, radius } };
+    }
+
+    bind() {
+      const c = this.canvas, pts = new Map();
+      let last = null, pinch = null;
+      c.addEventListener('pointerdown', e => {
+        c.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+        this.touch(); this.vyaw = 0; last = { x: e.clientX, y: e.clientY, t: performance.now() };
+        if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: this.zoom }; }
+      });
+      c.addEventListener('pointermove', e => {
+        if (!pts.has(e.pointerId)) return;
+        pts.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pts.size === 2 && pinch) {
+          const [a, b] = [...pts.values()]; this.zoom = this.clampZoom(pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / Math.max(1, pinch.d));
+        } else if (last) {
+          const now = performance.now(), dx = e.clientX - last.x, dy = e.clientY - last.y;
+          this.yaw += dx * 0.009; this.pitch = Math.max(-0.45, Math.min(0.6, this.pitch + dy * 0.006));
+          this.vyaw = dx * 0.009 / Math.max(8, now - last.t) * 1000; last = { x: e.clientX, y: e.clientY, t: now };
+        }
+        this.kick();
+      });
+      const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) last = null; else { const p = [...pts.values()][0]; last = { x: p[0], y: p[1], t: performance.now() }; } };
+      c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+      c.addEventListener('wheel', e => { e.preventDefault(); this.touch(); this.zoom = this.clampZoom(this.zoom * Math.exp(-e.deltaY * 0.0016)); this.kick(); }, { passive: false });
+      c.addEventListener('dblclick', () => this.reset(false));
+      c.addEventListener('keydown', e => {
+        const k = { ArrowLeft: [-0.25, 0], ArrowRight: [0.25, 0], '+': [0, 1.15], '-': [0, 1 / 1.15], '=': [0, 1.15] }[e.key];
+        if (!k) return; e.preventDefault(); this.touch(); this.yaw += k[0]; if (k[1]) this.zoom = this.clampZoom(this.zoom * k[1]); this.kick();
+      });
+    }
+    clampZoom(z) { return Math.max(1, Math.min(3.4, z)); }
+    touch() { if (!this.touched) { this.touched = true; this.canvas.dispatchEvent(new CustomEvent('azur-touched', { bubbles: true })); } this.resetT = null; }
+
+    start() { this.running = true; this.kick(); }
+    kick() { if (!this.running || this.raf) return; this.raf = requestAnimationFrame(t => { this.raf = 0; this.frame(t); }); }
+
+    frame(t) {
+      if (!this.running || !this.parts.length) return;
+      const reduced = A.app && A.app.reduced;
+      let more = false;
+      if (this.resetT != null) {                                   // ease back to the front
+        const k = Math.min(1, (t - this.resetT) / 600), e = k * k * (3 - 2 * k), [y0, p0, z0] = this.resetFrom;
+        this.yaw = y0 + (Math.round(y0 / (2 * Math.PI)) * 2 * Math.PI - y0) * e; this.pitch = p0 + (0.06 - p0) * e; this.zoom = z0 + (1 - z0) * e;
+        if (k < 1) more = true; else { this.resetT = null; this.yaw = 0; this.t0 = t; }
+      } else if (!this.touched && !reduced) {                      // shown on its hanger: a slow turn back and forth
+        this.yaw = 0.42 * Math.sin((t - this.t0) / 1000 * 0.55); more = true;
+      } else if (Math.abs(this.vyaw) > 0.01 && !reduced) {         // let go: it keeps turning a little
+        this.yaw += this.vyaw / 60; this.vyaw *= 0.93; more = true;
+      }
+      this.draw();
+      if (more) this.kick();
+    }
+
+    draw() {
+      const gl = this.gl, c = this.canvas, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const W = Math.round(c.clientWidth * dpr), H = Math.round(c.clientHeight * dpr);
+      if (!W || !H) return;
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+      gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.useProgram(this.prog);
+      const { center, radius } = this.bounds, asp = W / H, fov = 0.52;
+      // fit the jersey's height (and width on narrow screens), then zoom in toward its middle
+      const fit = radius / Math.sin(fov / 2) * Math.max(1, 0.8 / asp) * 1.4, d = fit / this.zoom;   // room around it
+      const cp = Math.cos(this.pitch), eye = [center[0] + d * cp * Math.sin(this.yaw), center[1] + d * Math.sin(this.pitch), center[2] + d * cp * Math.cos(this.yaw)];
+      const vp = M.mul(M.persp(fov, asp, Math.max(0.01, d - radius * 2), d + radius * 3), M.look(eye, center, [0, 1, 0]));
+      gl.uniformMatrix4fv(this.u.uVP, false, vp); gl.uniform3fv(this.u.uEye, eye); gl.uniform1i(this.u.tBase, 0);
+      this.parts.forEach(p => {
+        gl.uniformMatrix4fv(this.u.uModel, false, p.model);
+        gl.uniform4fv(this.u.uBase, p.base); gl.uniform1f(this.u.uHasTex, p.tex ? 1 : 0);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, p.tex);
+        gl.bindVertexArray(p.vao);
+        if (p.type) gl.drawElements(gl.TRIANGLES, p.count, p.type, 0); else gl.drawArrays(gl.TRIANGLES, 0, p.count);
+      });
+      gl.bindVertexArray(null);
+    }
+  }
+
+  A.Viewer = Viewer;
+})();
+
 /* ---- azur-shop.js ---- */
 /* AZUR — product page over the room and the cart.
-   The product page opens over the room: the room stays visible behind it, the chosen jersey flies from the rail
-   into the page. Prototype: a simulated cart. Shopify (A.config.shopify): the size goes into the real cart
-   (/cart/add.js) and the theme's own cart drawer opens; checkout is Shopify's. */
+   The product view opens over the room right from a click on a jersey: one half the jersey (a 3D model to turn and
+   zoom, the shop photo until it is loaded or without WebGL), the other half to buy. After a size goes into the bag,
+   the page shows how far it is to free shipping and offers to keep looking. Prototype: a simulated cart. Shopify
+   (A.config.shopify): the real cart (/cart/add.js, /cart.js) and the theme's own cart drawer; checkout is Shopify's. */
 (function () {
   const A = window.AZUR = window.AZUR || {};
 
@@ -1098,6 +1605,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         <div class="azur-pdp__stage">
           <div class="azur-pdp__light" aria-hidden="true"></div>
           <img class="azur-pdp__img" alt="">
+          <canvas class="azur-pdp__canvas" tabindex="0" aria-label="3D-Ansicht des Trikots: ziehen zum Drehen, scrollen zum Zoomen, Doppelklick setzt zurück"></canvas>
+          <p class="azur-pdp__hint" aria-hidden="true"></p>
         </div>
         <div class="azur-pdp__info">
           <nav class="azur-pdp__crumbs" aria-label="Pfad"><button type="button" data-act="close">${c.room}</button><span aria-hidden="true">/</span><span>Trikots</span></nav>
@@ -1111,15 +1620,27 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           </fieldset>
           <button class="azur-pdp__add" type="button" data-act="add" disabled>${c.chooseSize}</button>
           <p class="azur-pdp__error" role="alert" hidden></p>
+          <div class="azur-pdp__after" role="status" hidden>
+            <p class="azur-pdp__ship"></p>
+            <div class="azur-pdp__bar" aria-hidden="true"><i></i></div>
+            <div class="azur-pdp__acts2">
+              <button type="button" data-act="more">${c.keepLooking}</button>
+              <button type="button" data-act="cart">${c.toCart}</button>
+            </div>
+          </div>
           <ul class="azur-pdp__facts">
             <li>${A.store.shipping}</li>
             <li>${A.store.care}</li>
           </ul>
-          ${this.live ? `<a class="azur-pdp__shop">${c.toProductPage || 'Zur Produktseite'} <span aria-hidden="true">→</span></a>`
-            : '<a class="azur-pdp__shop" target="_blank" rel="noopener">Im Shop öffnen <span aria-hidden="true">↗</span></a>'}
+          ${this.live ? `<a class="azur-pdp__shop" target="_blank" rel="noopener">${c.openInShop || c.toProductPage || 'Im Shop öffnen'} <span aria-hidden="true">↗</span></a>`
+            : `<a class="azur-pdp__shop" target="_blank" rel="noopener">${c.openInShop || 'Im Shop öffnen'} <span aria-hidden="true">↗</span></a>`}
           <button class="azur-pdp__back" type="button" data-act="close"><span aria-hidden="true">←</span> ${c.backToRoom}</button>
         </div>`;
       document.body.appendChild(this.pdp);
+      this.canvas = this.pdp.querySelector('.azur-pdp__canvas');
+      this.viewer = A.Viewer ? new A.Viewer(this.canvas) : null;
+      this.canvas.addEventListener('azur-touched', () => this.pdp.classList.add('is-touched'));
+      this.pdp.querySelector('.azur-pdp__hint').textContent = matchMedia('(pointer: coarse)').matches ? c.viewerHintTouch : c.viewerHint;
       if (this.live) { this.drawer = null; this.bind(); return; }      // the theme's cart drawer takes over
 
       this.drawer = document.createElement('aside');
@@ -1142,12 +1663,15 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         const t = e.target.closest('[data-act]'); if (!t) return;
         if (t.dataset.act === 'close') this.close();
         if (t.dataset.act === 'add') this.add();
+        if (t.dataset.act === 'more') { this.close(); this.app.keepLooking(); }
+        if (t.dataset.act === 'cart') { this.close(); this.toggleCart(true); }
       });
       this.pdp.addEventListener('change', e => {
         if (e.target.name === 'azur-size') {
           this.size = e.target.value;
           const b = this.pdp.querySelector('.azur-pdp__add');
           b.disabled = false; b.textContent = A.config.copy.addToCart; b.classList.remove('is-done');
+          this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
       this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
@@ -1172,6 +1696,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       q('.azur-pdp__desc').textContent = product.description;
       q('.azur-pdp__shop').href = product.productUrl;      // Shopify: the real product page
       const img = q('.azur-pdp__img'); img.src = product.image; img.alt = product.name;
+      q('.azur-pdp__after').hidden = true;
+      // the 3D jersey (scene3 models), the photo until then
+      this.pdp.classList.remove('has-model', 'is-touched');
+      if (this.viewer && this.viewer.ok && A.config.scene3) {
+        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.glb');
+        this.viewer.show(url).then(ok => { if (ok && this.product === product && this.pdp.classList.contains('is-on')) this.pdp.classList.add('has-model'); });
+      }
       q('.azur-pdp__sizerow').innerHTML = product.variants.map((v, i) => `
         <label class="azur-size"><input type="radio" name="azur-size" value="${v.id}" ${v.available ? '' : 'disabled'}><span>${v.title}</span></label>`).join('');
       q('.azur-pdp__error').hidden = true;
@@ -1199,7 +1730,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
 
     close() {
       if (!this.pdp.classList.contains('is-on')) return;
-      this.pdp.classList.remove('is-on');
+      this.pdp.classList.remove('is-on', 'has-model');
+      if (this.viewer) this.viewer.stop();
       document.documentElement.classList.remove('azur-pdp-open');
       this.app.setWorldDim();
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
@@ -1215,6 +1747,20 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.save(); this.renderCart();
       const b = this.pdp.querySelector('.azur-pdp__add'); b.textContent = A.config.copy.added + ' ✓'; b.classList.add('is-done');
       this.app.bumpCart();
+      this.showAfter(this.cart.reduce((s, l) => s + l.price * l.qty, 0));
+    }
+
+    /* After the bag: how far to free shipping (A.store.freeShippingFrom, euros), keep looking or go to the bag. */
+    showAfter(total) {
+      const c = A.config.copy, from = Number(A.store && A.store.freeShippingFrom) || 0, box = this.pdp.querySelector('.azur-pdp__after');
+      const ship = box.querySelector('.azur-pdp__ship'), bar = box.querySelector('.azur-pdp__bar');
+      if (from > 0) {
+        const left = Math.max(0, from - total);
+        ship.textContent = left > 0.004 ? c.shipTo.replace('{x}', A.formatPrice(left)) : c.shipFree + ' ✓';
+        bar.hidden = false; bar.style.setProperty('--p', '0');
+        requestAnimationFrame(() => requestAnimationFrame(() => bar.style.setProperty('--p', Math.min(1, total / from).toFixed(3))));
+      } else { ship.textContent = c.added + ' ✓'; bar.hidden = true; }
+      box.hidden = false;
     }
 
     async addLive(v) {
@@ -1227,11 +1773,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.status >= 400) throw new Error(data.description || data.message || 'Das hat nicht geklappt.');
         b.textContent = c.added + ' ✓'; b.classList.add('is-done');
-        setTimeout(() => {                      // the theme drawer shows the cart (it re-renders itself from Liquid)
-          this.close();
-          const opener = document.querySelector('[data-cart-open]');
-          if (opener) opener.click(); else location.href = root + 'cart';
-        }, 650);
+        const cart = await fetch(root + 'cart.js', { headers: { Accept: 'application/json' } }).then(r => r.json()).catch(() => null);
+        if (cart) { this.app.setCartCount(cart.item_count); this.showAfter(cart.total_price / 100); }
+        else this.showAfter(0);
+        this.app.bumpCart();
+        document.dispatchEvent(new CustomEvent('azur:cart-changed', { detail: cart }));   // themes can refresh their own count
       } catch (e) {
         err.textContent = e.message; err.hidden = false;
         b.textContent = c.addToCart;
@@ -1254,7 +1800,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
 
     toggleCart(on) {
-      if (!this.drawer) { const o = document.querySelector('[data-cart-open]'); if (o && on !== false) o.click(); return; }
+      if (!this.drawer) {           // Shopify: the theme's drawer (its opener, or our bag carries data-cart-open)
+        const o = document.querySelector('[data-cart-open]'); const root = (window.Shopify && Shopify.routes && Shopify.routes.root) || '/';
+        if (on !== false) { if (o) o.click(); else location.href = root + 'cart'; }
+        return;
+      }
       const open = on == null ? !this.drawer.classList.contains('is-on') : on;
       this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open));
       if (open) this.drawer.querySelector('.azur-cart__close').focus({ preventScroll: true });
@@ -1300,70 +1850,100 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.bind();
     }
 
-    /* ------------------------------------------------------------ content: cover, editorial, photo, 5 jerseys, drop, back */
+    /* ------------------------------------------------------------ content
+       The pages come from a list (copy.mag.pages; in Shopify the section's "Heftseite" blocks): cover, editorial
+       (with the table of contents), photo, looks (one page per jersey on the rail), look (one jersey, by key or
+       handle), text, drop, back. Empty fields fall back to the default copy, so a block only needs what changes. */
     buildPages() {
       const c = A.config.copy.mag, prods = A.products.filter(p => p.type === 'product');
-      const foot = (n, label) => `<p class="mp__foot"><span>${label}</span><span>${n}</span></p>`;
-      const pages = [];
-      pages.push(`
+      const list = (c.pages && c.pages.length ? c.pages : Mag.DEFAULT_PAGES).flatMap(pg =>
+        pg.type === 'looks' ? prods.map(p => Object.assign({}, pg, { type: 'look', key: p.key })) : [pg]);
+      const spec = list.filter(pg => pg.type !== 'look' || this.product(pg));
+      const at = {}; spec.forEach((pg, i) => { if (pg.type === 'look') at['look:' + this.product(pg).key] = i; if (pg.type === 'drop' && at.drop == null) at.drop = i; });
+      const looks = spec.filter(pg => pg.type === 'look');
+      return spec.map((pg, i) => this.pageHTML(pg, i, { at, looks, c })).filter(Boolean);
+    }
+    product(pg) { return A.products.find(p => p.type === 'product' && ((pg.key && p.key === pg.key) || (pg.handle && p.handle === pg.handle))); }
+
+    pageHTML(pg, i, { at, looks, c }) {
+      const v = (k, d) => (pg[k] != null && pg[k] !== '' ? pg[k] : d);
+      const foot = label => `<p class="mp__foot"><span>${esc(label)}</span><span>${i + 1}</span></p>`;
+      const img = (src, alt, cls = 'mp__photo') => src ? `<img class="${cls}" src="${esc(/^(https?:)?\/\//.test(src) || src.startsWith('data:') ? src : A.url(src))}" alt="${esc(alt || '')}" loading="lazy">` : '';
+      const paras = t => (Array.isArray(t) ? t : String(t || '').split(/\n\s*\n/)).filter(Boolean).map(x => `<p class="mp__body">${esc(x)}</p>`).join('');
+      switch (pg.type) {
+        case 'cover': return `
         <div class="mp mp--cover">
-          <img class="mp__photo" src="${A.url('assets/mag/cover.webp')}" alt="${c.coverAlt}" loading="lazy">
-          <p class="mp__mast" aria-label="ANSTOSS">ANSTOSS</p>
-          <p class="mp__issue">${c.issue}</p>
-          <p class="mp__lines">${c.coverLines.map(l => `<span>${l}</span>`).join('')}</p>
-          <p class="mp__sticker">${c.coverSticker}</p>
-        </div>`);
-      pages.push(`
+          ${img(v('image', 'assets/mag/cover.webp'), v('alt', c.coverAlt))}
+          <p class="mp__mast" aria-label="ANSTOSS">${esc(v('head', 'ANSTOSS'))}</p>
+          <p class="mp__issue">${esc(v('kicker', c.issue))}</p>
+          <p class="mp__lines">${(pg.lines || (pg.text ? String(pg.text).split('\n') : c.coverLines)).map(l => `<span>${esc(l)}</span>`).join('')}</p>
+          ${v('sticker', c.coverSticker) ? `<p class="mp__sticker">${esc(v('sticker', c.coverSticker))}</p>` : ''}
+        </div>`;
+        case 'editorial': {
+          const toc = looks.map(pl => { const p = this.product(pl), n = at['look:' + p.key];
+            return `<li><button type="button" data-act="goto" data-p="${n}"><span>${esc(p.name)}</span><span>${n + 1}</span></button></li>`; }).join('')
+            + (at.drop != null ? `<li><button type="button" data-act="goto" data-p="${at.drop}"><span>${esc(c.dropHead)}</span><span>${at.drop + 1}</span></button></li>` : '');
+          return `
         <div class="mp mp--text">
-          <p class="mp__kicker">${c.editorialKicker}</p>
-          <h2 class="mp__head">${c.editorialHead}</h2>
-          <p class="mp__lead">${c.editorialLead}</p>
-          ${c.about.map(t => `<p class="mp__body">${t}</p>`).join('')}
-          <p class="mp__sign">${c.sign}<span>${c.signNote}</span></p>
-          <div class="mp__toc"><p class="mp__kicker">${c.tocKicker}</p><ol>
-            ${prods.map((p, k) => `<li><button type="button" data-act="goto" data-p="${3 + k}"><span>${esc(p.name)}</span><span>${4 + k}</span></button></li>`).join('')}
-            <li><button type="button" data-act="goto" data-p="${3 + prods.length}"><span>${c.dropHead}</span><span>${4 + prods.length}</span></button></li>
-          </ol></div>
-          ${foot(2, 'ANSTOSS 01')}
-        </div>`);
-      pages.push(`
+          <p class="mp__kicker">${esc(v('kicker', c.editorialKicker))}</p>
+          <h2 class="mp__head">${esc(v('head', c.editorialHead))}</h2>
+          <p class="mp__lead">${esc(v('lead', c.editorialLead))}</p>
+          ${paras(v('text', c.about))}
+          <p class="mp__sign">${esc(v('sign', c.sign))}<span>${esc(v('signNote', c.signNote))}</span></p>
+          ${toc ? `<div class="mp__toc"><p class="mp__kicker">${esc(c.tocKicker)}</p><ol>${toc}</ol></div>` : ''}
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        }
+        case 'photo': return `
         <div class="mp mp--photo">
-          <img class="mp__photo" src="${A.url('assets/mag/story.webp')}" alt="${c.storyAlt}" loading="lazy">
-          <p class="mp__quote">${c.storyQuote}</p>
-          ${foot(3, 'ANSTOSS 01')}
-        </div>`);
-      prods.forEach((p, k) => {
-        const i = A.products.indexOf(p);
-        pages.push(`
-        <div class="mp mp--look" style="--acc:${p.accent || '#0A6A9A'}">
-          <p class="mp__kicker">${c.lookKicker} · ${String(k + 1).padStart(2, '0')}/${String(prods.length).padStart(2, '0')}</p>
-          <div class="mp__shot"><img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"></div>
-          <h3 class="mp__name">${esc(p.name)}</h3>
-          <p class="mp__desc">${esc(firstSentence(p.description))}</p>
+          ${img(v('image', 'assets/mag/story.webp'), v('alt', c.storyAlt))}
+          <p class="mp__quote">${esc(v('quote', v('head', c.storyQuote)))}</p>
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        case 'look': {
+          const p = this.product(pg), i0 = A.products.indexOf(p), k = looks.indexOf(pg);
+          return `
+        <div class="mp mp--look" style="--acc:${esc(p.accent || '#0A6A9A')}">
+          <p class="mp__kicker">${esc(v('kicker', c.lookKicker))} · ${String(k + 1).padStart(2, '0')}/${String(looks.length).padStart(2, '0')}</p>
+          <div class="mp__shot">${img(v('image', p.image), p.name, '')}</div>
+          <h3 class="mp__name">${esc(v('head', p.name))}</h3>
+          <p class="mp__desc">${esc(v('text', firstSentence(p.description)))}</p>
           <p class="mp__price">${A.formatPrice ? A.formatPrice(p.price) : p.price + ' €'} <span>${esc(p.fit || '')}</span></p>
           <p class="mp__acts">
-            <button type="button" data-act="rail" data-i="${i}">${c.toRail}</button>
-            <a href="${esc(p.productUrl)}" target="_blank" rel="noopener">${c.toShop} <span aria-hidden="true">↗</span></a>
+            <button type="button" data-act="product" data-i="${i0}">${esc(c.toProduct || c.toRail)}</button>
+            <a href="${esc(p.productUrl)}" target="_blank" rel="noopener">${esc(c.toShop)} <span aria-hidden="true">↗</span></a>
           </p>
-          ${foot(4 + k, c.lookKicker)}
-        </div>`);
-      });
-      const di = A.products.findIndex(p => p.type === 'drop');
-      pages.push(`
+          ${foot(c.lookKicker)}
+        </div>`;
+        }
+        case 'text': return `
+        <div class="mp mp--text">
+          ${pg.kicker ? `<p class="mp__kicker">${esc(pg.kicker)}</p>` : ''}
+          ${pg.head ? `<h2 class="mp__head">${esc(pg.head)}</h2>` : ''}
+          ${pg.lead ? `<p class="mp__lead">${esc(pg.lead)}</p>` : ''}
+          ${paras(pg.text)}
+          ${pg.image ? `<div class="mp__shot">${img(pg.image, pg.alt, '')}</div>` : ''}
+          ${foot(v('foot', 'ANSTOSS 01'))}
+        </div>`;
+        case 'drop': {
+          const di = A.products.findIndex(p => p.type === 'drop');
+          return `
         <div class="mp mp--drop">
-          <p class="mp__kicker">${c.dropKicker}</p>
-          <h3 class="mp__head">${c.dropHead}</h3>
-          <p class="mp__body">${c.dropText}</p>
-          ${di >= 0 ? `<p class="mp__acts"><button type="button" data-act="rail" data-i="${di}">${c.toDrop}</button></p>` : ''}
-          ${foot(4 + prods.length, 'ANSTOSS 01')}
-        </div>`);
-      pages.push(`
+          <p class="mp__kicker">${esc(v('kicker', c.dropKicker))}</p>
+          <h3 class="mp__head">${esc(v('head', c.dropHead))}</h3>
+          <p class="mp__body">${esc(v('text', c.dropText))}</p>
+          ${di >= 0 ? `<p class="mp__acts"><button type="button" data-act="rail" data-i="${di}">${esc(c.toDrop)}</button></p>` : ''}
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        }
+        case 'back': return `
         <div class="mp mp--back">
           <img class="mp__logo" src="${A.url('assets/brand/azur-logo-paper.webp')}" alt="AZUR" loading="lazy">
-          <p class="mp__bye">${c.bye}</p>
-          <p class="mp__credits">${c.credits}</p>
-        </div>`);
-      return pages;
+          <p class="mp__bye">${esc(v('head', c.bye))}</p>
+          <p class="mp__credits">${esc(v('text', c.credits))}</p>
+        </div>`;
+        default: return null;
+      }
     }
 
     /* Desktop: sheet k carries page 2k on its front and 2k+1 on its back; the cover sits alone on the right and the
@@ -1452,7 +2032,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.isOpen = true; this.returnFocus = document.activeElement;
       this.n = 0; this.page = 0;                                   // a magazine picked up again starts at its cover
       this.el.hidden = false; this.layout(); this.fit();
-      this.app.root.classList.add('is-reading');
+      this.app.root.classList.add('is-reading'); document.documentElement.classList.add('azur-mag-open');
       requestAnimationFrame(() => this.el.classList.add('is-on'));
       if (fromRect && !this.app.reduced) {
         const b = this.stage.getBoundingClientRect();
@@ -1466,7 +2046,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
     close(then) {
       if (!this.isOpen) return;
-      this.isOpen = false; this.el.classList.remove('is-on'); this.app.root.classList.remove('is-reading');
+      this.isOpen = false; this.el.classList.remove('is-on'); this.app.root.classList.remove('is-reading'); document.documentElement.classList.remove('azur-mag-open');
       this.app.setWorldDim(1, 0);
       setTimeout(() => { if (!this.isOpen) this.el.hidden = true; if (then) then(); }, this.app.reduced ? 0 : 360);
       if (!then && this.returnFocus && this.returnFocus.focus) this.returnFocus.focus({ preventScroll: true });
@@ -1482,6 +2062,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           if (act === 'next') return this.turn(1);
           if (act === 'goto') return this.goto(+a.dataset.p);
           if (act === 'rail') { const i = +a.dataset.i; return this.close(() => this.app.showOnRail(i)); }
+          if (act === 'product') { const i = +a.dataset.i; return this.close(() => this.app.openProduct(i)); }
         }
         if (e.target.closest('a, button')) return;
         const face = e.target.closest('.azur-mag__face');        // tap the right page to turn on, the left one to turn back
@@ -1511,14 +2092,17 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
   }
 
+  Mag.DEFAULT_PAGES = [{ type: 'cover' }, { type: 'editorial' }, { type: 'photo' }, { type: 'looks' }, { type: 'drop' }, { type: 'back' }];
   A.Mag = Mag;
 })();
 
 /* ---- azur-app.js ---- */
 /* AZUR — app: views, camera moves, pointer, phones, window, header, loop.
-   Desktop starts in the room (establishing shot). Clicking a jersey there moves the camera to the rail and opens
-   that jersey in one step. The bed has its own view (easter egg to come). Phones start at the rail and swipe along it.
-   Camera moves are faked from stills for now (zoom, drift, blur); real pre-rendered moves can replace go() later. */
+   Desktop starts in the room (establishing shot). A click on a jersey opens its product view right away (half the
+   page the jersey to turn and zoom, half the page to buy); hovering shows a small label. The bed and the rail light
+   up in white when the pointer is on them and take the camera there; white dots invite the click. The magazine on
+   the duvet opens ANSTOSS. Phones start at the rail and swipe along it. The room follows the visitor's clock:
+   light passes mix by the hour, and the things in the room change with the time of day (scene3). */
 (function () {
   const A = window.AZUR = window.AZUR || {};
   const $ = (s, r = document) => r.querySelector(s);
@@ -1539,13 +2123,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.root.classList.toggle('is-mobile', this.isMobile);
       this.applyPalette();
 
-      // scene2: the jerseys are real 3D garments inside the renders (owner feedback: they looked pasted in)
-      if (cfg.useScene2 !== false) {
-        const s2 = cfg.scene2Base || 'assets/scene2/views/';
-        const ok = (cfg.inline && cfg.inline[s2 + 'passes.json']) ? true
-          : await fetch(A.url(s2 + 'passes.json'), { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
-        if (ok) { cfg.assetBase = s2; cfg.plateGarments = true; }
-      }
+      // scene3: the room through the day, jerseys on real hangers, hover outlines; scene2: jerseys in the renders
+      const exists = b => (cfg.inline && cfg.inline[b + 'passes.json']) ? Promise.resolve(true)
+        : fetch(A.url(b + 'passes.json'), { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
+      const s3 = cfg.scene3Base || 'assets/scene3/views/', s2 = cfg.scene2Base || 'assets/scene2/views/';
+      if (cfg.useScene3 !== false && await exists(s3)) { cfg.assetBase = s3; cfg.plateGarments = true; cfg.scene3 = true; }
+      else if (cfg.useScene2 !== false && await exists(s2)) { cfg.assetBase = s2; cfg.plateGarments = true; }
+      this.root.classList.toggle('is-scene3', !!cfg.scene3);
       this.plate = !!cfg.plateGarments;
       this.root.classList.toggle('is-plate', this.plate);
       const base = cfg.assetBase;
@@ -1553,7 +2137,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         this.plate ? Promise.resolve({}) : getJSON(base + 'sprites.json'), getJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
       this.moveFrames = {};
       this.comp = new A.Compositor(this.canvas);
+      this.comp.viewsData = this.views; this.comp.onChange = () => this.kick();
       this.root.classList.toggle('no-webgl', !this.comp.ok);
+      this.glowAmt = [0, 0, 0]; this.region = null;
+      this.dayState = cfg.scene3 ? this.stateNow() : 'day';
+      this.comp.state = this.dayState; this.root.dataset.state = this.dayState;
       this.rail = new A.Rail(this.layer, A.products, this);
       this.drop = new A.Drop(this.layer, this);
       this.shop = new A.Shop(this);
@@ -1581,11 +2169,36 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient();
       requestAnimationFrame(t => this.frame(t));
       setTimeout(() => this.showHint(), this.reduced ? 200 : 1600);
+      const up = v => v && v.upgrade && v.upgrade();
+      setTimeout(() => up(this.comp.view), 900);                   // published builds start on smaller copies
       // other views load in the background so camera moves never wait (each view is 8 textures: phones load on demand,
       // desktops skip the phone plate)
-      if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
+      if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => { this.loadDepth(k); setTimeout(() => up(this.comp.cache[k]), 1500); })), 2500);
       setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
+    }
+
+    /* ---------------------------------------------------------------- times of day (scene3) */
+    stateNow() {
+      const o = A.light.overrides, d = new Date();
+      const h = o && o.timeHours != null ? o.timeHours : d.getHours() + d.getMinutes() / 60;
+      const list = A.config.dayStates || []; let st = list.length ? list[list.length - 1].state : 'day';
+      list.forEach(e => { if (h >= e.from) st = e.state; });
+      return st;
+    }
+    /* The room changes while it is open (or the design panel's clock moves): the change crossfades. */
+    async changeState(st) {
+      if (!A.config.scene3 || st === this.dayState || this.stateBusy) return;
+      this.stateBusy = true; this.dayState = st; this.root.dataset.state = st;
+      const fade = !this.reduced && !this.busy && this.comp.ok && this.root.classList.contains('is-ready');
+      if (fade) {
+        this.comp.render(this.light); this.comp.snapshotInto(this.snapCtx);
+        Object.assign(this.snap.style, { transform: '', filter: '', opacity: '1' }); this.snap.hidden = false;
+      }
+      await this.comp.setState(st);
+      this.comp.render(this.light); this.placeChrome(); this.kick();
+      if (fade) { await this.snap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, easing: 'ease-in-out' }).finished.catch(() => { }); this.snap.hidden = true; }
+      this.stateBusy = false;
     }
 
     applyPalette() {
@@ -1694,13 +2307,16 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
        Only the sets the current light needs are downloaded. Phones (rail_m) keep the fake move. */
     moveMix() {
       const s = this.light, w = Math.max(0, Math.min(1, (s.night - 0.08) / 0.7));
-      return { night: w, day: w < 0.98, nightOn: w > 0.02 };
+      // scene3: the evening has its own flights (golden hour, the school bag back on the floor)
+      const base = A.config.scene3 && this.dayState === 'evening' ? 'evening' : 'day';
+      return { night: w, day: w < 0.98, nightOn: w > 0.02, base };
     }
+    baseFrames(name, mix) { return this.moveFramesFor(name, mix.base) || (mix.base !== 'day' ? this.moveFramesFor(name, 'day') : null); }
     moveFramesFor(name, variant) {
       const m = this.moves && this.moves[name]; if (!m || !(m.variants || ['day']).includes(variant)) return null;
       const key = name + ':' + variant;
       if (!this.moveFrames[key]) {
-        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = variant === 'night' ? 'n' : 'f';
+        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = { night: 'n', evening: 'e' }[variant] || 'f';
         const img = src => { const im = new Image(); im.decoding = 'async'; im.src = src; return im; };
         if (m.atlas) {      // published build (tools/build_artifact.py): frames stacked in a few vertical strips
           const per = m.atlas.per, strips = Array.from({ length: Math.ceil(m.frames / per) }, (_, s) => img(A.url(`${base}${pre}_s${s}.webp`)));
@@ -1719,7 +2335,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const mix = this.moveMix(), base = A.config.assetBase;
       Object.keys(this.moves || {}).forEach(name => {
         if (this.isMobile !== name.startsWith('rail_m-')) return;
-        if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night');
+        if (mix.day) this.baseFrames(name, mix); if (mix.nightOn) this.moveFramesFor(name, 'night');
         const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = A.url(base + v + '/drop.webp'); });
       });
     }
@@ -1727,7 +2343,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const mix = this.moveMix();
       const ready = name => {
         const need = [];
-        if (mix.day) need.push(this.moveFramesFor(name, 'day'));
+        if (mix.day) need.push(this.baseFrames(name, mix));
         if (mix.nightOn) need.push(this.moveFramesFor(name, 'night'));
         if (mix.night > 0.5 && !need[need.length - 1]) return false;            // a golden-hour flight into a night room would jar
         const sets = need.filter(Boolean);
@@ -1739,13 +2355,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
     async playMove(mv, to) {
       const mix = this.moveMix(), m = this.moves[mv.name];
-      const day = mix.day && this.moveFramesFor(mv.name, 'day'), night = mix.nightOn && this.moveFramesFor(mv.name, 'night');
+      const day = mix.day && this.baseFrames(mv.name, mix), night = mix.nightOn && this.moveFramesFor(mv.name, 'night');
       const n = m.frames, fps = m.fps || 30;
       const c = this.snap, ctx = this.snapCtx, dpr = Math.min(window.devicePixelRatio || 1, 2);
       const W = this.stage.clientWidth, H = this.stage.clientHeight;
       c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
       // day frames are golden hour: multiply toward the clock (same grade as the beauty fallback)
-      const g = A.Compositor.beautyGrade(this.light), gmax = Math.max(1, g[0], g[1], g[2]);
+      const g = A.config.scene3 ? [1, 1, 1] : A.Compositor.beautyGrade(this.light), gmax = Math.max(1, g[0], g[1], g[2]);   // scene3 frames match their time of day
       const mul = `rgb(${g.map(x => Math.round(Math.min(1, x / gmax) * 255)).join(',')})`;
       const nb = 0.8 + 0.2 * Math.min(1, (this.light.lamp ? (this.light.lamp[0] || this.light.lamp) : 0) / 0.85);
       c.style.filter = gmax > 1 ? `brightness(${(1 + (gmax - 1) * (1 - mix.night)).toFixed(3)})` : '';
@@ -1817,11 +2433,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         const on = b.dataset.view === vk || (b.dataset.view === 'rail' && vk === 'rail_m');
         b.setAttribute('aria-current', on ? 'true' : 'false');
       });
-      this.bedSvg.style.display = this.viewKey === 'room' ? '' : 'none';
-      const magOn = this.viewKey === 'bed' && !!this.mag && !!(this.views.bed && this.views.bed.magazine);
+      const s3 = !!A.config.scene3;                  // scene3: outlines and white dots replace the drawn hotspots
+      this.bedSvg.style.display = this.viewKey === 'room' && !s3 ? '' : 'none';
+      const magOn = !s3 && this.viewKey === 'bed' && !!this.mag && !!(this.views.bed && this.views.bed.magazine);
       this.magSvg.style.display = magOn ? '' : 'none'; this.magGlint.classList.toggle('is-on', magOn);
       if (!magOn) this.magLabel.classList.remove('is-on');
       this.tease.classList.toggle('is-on', this.viewKey === 'bed');
+      this.setRegion(null);
     }
 
     /* ---------------------------------------------------------------- selection + products */
@@ -1896,6 +2514,9 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
     onGarmentClick(i) {
       if (this.dragMoved) return;
+      const p = A.products[i]; if (!p) return;
+      this.rail.kickGarment(i, A.config.motion.sway.clickKick);
+      if (p.type === 'product' && this.plate) { this.hideHint(); return this.openProduct(i); }   // straight to the product view
       if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
       this.select(i);
     }
@@ -1928,16 +2549,31 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const p = A.products[i]; if (!p) return;
       this.shop.open(p, this.rail.garmentRect(i));
     }
+    /* "Weiter umsehen" after the bag: back to the rail, where everything waves once. */
+    async keepLooking() {
+      if (this.isMobile) { if (this.viewKey !== 'rail_m') await this.go('rail_m'); }
+      else if (this.viewKey === 'bed') await this.go('room');
+      setTimeout(() => { this.rail.wave(); this.kick(); }, 250);
+    }
     afterProductClose() { const s = this.rail.selected; if (s >= 0) this.rail.items[s].hit.focus({ preventScroll: true }); }
     setWorldDim(d = 1, blur = 0) {
-      if (this.rail.selected >= 0 && d === 1) { d = A.config.motion.select.dimRoom; blur = A.config.motion.select.blurRoom; }
+      // the old layered rail dimmed the room behind a chosen jersey; the rendered room never stays blurred
+      if (!this.plate && this.rail.selected >= 0 && d === 1) { d = A.config.motion.select.dimRoom; blur = A.config.motion.select.blurRoom; }
       this.dimTarget = d;
       this.canvas.style.filter = blur ? `blur(${blur}px)` : '';
       this.fallbackImg.style.filter = this.canvas.style.filter;
       this.kick();
     }
-    setCartCount(n) { if (this.cartBtn) this.cartBtn.querySelector('span').textContent = n; }
-    bumpCart() { if (this.cartBtn) this.cartBtn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 420 }); }
+    /* the sports bag (cart) shows once something is in it */
+    setCartCount(n) {
+      this.cartCount = n;
+      if (this.bagBtn) { this.bagBtn.hidden = !(n > 0); const c = this.bagBtn.querySelector('.azur-head__count'); if (c) c.textContent = n; }
+    }
+    bumpCart() {
+      if (!this.bagBtn) return;
+      this.bagBtn.animate([{ transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-5px) rotate(-8deg)', offset: 0.35 },
+        { transform: 'translateY(0) rotate(4deg)', offset: 0.7 }, { transform: 'none' }], { duration: 620, easing: 'ease-out' });
+    }
 
     /* ---------------------------------------------------------------- depth (same values the shader sees) */
     encDepth(metres) { return lin2srgb(Math.max(0, Math.min(1, (DEPTH.far - metres) / (DEPTH.far - DEPTH.near)))); }
@@ -1961,14 +2597,42 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     /* ---------------------------------------------------------------- chrome: header, view chips, hint, bed, window */
     buildChrome() {
       const c = A.config.copy;
-      const head = $('.azur-head');                    // the prototype's own header; Shopify uses the theme header
-      this.cartBtn = head && head.querySelector('.azur-head__cart');
-      if (this.cartBtn) this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
+      // header over the room: nothing but the sports bag (once something is in it) and three glowing dots for the menu;
+      // the logo only shows, dimmed, behind the product view and the magazine (it takes you back into the room)
+      const head = $('.azur-head');
+      this.bagBtn = head && head.querySelector('.azur-head__bag');
+      if (this.bagBtn && !A.config.shopify) this.bagBtn.addEventListener('click', () => this.shop.toggleCart());   // Shopify: the theme's drawer ([data-cart-open])
+      this.setCartCount(A.store && A.store.cartCount || 0);
+      this.menuBtn = head && head.querySelector('.azur-head__dots'); this.menu = head && head.querySelector('.azur-menu');
+      if (this.menuBtn && this.menu) {
+        this.menuBtn.addEventListener('click', e => { e.stopPropagation(); this.toggleMenu(); });
+        document.addEventListener('click', e => { if (!this.menu.hidden && !e.target.closest('.azur-menu, .azur-head__dots')) this.toggleMenu(false); });
+      }
+      const ghost = $('.azur-ghost');
+      if (ghost) ghost.addEventListener('click', e => {
+        e.preventDefault();
+        if (this.shop.pdp.classList.contains('is-on')) this.shop.close();
+        if (this.mag && this.mag.isOpen) this.mag.close();
+      });
       document.querySelectorAll('.azur-head [data-go], [data-azur-go]').forEach(a => a.addEventListener('click', e => {
         e.preventDefault(); const t = a.dataset.go || a.dataset.azurGo;
+        this.toggleMenu(false);
         if (A.config.shopify) this.root.scrollIntoView({ behavior: this.reduced ? 'auto' : 'smooth' });
         if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'mag') this.openMag(); else this.go(t);
       }));
+      // scene3: white dots on what can be visited from here (bed, rail, magazine); hover lights its outline
+      this.dotBox = document.createElement('div'); this.dotBox.className = 'azur-dots'; this.layer.after(this.dotBox);
+      this.dots = {};
+      [['bed', c.goBed], ['rail', c.goRail], ['mag', c.magSpot]].forEach(([t, label]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'azur-dot azur-dot--' + t; b.dataset.target = t;
+        b.setAttribute('aria-label', label); b.hidden = true;
+        b.addEventListener('click', e => { e.stopPropagation(); this.goTarget(t); });
+        b.addEventListener('pointerenter', () => this.setRegion(t, true)); b.addEventListener('pointerleave', () => this.setRegion(null));
+        b.addEventListener('focus', () => this.setRegion(t, true)); b.addEventListener('blur', () => this.setRegion(null));
+        this.dotBox.appendChild(b); this.dots[t] = b;
+      });
+      this.goLabel = document.createElement('p'); this.goLabel.className = 'azur-bedlabel azur-golabel'; this.goLabel.setAttribute('aria-hidden', 'true');
+      this.dotBox.appendChild(this.goLabel);
       this.chips = $('.azur-views');
       this.chips.addEventListener('click', e => {
         const b = e.target.closest('button[data-view]'); if (!b) return;
@@ -2012,7 +2676,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         const vid = document.createElement('video');
         Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'auto' });
         vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
-        const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
+        const ob = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
         [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
           const so = document.createElement('source'); so.src = A.url(ob + f); so.type = t; vid.appendChild(so); });
         Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
@@ -2040,6 +2704,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
 
     placeChrome() {
+      this.placeDots();
       const comp = this.comp, v = this.views[this.viewKey] || {}, vc = A.config.views[this.viewKey] || {};
       // bed hotspot
       if (this.viewKey === 'room' && vc.bedHotspot) {
@@ -2074,6 +2739,84 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       } else this.windowEl.hidden = true;
     }
     isMobileView() { return this.viewKey === 'rail_m'; }
+
+    /* ---------------------------------------------------------------- scene3: outlines, dots, menu */
+    toggleMenu(on) {
+      if (!this.menu) return;
+      const open = on == null ? this.menu.hidden : on;
+      this.menu.hidden = !open; this.menuBtn.setAttribute('aria-expanded', String(open));
+      this.root.classList.toggle('menu-open', open);
+      if (open) { const f = this.menu.querySelector('a, button'); if (f) f.focus({ preventScroll: true }); }
+    }
+    targets() { return A.config.scene3 ? (A.config.targets[this.viewKey.split('@')[0]] || []) : []; }
+    /* Which outline region (bed, rail, magazine) is at a stage point: masks.png R, G, B (half size). */
+    regionAt(x, y) {
+      const cv = this.comp.view, t = this.targets(); if (!cv || !cv.masksImg || !t.length) return null;
+      const d = this.masksData(cv); if (!d) return null;
+      let [u, w] = this.comp.toPlate(x, y);
+      const dep = this.depthAt(u, w), f = this.comp.focus || 0.6;
+      u += this.parallax[0] * (dep - f); w += this.parallax[1] * (dep - f);
+      const px = Math.floor(u * d.w), py = Math.floor(w * d.h);
+      if (px < 0 || py < 0 || px >= d.w || py >= d.h) return null;
+      const i = (py * d.w + px) * 4, r = d.data[i], g = d.data[i + 1], b = d.data[i + 2];
+      if (b > 127 && t.includes('mag')) return 'mag';
+      if (r > 127 && t.includes('bed')) return 'bed';
+      if (g > 127 && t.includes('rail')) return 'rail';
+      return null;
+    }
+    masksData(cv) {
+      if (cv.masksData) return cv.masksData;
+      const im = cv.masksImg; if (!im || !im.naturalWidth) return null;
+      const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
+      const d = { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+      // where each region's dot sits: the bed and the magazine at their middle, the rail near its top (the bar)
+      d.anchors = {};
+      ['bed', 'rail', 'mag'].forEach((t, ch) => {
+        let n = 0, sx = 0, sy = 0, y0 = d.h, y1 = -1;
+        for (let y = 0; y < d.h; y += 2) for (let x = 0; x < d.w; x += 2) if (d.data[(y * d.w + x) * 4 + ch] > 127) { n++; sx += x; sy += y; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        if (n < 12) return;
+        let ax = sx / n, ay = t === 'rail' ? y0 + (y1 - y0) * 0.04 : sy / n;
+        // snap onto the region (a concave shape's middle can fall outside it)
+        let best = null, bd = 1e12;
+        for (let y = 0; y < d.h; y += 2) for (let x = 0; x < d.w; x += 2) if (d.data[(y * d.w + x) * 4 + ch] > 127) {
+          const dd = (x - ax) ** 2 + (y - ay) ** 2; if (dd < bd) { bd = dd; best = [x, y]; } }
+        if (best) d.anchors[t] = [(best[0] + 0.5) / d.w, (best[1] + 0.5) / d.h];
+      });
+      cv.masksData = d; return d;
+    }
+    setRegion(t, fromDot) {
+      if (t === this.region && !fromDot) return;
+      this.region = t;
+      this.stage.classList.toggle('is-going', !!t);
+      const el = this.goLabel; if (!el) return;
+      const c = A.config.copy, dot = t && this.dots[t];
+      if (t && dot && !dot.hidden) {
+        el.textContent = t === 'bed' ? c.goBed : t === 'rail' ? c.goRail : c.magSpot;
+        el.style.left = dot.style.left; el.style.top = (parseFloat(dot.style.top) - 18) + 'px';
+        el.classList.add('is-on');
+      } else el.classList.remove('is-on');
+      this.kick();
+    }
+    goTarget(t) {
+      this.setRegion(null);
+      const dot = this.dots[t], r = dot && dot.getBoundingClientRect(), focus = r && r.width ? [r.left + r.width / 2, r.top + r.height / 2] : null;
+      if (t === 'bed') this.go('bed', { focus });
+      else if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail', { focus });
+      else if (t === 'mag') this.openMag();
+    }
+    placeDots() {
+      if (!this.dots) return;
+      const cv = this.comp.view, t = this.targets(), d = cv && cv.masksImg ? this.masksData(cv) : null;
+      Object.entries(this.dots).forEach(([k, b]) => {
+        const a = d && t.includes(k) && d.anchors[k];
+        b.hidden = !a; if (!a) return;
+        const p = this.comp.toScreen(a[0], a[1], this.depthAt(a[0], a[1]));
+        const W = this.stage.clientWidth, H = this.stage.clientHeight;
+        if (p[0] < 24 || p[1] < 24 || p[0] > W - 24 || p[1] > H - 24) { b.hidden = true; return; }
+        b.style.left = p[0].toFixed(1) + 'px'; b.style.top = p[1].toFixed(1) + 'px';
+      });
+    }
 
     /* phones: the pan value that puts garment i in the middle of the screen, and the garment nearest the middle */
     panSpan() { return this.stage.clientWidth * (1 / this.comp.map[2] - 1) || 1; }
@@ -2112,6 +2855,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         if (e.pointerType !== 'touch') {
           this.parallaxTarget = [(x / r.width - 0.5) * 2, (y / r.height - 0.5) * 2];
           this.rail.pointerMove(x, y, vx);
+          if (!e.target.closest('.azur-dot')) this.setRegion(this.rail.hover >= 0 ? null : this.regionAt(x, y));
         }
         if (down && this.viewKey === 'rail_m') {
           const dx = x - down.x;
@@ -2124,7 +2868,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           this.kick();
         }
       });
-      st.addEventListener('pointerleave', () => { this.parallaxTarget = [0, 0]; this.rail.pointerLeave(); last = null; });
+      st.addEventListener('pointerleave', () => { this.parallaxTarget = [0, 0]; this.rail.pointerLeave(); this.setRegion(null); last = null; });
       st.addEventListener('pointerdown', e => {
         if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head')) return;
         const r = st.getBoundingClientRect();
@@ -2137,12 +2881,14 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (this.isMobile) this.parallaxTarget = [0, 0];
       // click on the empty room deselects
       st.addEventListener('click', e => {
-        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head, .azur-panel')) return;
+        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head, .azur-panel, .azur-dot')) return;
         if (this.plate) {
           if (this.dragMoved || e.target.closest('.azur-bed')) return;
-          const r = st.getBoundingClientRect(), id = this.garmentAt(e.clientX - r.left, e.clientY - r.top);
+          const r = st.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, id = this.garmentAt(x, y);
           if (id >= 0) return this.onGarmentClick(id);
-          if (this.viewKey.includes('@')) this.select(-1);
+          const reg = this.regionAt(x, y);
+          if (reg) return this.goTarget(reg);
+          if (this.viewKey.includes('@') || this.rail.selected >= 0) this.select(-1);
           return;
         }
         if (e.target.closest('.azur-g, .azur-bed')) return;
@@ -2153,6 +2899,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     bindKeys() {
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
+          if (this.menu && !this.menu.hidden) { this.toggleMenu(false); return this.menuBtn.focus(); }
           if (this.shop.pdp.classList.contains('is-on')) return this.shop.close();
           if (this.shop.drawer && this.shop.drawer.classList.contains('is-on')) return this.shop.toggleCart(false);
           if (this.drop.card.classList.contains('is-on')) { this.drop.hideCard(); return this.select(-1); }
@@ -2190,6 +2937,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (t - this.lightAt > 1000 || this.lightDirty) {
         this.lightAt = t; this.lightDirty = false;
         this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient(); this.dirty = true;
+        if (A.config.scene3) { const st = this.stateNow(); if (st !== this.dayState) this.changeState(st); }
       }
       // parallax eases toward the pointer; phones drift very slowly so the room still feels spatial
       const vc = cfg.views[this.viewKey] || {}, k = this.reduced ? 0 : (vc.parallax || 0.01) * cfg.motion.intensity;
@@ -2223,7 +2971,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
       if (this.plate) this.stepPlate(dt);
       if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
-      this.rail.step(dt, this.reduced);
+      const swaying = this.rail.step(dt, this.reduced);
+      if (this.plate && A.config.scene3) this.applySway(t, swaying);
       if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
       requestAnimationFrame(tt => this.frame(tt));
     }
@@ -2231,6 +2980,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     /* scene2: the hovered garment brightens in the render; the outdoor video runs while it is light outside. */
     stepPlate(dt) {
       const c = this.comp, h = this.rail.hover;
+      // hover outlines fade in and out
+      const S = (A.config.outline || {}).strength || 0.9, ease = Math.min(1, dt * ((A.config.outline || {}).ease || 9));
+      const want = ['bed', 'rail', 'mag'].map(k => this.region === k ? S : 0);
+      let glowCh = false;
+      want.forEach((w, k) => { const n = this.glowAmt[k] + (w - this.glowAmt[k]) * ease;
+        if (Math.abs(n - w) < 2e-3) { if (this.glowAmt[k] !== w) glowCh = true; this.glowAmt[k] = w; } else { this.glowAmt[k] = n; glowCh = true; } });
+      if (glowCh) { c.setGlow(this.glowAmt.slice()); this.dirty = true; }
       if (h >= 0) c.hover = h + 1;
       const target = h >= 0 && !this.viewKey.includes('@') ? 1 : 0;
       const ha = c.hoverAmt + (target - c.hoverAmt) * Math.min(1, dt * 9);
@@ -2243,6 +2999,23 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames
       } else if (!vid.paused) vid.pause();
+    }
+
+    /* scene3: the rail's pendulums bend the rendered plate (compositor sway). Idle breathing renders at 30 fps,
+       a swinging jersey at full rate; nothing moves behind the product view or the magazine. */
+    applySway(t, swaying) {
+      const cv = this.comp.view; if (!cv || !this.comp.ok) return;
+      if (!cv.swayA && cv.idsImg && !cv.swayTried) {
+        cv.swayTried = true;
+        (window.requestIdleCallback || (f => setTimeout(f, 60)))(() => { this.comp.buildSway(cv, A.products.length); this.kick(); });
+      }
+      if (!cv.swayA) return;
+      const covered = this.shop.pdp.classList.contains('is-on') || (this.mag && this.mag.isOpen) || this.busy;
+      const v = this.viewData(this.viewKey), hooks = (v.slots || []).map(x => x && x.hook);
+      this.comp.setSway(hooks, this.rail.swayAng || [], this.rail.swayRip || []);
+      this.comp.time = t / 1000;
+      const idle = !this.reduced && A.config.motion.sway.idleDeg > 0;
+      if (!covered && (swaying || (idle && t - (this.swayAt || 0) > 33))) { this.swayAt = t; this.comp.render(this.light); }
     }
 
     /* UI follows the room's light: labels switch to night styling after dusk. */
