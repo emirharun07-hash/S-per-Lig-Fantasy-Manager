@@ -21,6 +21,14 @@
       this.root.classList.toggle('is-mobile', this.isMobile);
       this.applyPalette();
 
+      // scene2: the jerseys are real 3D garments inside the renders (owner feedback: they looked pasted in)
+      if (cfg.useScene2 !== false) {
+        const s2 = cfg.scene2Base || 'assets/scene2/views/';
+        const ok = await fetch(s2 + 'passes.json', { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
+        if (ok) { cfg.assetBase = s2; cfg.plateGarments = true; }
+      }
+      this.plate = !!cfg.plateGarments;
+      this.root.classList.toggle('is-plate', this.plate);
       const base = cfg.assetBase;
       [this.views, this.passes, A.sprites, this.moves] = await Promise.all([fetchJSON(base + 'views.json'), fetchJSON(base + 'passes.json'), fetchJSON(base + 'sprites.json'),
         fetchJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
@@ -61,9 +69,21 @@
     }
 
     /* ---------------------------------------------------------------- views */
+    /* View data; a chosen-garment view ('rail@2') is its rail view with that garment where the pull move left it. */
+    viewData(key) {
+      if (this.views[key]) return this.views[key];
+      const [base, idx] = key.split('@'), bv = this.views[base] || {};
+      if (idx == null) return bv;
+      const mv = this.moves && this.moves[`${base}-${key}`], last = mv && mv.track && mv.track[mv.track.length - 1];
+      const slots = (bv.slots || []).slice();
+      if (last && last.slots && last.slots[+idx]) slots[+idx] = last.slots[+idx];
+      return Object.assign({}, bv, { slots });
+    }
+
     async enterView(key) {
+      const prevBase = (this.viewKey || '').split('@')[0];
       this.viewKey = key;
-      const v = this.views[key] || {};
+      const v = this.viewData(key);
       const mode = await this.comp.load(key, this.passes);
       if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
       this.root.dataset.view = key; this.root.dataset.mode = mode;
@@ -74,7 +94,7 @@
       const slots = v.slots || [];
       const avgDepth = slots.length ? slots.reduce((s, x) => s + x.depth, 0) / slots.length : 2.5;
       this.comp.focus = this.encDepth(avgDepth);
-      this.pan = key === 'rail_m' ? 0.38 : 0.5;
+      if (!(key.startsWith('rail_m') && prevBase === 'rail_m')) this.pan = key.startsWith('rail_m') ? 0.38 : 0.5;
       this.rail.layout(key, v, this.comp);
       this.rail.setSelected(-1); this.rail.setHover(-1);
       this.drop.close();
@@ -86,6 +106,12 @@
     async go(to, opts = {}) {
       if (this.busy) return;
       if (to === this.viewKey) { if (opts.select != null) this.select(opts.select); return; }
+      const fromBase = this.viewKey.split('@')[0];
+      if (this.plate && this.viewKey.includes('@') && to !== fromBase && !to.startsWith(fromBase + '@')) {
+        this.rail.setSelected(-1); this.root.classList.remove('has-selection');
+        await this.go(fromBase);                                   // hang the garment back first
+        return this.go(to, opts);
+      }
       this.busy = true; this.hideHint();
       const m = A.config.motion.pan, from = this.viewKey;
       const back = to === 'room';
@@ -96,6 +122,13 @@
       const mv = this.findMove(from, to);
       if (mv && !this.reduced) {
         await this.playMove(mv, to);
+      } else if (!this.reduced && from.split('@')[0] === to.split('@')[0]) {
+        // a garment taken off / put back without rendered frames yet: a short crossfade
+        this.comp.render(this.light); this.comp.snapshotInto(this.snapCtx);
+        Object.assign(this.snap.style, { transform: '', filter: '', opacity: '1' }); this.snap.hidden = false;
+        await this.enterView(to); this.comp.render(this.light);
+        await this.snap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' }).finished.catch(() => { });
+        this.snap.hidden = true;
       } else if (this.reduced) {
         await this.enterView(to);
         this.world.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 });
@@ -149,6 +182,7 @@
     preloadMoves() {
       const mix = this.moveMix(), base = A.config.assetBase;
       Object.keys(this.moves || {}).forEach(name => {
+        if (this.isMobile !== name.startsWith('rail_m-')) return;
         if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night');
         const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = base + v + '/drop.webp'; });
       });
@@ -202,7 +236,7 @@
       const idx = k => mv.reverse ? n - 1 - k : k;
       // garments fly along: the frames are rendered without them, the live garment layer follows the projected
       // hangers frame by frame (moves.json track). Older moves without a track hide the garments instead.
-      const tr = m.track && m.track.length === n ? m.track : null;
+      const tr = !this.plate && m.track && m.track.length === n ? m.track : null;
       const ref = (day || night)[0], iw = ref.naturalWidth, ih = ref.naturalHeight;
       const cv = cover(ref).map(x => x);   // [sx, sy, sw, sh, ...] in image pixels
       const proxy = { cssW: W, cssH: H, toScreen: (u, v) => [(u * iw - cv[0]) / cv[2] * W, (v * ih - cv[1]) / cv[3] * H] };
@@ -240,7 +274,8 @@
 
     updateChips() {
       this.chips.querySelectorAll('button').forEach(b => {
-        const on = b.dataset.view === this.viewKey || (b.dataset.view === 'rail' && this.viewKey === 'rail_m');
+        const vk = this.viewKey.split('@')[0];
+        const on = b.dataset.view === vk || (b.dataset.view === 'rail' && vk === 'rail_m');
         b.setAttribute('aria-current', on ? 'true' : 'false');
       });
       this.bedSvg.style.display = this.viewKey === 'room' ? '' : 'none';
@@ -249,6 +284,7 @@
 
     /* ---------------------------------------------------------------- selection + products */
     select(i) {
+      if (this.plate) return this.selectPlate(i);
       if (i >= 0 && this.viewKey === 'room') {
         const rect = this.rail.garmentRect(i);
         return this.go(this.isMobile ? 'rail_m' : 'rail', { select: i, focus: rect ? [rect.left + rect.width / 2, rect.top + rect.height * 0.4] : null });
@@ -262,6 +298,39 @@
       if (i < 0) this.drop.close();
       this.kick();
     }
+    async selectPlate(i) {
+      const railKey = this.isMobile ? 'rail_m' : 'rail';
+      this.hideHint();
+      if (i >= 0 && this.viewKey === 'room') {
+        const rect = this.rail.garmentRect(i);
+        return this.go(railKey, { select: i, focus: rect ? [rect.left + rect.width / 2, rect.top + rect.height * 0.4] : null });
+      }
+      if (this.busy) return;
+      const target = i >= 0 ? `${railKey}@${i}` : railKey;
+      if (this.viewKey === target) return;
+      this.rail.setSelected(-1); this.rail.setHover(-1); this.root.classList.remove('has-selection');
+      if (i >= 0 && this.viewKey !== railKey) await this.go(railKey);      // another one is out: hang it back first
+      await this.go(target);
+      if (i >= 0 && this.viewKey === target) { this.rail.setSelected(i); this.root.classList.add('has-selection'); }
+      this.kick();
+    }
+    /* Garment under a stage point (scene2): reads the rendered id mask of the current view. -1 = none. */
+    garmentAt(x, y) {
+      const v = this.comp.view; if (!this.plate || !v || !v.idsImg) return -1;
+      if (!v.idsData) {
+        const im = v.idsImg, c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
+        v.idsData = { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+      }
+      const d = v.idsData, [ox, oy, zx, zy] = this.comp.map;
+      let u = ox + x / this.comp.cssW * zx, w = oy + y / this.comp.cssH * zy;
+      const dep = this.depthAt(u, w), f = this.comp.focus || 0.6;      // the same parallax shift the shader applies
+      u += this.parallax[0] * (dep - f); w += this.parallax[1] * (dep - f);
+      const px = Math.floor(u * d.w), py = Math.floor(w * d.h);
+      if (px < 0 || py < 0 || px >= d.w || py >= d.h) return -1;
+      const id = Math.round(d.data[(py * d.w + px) * 4] / 32);
+      return id >= 1 && id <= A.products.length ? id - 1 : -1;
+    }
     onGarmentClick(i) {
       if (this.dragMoved) return;
       if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
@@ -269,6 +338,10 @@
     }
     onHover(i) {
       if (i >= 0) this.hideHint();
+      if (this.plate && i >= 0 && !this.isMobile) {
+        const k = (this.viewKey === 'room' ? 'rail' : this.viewKey.split('@')[0]) + '@' + i;
+        if (!this.comp.cache[k]) this.comp.load(k, this.passes, false);
+      }
       this.stage.classList.toggle('is-pointing', i >= 0);
       this.kick();
     }
@@ -320,14 +393,15 @@
       this.chips.addEventListener('click', e => {
         const b = e.target.closest('button[data-view]'); if (!b) return;
         let v = b.dataset.view; if (v === 'rail' && this.isMobile) v = 'rail_m';
-        this.select(-1); this.go(v);
+        if (!this.plate) this.select(-1);
+        this.go(v);
       });
       this.hint = $('.azur-hint'); this.hint.textContent = this.isMobile ? c.hintMobile : c.hintDesktop;
       this.tease = $('.azur-tease'); this.tease.textContent = c.bedTease;
       // bed hotspot (room view)
       this.bedSvg = $('.azur-bed');
       this.bedPoly = this.bedSvg.querySelector('polygon');
-      const goBed = () => { this.select(-1); const r = this.bedPoly.getBoundingClientRect(); this.go('bed', { focus: [r.left + r.width / 2, r.top + r.height / 2] }); };
+      const goBed = () => { if (!this.plate) this.select(-1); const r = this.bedPoly.getBoundingClientRect(); this.go('bed', { focus: [r.left + r.width / 2, r.top + r.height / 2] }); };
       this.bedSvg.querySelector('a').addEventListener('click', e => { e.preventDefault(); goBed(); });
       this.bedSvg.querySelector('a').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBed(); } });
       this.bedLabel = $('.azur-bedlabel');
@@ -340,6 +414,17 @@
       this.bedSvg.querySelector('a').addEventListener('pointerleave', () => showBed(false));
       this.bedSvg.querySelector('a').addEventListener('focus', () => showBed(true));
       this.bedSvg.querySelector('a').addEventListener('blur', () => showBed(false));
+      // scene2: real footage of the Bolzplatz across the street plays behind the window glass (the compositor masks it)
+      if (this.plate && this.comp.ok) {
+        const vid = document.createElement('video');
+        Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'auto' });
+        vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
+        const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
+        [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
+          const so = document.createElement('source'); so.src = ob + f; so.type = t; vid.appendChild(so); });
+        Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
+        this.root.appendChild(vid); this.comp.video = vid; this.video = vid;
+      }
       // the neighbour's kid crosses the park outside the window now and then
       this.windowEl = $('.azur-window');
       this.kidTrack = $('.azur-kid-track');
@@ -449,7 +534,15 @@
       if (this.isMobile) this.parallaxTarget = [0, 0];
       // click on the empty room deselects
       st.addEventListener('click', e => {
-        if (e.target.closest('.azur-g, .azur-drop, .azur-info, .azur-views, .azur-bed, .azur-head')) return;
+        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head, .azur-panel')) return;
+        if (this.plate) {
+          if (this.dragMoved || e.target.closest('.azur-bed')) return;
+          const r = st.getBoundingClientRect(), id = this.garmentAt(e.clientX - r.left, e.clientY - r.top);
+          if (id >= 0) return this.onGarmentClick(id);
+          if (this.viewKey.includes('@')) this.select(-1);
+          return;
+        }
+        if (e.target.closest('.azur-g, .azur-bed')) return;
         if (this.rail.selected >= 0) this.select(-1);
       });
     }
@@ -523,10 +616,28 @@
       // selection dims the room smoothly
       const dT = this.dimTarget == null ? 1 : this.dimTarget;
       if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
+      if (this.plate) this.stepPlate(dt);
       if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
       this.rail.step(dt, this.reduced);
       if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
       requestAnimationFrame(tt => this.frame(tt));
+    }
+
+    /* scene2: the hovered garment brightens in the render; the outdoor video runs while it is light outside. */
+    stepPlate(dt) {
+      const c = this.comp, h = this.rail.hover;
+      if (h >= 0) c.hover = h + 1;
+      const target = h >= 0 && !this.viewKey.includes('@') ? 1 : 0;
+      const ha = c.hoverAmt + (target - c.hoverAmt) * Math.min(1, dt * 9);
+      if (Math.abs(ha - c.hoverAmt) > 1e-3) { c.hoverAmt = ha; this.dirty = true; } else c.hoverAmt = target;
+      const vid = this.video, hasWin = c.view && c.view.win;
+      const wa = hasWin ? Math.max(0, Math.min(1, (this.light.window - 0.35) / 0.5)) : 0;
+      if (Math.abs(wa - c.winAmt) > 1e-3) { c.winAmt += (wa - c.winAmt) * Math.min(1, dt * 3); this.dirty = true; }
+      if (!vid) return;
+      if (c.winAmt > 0.01 && !document.hidden) {
+        if (vid.paused && !this.reduced) vid.play().catch(() => { });
+        if (!vid.paused) this.dirty = true;                     // new video frames
+      } else if (!vid.paused) vid.pause();
     }
 
     /* UI follows the room's light: labels switch to night styling after dusk. */
@@ -536,6 +647,11 @@
       r.classList.toggle('is-night', s.night > 0.5);
       const kid = this.windowEl;
       if (kid) kid.style.opacity = Math.max(0, Math.min(1, (s.window - 0.45) * 2)).toFixed(2);
+      if (this.comp) {   // outdoor footage follows the daylight a little (it was filmed on a bright afternoon)
+        const sk = s.sky, b = Math.min(1.05, 0.45 + (sk[0] + sk[1] + sk[2]) / 3 * 0.6);
+        const warm = Array.isArray(s.sunLow) ? Math.min(1, (s.sunLow[0] || 0)) : 0;
+        this.comp.videoGrade = [b * (1 + 0.06 * warm), b * (0.98 - 0.02 * warm), b * (0.95 - 0.1 * warm)];
+      }
       if (this.panel) this.panel.sync(s);
     }
   }

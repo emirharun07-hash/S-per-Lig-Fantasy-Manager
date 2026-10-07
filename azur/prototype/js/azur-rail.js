@@ -76,6 +76,9 @@
       this.items = products.map((p, i) => new Garment(p, i, this));
       this.items.forEach(g => this.list.appendChild(g.el));
       this.hover = -1; this.selected = -1; this.view = null; this.geom = [];
+      // scene2: the garments are part of the rendered room; this layer only keeps labels, info and keyboard targets
+      this.plate = !!A.config.plateGarments;
+      root.classList.toggle('is-plate', this.plate);
       this.pointer = { x: -1e4, y: -1e4, vx: 0, inside: false };
       this.t = 0; this.shadowStrength = 1;
       this.label = document.createElement('div'); this.label.className = 'azur-label'; this.label.setAttribute('aria-hidden', 'true');
@@ -235,6 +238,12 @@
     pointerMove(x, y, vx) {
       this.pointer.x = x; this.pointer.y = y; this.pointer.vx = vx;
       if (!this.px || !this.px.length) return;
+      if (this.plate) {             // exact garment shape from the rendered id mask
+        const id = this.app.garmentAt(x, y);
+        this.pointer.inside = id >= 0;
+        if (this.selected < 0 || this.view === 'room') this.setHover(id);
+        return;
+      }
       let best = -1, bestDist = 1e9;
       this.px.forEach((p, i) => {
         if (!p) return;
@@ -293,6 +302,7 @@
     /* Physics + DOM transforms. Returns true while anything is still moving. */
     step(dt, reduced) {
       this.t += dt;
+      if (this.plate) { this.positionOverlays(); return false; }
       const cfg = A.config, m = cfg.motion, mi = m.intensity * cfg.interactionStrength;
       const k = m.spring.stiffness, c = m.spring.damping;
       const h = this.hover, s = (this.view === 'room') ? -1 : this.selected;
@@ -340,6 +350,7 @@
     }
 
     positionOverlays() {
+      if (this.plate) return this.positionOverlaysPlate();
       const i = this.labelFor;
       if (this.label.classList.contains('is-on') && this.px && this.px[i]) {
         const p = this.px[i], g = this.items[i];
@@ -356,6 +367,21 @@
       }
     }
 
+    positionOverlaysPlate() {
+      const i = this.labelFor, H = this.app.stage.clientHeight;
+      if (this.label.classList.contains('is-on') && this.px && this.px[i]) {
+        const p = this.px[i];
+        this.label.style.transform = `translate3d(${(p.x + p.w * 0.3).toFixed(1)}px, ${(p.y + p.h * 0.12).toFixed(1)}px, 0)`;
+      }
+      const s = this.selected;
+      if (s >= 0 && this.px && this.px[s]) {
+        const p = this.px[s];
+        const bottom = Math.min(H - 96, p.y + p.h + 14);
+        this.info.style.transform = `translate3d(${p.x.toFixed(1)}px, ${bottom.toFixed(1)}px, 0) translateX(-50%)`;
+        this.app.drop.position(p.x, p.y + p.h * 0.18, p);
+      }
+    }
+
     /* Light the garments like the room around them (see daylight[].garment in the config). */
     applyLight(state) {
       const [b, warm, cool] = state.garment;
@@ -368,7 +394,14 @@
       this.shadowStrength = 0.5 + 0.5 * (1 - state.night);
     }
 
-    garmentRect(i) { return this.items[i] && this.items[i].body.getBoundingClientRect(); }
+    garmentRect(i) {
+      if (this.plate) {
+        const p = this.px && this.px[i]; if (!p) return null;
+        const s = this.app.stage.getBoundingClientRect();
+        return { left: s.left + p.x - p.w / 2, top: s.top + p.y, width: p.w, height: p.h, right: s.left + p.x + p.w / 2, bottom: s.top + p.y + p.h };
+      }
+      return this.items[i] && this.items[i].body.getBoundingClientRect();
+    }
   }
 
   A.Rail = Rail;

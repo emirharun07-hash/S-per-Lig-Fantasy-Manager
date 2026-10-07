@@ -62,6 +62,11 @@ button { font: inherit; color: inherit; }
 .azur-g__hit { position: absolute; inset: -4% 6% 0; z-index: 3; pointer-events: auto; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 14px; }
 .azur-g__hit:focus-visible { outline: 2px solid var(--glow); outline-offset: 4px; box-shadow: 0 0 22px color-mix(in srgb, var(--glow) 40%, transparent); }
 .azur-g.is-selected .azur-g__hit { cursor: default; }
+/* scene2: garments live in the rendered room; only labels, info line and keyboard targets stay in this layer */
+.azur-layer.is-plate .azur-g__pivot, .azur-layer.is-plate .azur-g__shadow { display: none; }
+.azur-layer.is-plate .azur-g__hit { pointer-events: none; }
+.azur.is-plate .azur-window { display: none; }
+.azur.is-plate .azur-stage.is-pointing { cursor: pointer; }
 
 /* covered "Nächster Drop" bag (CSS stand-in until the rendered sprite exists) */
 .azur-bag { position: absolute; inset: 1% 2% 0; border-radius: 14% 14% 6% 6% / 8% 8% 4% 4%;
