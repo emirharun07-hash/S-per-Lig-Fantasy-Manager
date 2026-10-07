@@ -5,6 +5,7 @@
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1          everything still missing
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 moves    only the camera moves
 #   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 queue    only view plates and passes
+#   powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 test     set up + one timed test render
 #
 # Needs: Git for Windows (git-scm.com; its credential manager opens a browser for the GitHub login on the first push)
 # and a current AMD Adrenalin driver. First run installs uv, Python 3.11 and Blender's Python module into azur\.venv
@@ -33,6 +34,11 @@ uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
 
 $env:AZUR_GPU = "1"
 $ErrorActionPreference = "Continue"
+if ($Mode -eq "test") {
+  python azur\scene\bench.py
+  Select-String -Path "azur\.cache\queue.log" -Pattern "render device|bench:" | Select-Object -Last 2
+  exit 0
+}
 switch ($Mode) {
   "queue" { python azur\scene\render_queue.py }
   "moves" { python azur\scene\render_moves.py }

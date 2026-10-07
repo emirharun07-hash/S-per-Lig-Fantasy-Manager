@@ -30,6 +30,7 @@ uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
 
 export AZUR_GPU=1
 case "${1:-all}" in
+  test)  python azur/scene/bench.py; grep -E "render device|bench:" azur/.cache/queue.log | tail -2; exit 0 ;;
   queue) python azur/scene/render_queue.py ;;
   moves) python azur/scene/render_moves.py ;;
   *)     python azur/scene/render_queue.py && python azur/scene/render_moves.py ;;
