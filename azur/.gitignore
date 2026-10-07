@@ -1,3 +1,4 @@
 .cache/
 *.blend
 *.blend1
+.venv/

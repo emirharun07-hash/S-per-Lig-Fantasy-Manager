@@ -61,19 +61,14 @@ python3 azur/scene/build_room.py -- preview azur/renders/preview.png azur/.cache
 python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th arg: camera preset(s), e.g. A,B,F
 ```
 
-Rendering on the owner's laptop (much faster with a supported graphics chip): open a Claude session on that computer
-(Claude Desktop app, or `claude remote-control` in a terminal inside the cloned repo), or run it by hand:
-
-```bash
-git clone <repo> && cd <repo> && git checkout claude/shopify-notification-signup-o5avym
-python3.11 -m pip install bpy==5.0.1 pillow scikit-image scipy imageio-ffmpeg
-python3 azur/scene/fetch_assets.py
-AZUR_GPU=1 python3 azur/scene/render_queue.py      # then: AZUR_GPU=1 python3 azur/scene/render_moves.py
-```
-
-`AZUR_GPU=1` picks OptiX/CUDA (NVIDIA), Metal (Apple M-chips), HIP (AMD) or oneAPI (Intel Arc) and falls back to the CPU;
-the first line of `azur/.cache/queue.log` says which. Integrated Intel graphics are not supported by Cycles (no speed-up).
-Finished outputs are skipped, and each output is committed and pushed, so cloud and laptop can share the work.
+Rendering on the owner's laptop (MacBook with M5 chip, Metal): about 5-8x faster than this cloud CPU
+(a camera-move frame ~15-25 s instead of ~2 min; all view passes ~40 min instead of ~4.5 h).
+On the Mac, in the cloned repo: `sh azur/tools/render_on_mac.sh` (or `... moves` / `... queue`). It installs everything
+on the first run, renders with `AZUR_GPU=1` and commits/pushes like the cloud queue. A Claude session on the Mac
+(Desktop app, or `claude remote-control` in the repo folder) can run it too. Never render the same job on both machines
+at once. Note: the Mac rebuilds the scene itself; the cloth (duvet, scarf) may differ very slightly from the cloud build,
+so re-render whole views or whole move sets there, not single passes of a cloud-rendered view.
+`AZUR_GPU=1` also picks OptiX/CUDA (NVIDIA), HIP (AMD) or oneAPI (Intel Arc); the queue log says which device it used.
 
 Local test of the prototype: `cd azur/prototype && python3 -m http.server 8765`, then `sh azur/tools/mkdev.sh` wraps index.html into `_dev.html`; run Chromium with `--no-proxy-server`.
 
