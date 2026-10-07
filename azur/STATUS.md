@@ -68,16 +68,16 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Next
 
-**Artifact version 14 is live** (15:53 UTC): scene2 views (room, rail, rail_m, bed, all `rail@i` / `rail_m@i`), the
-magazine, the window video; the old scene1 files were removed from the artifact (version 13 added, 14 removed).
-Camera moves in v14 are the fake zoom until the scene2 moves are published. The owner's PC is rendering the moves
-(started 17:52 local, about 5 s per frame, about 480 frames: day first, then night).
+**Artifact version 15 is live** (17:12 UTC): everything of scene2. Views room / rail / rail_m / bed and all
+`rail@i` / `rail_m@i`, the magazine, the window video, and the real camera moves (room→rail, room→bed, the 12 pull
+moves), day + night, packed into strips by `tools/build_artifact.py` (248 files). Old scene1 files are gone from the
+artifact (v13 added scene2, v14 removed scene1, v15 added the moves). Rendering on the owner's PC: views and passes about
+20 s per image, chosen-garment views about 2.5 min each, moves about 8.5 s per frame (480 frames, 70 min).
+Waiting for the owner's feedback on version 15.
 
-1. When the PC is done: pull, test the full flow (room → click → move → pull → info; magazine), tune light, then
-   `build_artifact.py` and publish to the same artifact URL.
-2. Seen in testing: during room → bed the flying jerseys leave the frame at the top for a few frames (correct in 3D, can look odd); option: fade a garment once its hook leaves the frame.
-4. Faster renders later: the owner's Mac (M5) via `azur/tools/render_on_mac.sh`, once git there uses a private GitHub login (the work account blocked uploads).
-5. Phase 2 (Shopify theme) only after explicit approval.
+1. Owner feedback on version 15 (open question: founder names in the magazine editorial?).
+2. Renders run on the owner's PC (`azur\tools\render_on_windows.ps1`); the Mac route stays parked (work-account git).
+3. Phase 2 (Shopify theme) only after explicit approval.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
