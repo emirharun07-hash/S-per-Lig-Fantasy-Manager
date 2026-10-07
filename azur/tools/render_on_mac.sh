@@ -14,6 +14,11 @@ BRANCH=claude/shopify-notification-signup-o5avym
 git fetch -q origin "$BRANCH"
 git checkout -q "$BRANCH"
 git pull -q --rebase origin "$BRANCH"
+if [ -z "$(git config user.email)" ]; then
+  echo "git kennt dich noch nicht. Einmal ausfuehren (deine GitHub-E-Mail):"
+  echo '  git config --global user.name "Dein Name"; git config --global user.email "deine@mail.de"'
+  exit 1
+fi
 
 if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -30,3 +35,7 @@ case "${1:-all}" in
   *)     python azur/scene/render_queue.py && python azur/scene/render_moves.py ;;
 esac
 grep "render device" azur/.cache/queue.log | tail -1
+# anything a failed push left behind (e.g. before the GitHub login was set up)
+git add azur/prototype/assets
+git commit -q -m "AZUR renders from the Mac" || true
+git pull -q --rebase origin "$BRANCH" && git push -q origin "HEAD:$BRANCH" && echo "Alles hochgeladen."
