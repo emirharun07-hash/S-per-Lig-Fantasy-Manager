@@ -14,8 +14,9 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | First still (golden hour) | Done: `renders/still_golden_hour.png`, approved as a direction on 2026-10-06 |
 | Scene round 2 | Done: pillow, folded-back duvet, magazine, desk corner with lamp and chair, boots, training bag, medals, pennant, black garment bag with AZUR print and zip, flush ceiling light, neon double tubes for thick strokes |
 | Camera options | Rendered: presets A–F plus bed detail G in `scene/build_room.py` (`CAMS`). Owner decides later; bed is out of frame in most angles, so a layout change (bed against the left poster wall) is proposed |
-| Light passes + parallax layers | Pending: render after the camera is chosen |
-| Interactive prototype (Artifact) | Pending |
+| Views + light passes | **Rendering** via `scene/render_queue.py` (detached, resumable, commits every output): beauty plates, depth maps, hanger + drop sprites, 7 light passes for views room / rail / rail_m / bed |
+| Interactive prototype | **Published**: https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy (code in `prototype/`, config in `prototype/js/azur-config.js`) |
+| Real camera moves | **Later (owner reminder)**: replace the fake pans (room → rail, room → bed) with pre-rendered flights |
 
 ## Owner feedback on the first still (2026-10-06)
 
@@ -29,11 +30,20 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Animation details may still change: build motion fully parameterised.
 - Interaction inspiration accepted (see `refs/NOTES.md`).
 
+## Owner decisions (2026-10-07, night)
+
+- Start view: the room (camera B = view `room`). Clicking a jersey moves the camera to the rail (`rail`, closer and higher than C) and opens that jersey in one step. Clicking the bed moves to the bed view (`bed`).
+- Fake camera moves for now; **real rendered moves must follow later**.
+- Phones start at the rail (`rail_m`), swipe along it, garments swing with the swipe.
+- Bed: easter egg comes later; remind the owner of the ideas (magazine "ANSTOSS" opens the brand story / lookbook; or the drop sign-up; or atmosphere only).
+- Overlapping jerseys are fine; details only on click.
+
 ## Next
 
-1. Owner reviews camera presets A–F and the bed-layout proposal.
-2. Build the interactive prototype with the current still as a placeholder plate (camera-agnostic scene config).
-3. After the camera is chosen: render the light passes (dawn, day, golden hour, blue hour/night + neon, desk lamp, ceiling, street lamp) and parallax layers for desktop and mobile cameras.
+1. Let the render queue finish (`tail azur/.cache/queue.log`). If it stopped: `sh azur/tools/start_queue.sh` or `setsid nohup python3 azur/scene/render_queue.py > azur/.cache/queue_run.txt 2>&1 &`. Finished outputs are skipped.
+2. After new renders land: test in the headless browser (`azur/tools/prototype_shots.cjs`), tune `daylight` keys and garment grading, republish the artifact (same file path / URL above) with the new files under `assets/views/`.
+3. Polish: drop sprite + hanger sprite alignment, window kid, bed hotspot polygon, mobile swipe feel, reduced motion.
+4. Later: real camera flights, bed easter egg, Phase 2 (Shopify) only after explicit approval.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
@@ -49,6 +59,8 @@ python3 azur/scene/fetch_assets.py            # Poly Haven assets into azur/.cac
 python3 azur/scene/build_room.py -- preview azur/renders/preview.png azur/.cache/azur_room.blend
 python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th arg: camera preset(s), e.g. A,B,F
 ```
+
+Local test of the prototype: `cd azur/prototype && python3 -m http.server 8765`, then `sh azur/tools/mkdev.sh` wraps index.html into `_dev.html`; run Chromium with `--no-proxy-server`.
 
 Headless Chromium for looking at web references needs the proxy CA key:
 `--ignore-certificate-errors-spki-list=$(openssl x509 -in /root/.ccr/agent-proxy-ca.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64)`
