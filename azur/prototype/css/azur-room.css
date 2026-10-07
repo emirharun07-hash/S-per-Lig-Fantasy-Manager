@@ -176,12 +176,18 @@ button { font: inherit; color: inherit; }
 .azur-bedlabel.is-on { opacity: 1; translate: -50% 0; }
 .azur-bed a:hover polygon, .azur-bed a:focus-visible polygon { fill: rgb(255 255 255 / .05); stroke: color-mix(in srgb, var(--glow) 55%, transparent); stroke-dasharray: 4 6; }
 .azur-window { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; overflow: hidden; transition: opacity 1.2s; }
-.azur-kid { position: absolute; bottom: 9%; left: 0; height: calc(var(--wh, 200px) * .13); filter: blur(.5px); opacity: .82; animation: azur-kid-run 13s ease-in-out infinite; }
+/* the neighbour's kid crosses the park now and then (app.js picks when, which way, how fast) */
+.azur-kid-track { position: absolute; inset: 0; transform: translateX(-20%); }
+.azur-kid-track.is-run { animation: azur-kid-cross var(--kid-s, 7s) linear 1 both; }
+.azur-kid-track.is-back { animation-direction: reverse; }
+.azur-kid-track.is-back .azur-kid svg { transform: scaleX(-1); }
+.azur-kid { position: absolute; bottom: var(--kid-y, 9%); left: 0; height: calc(var(--wh, 200px) * var(--kid-h, .13)); filter: blur(.5px); opacity: .82; }
 .azur-kid svg { height: 100%; width: auto; overflow: visible; }
 .azur-kid .leg-a { transform-origin: 50% 0; animation: azur-leg .42s ease-in-out infinite alternate; transform-box: fill-box; }
 .azur-kid .leg-b { transform-origin: 50% 0; animation: azur-leg .42s ease-in-out infinite alternate-reverse; transform-box: fill-box; }
 .azur-kid .ball { animation: azur-ball .84s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
-@keyframes azur-kid-run { 0% { transform: translateX(10%) scaleX(1); } 46% { transform: translateX(560%) scaleX(1); } 50% { transform: translateX(560%) scaleX(-1); } 96% { transform: translateX(10%) scaleX(-1); } 100% { transform: translateX(10%) scaleX(1); } }
+.azur-kid-track:not(.is-run) .azur-kid * { animation-play-state: paused; }
+@keyframes azur-kid-cross { from { transform: translateX(-20%); } to { transform: translateX(110%); } }
 @keyframes azur-leg { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
 @keyframes azur-ball { 0%, 100% { transform: translate(0, 0); } 45% { transform: translate(14px, -10px); } 55% { transform: translate(16px, -8px); } }
 
@@ -295,5 +301,5 @@ button { font: inherit; color: inherit; }
 /* ------------------------------------------------------------------ reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .15s !important; }
-  .azur-kid { animation: none; left: 30%; }
+  .azur-kid-track { display: none; }
 }

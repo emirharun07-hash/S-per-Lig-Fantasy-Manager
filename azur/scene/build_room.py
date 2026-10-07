@@ -140,10 +140,10 @@ M['ceil'] = pbr('ceil', 'white_plaster_02', tile=1.6, tint=(0.95, 0.94, 0.91), r
 M['floor'] = pbr('floor', 'laminate_floor_02', tile=1.8, tint=(0.92, 0.86, 0.80), rough=(0.32, 0.6), nstr=0.6)
 M['oak'] = pbr('oak', 'oak_veneer_01', tile=0.9, tint=(0.98, 0.9, 0.78), rough=(0.4, 0.7), nstr=0.4)
 M['duvet'] = pbr('duvet', 'cotton_jersey', tile=0.12, tint=(1.0, 0.99, 0.97), rough=(0.85, 1.0), nstr=0.5, coords='UV', sheen=0.4)
-_db = M['duvet'].node_tree.nodes['Principled BSDF']   # keep the cotton weave in the normal map, but make the cover plain off-white
+_db = M['duvet'].node_tree.nodes['Principled BSDF']   # keep the cotton weave in the normal map, plain coloured cover
 for l in list(M['duvet'].node_tree.links):
     if l.to_socket == _db.inputs['Base Color']: M['duvet'].node_tree.links.remove(l)
-_db.inputs['Base Color'].default_value = (0.86, 0.855, 0.83, 1)
+_db.inputs['Base Color'].default_value = (0.14, 0.24, 0.40, 1)   # washed sky-blue cover (pillow stays white)
 M['rug'] = pbr('rug', 'dirty_carpet', tile=0.9, tint=(0.62, 0.66, 0.70), rough=(0.85, 1.0), nstr=0.8, sheen=0.3)
 M['paint'] = flat('white_paint', (0.88, 0.87, 0.84), rough=0.35)
 M['pvc'] = flat('pvc', (0.90, 0.90, 0.88), rough=0.3)
@@ -235,21 +235,28 @@ pil.modifiers.new('sub', 'SUBSURF').levels = 3
 ptx = bpy.data.textures.new('pillownoise', 'CLOUDS'); ptx.noise_scale = 0.6
 pd = pil.modifiers.new('disp', 'DISPLACE'); pd.texture = ptx; pd.strength = 0.01
 bpy.ops.object.shade_smooth()
-pil.data.materials.append(M['duvet'])
+pil.data.materials.append(flat('pillow', (0.86, 0.855, 0.83), rough=0.85, **{'Sheen Weight': 0.4}))
 pil.modifiers.new('col', 'COLLISION')
 
-# duvet: thrown back toward the foot end and half off the side, the way a kid leaves it in the morning
-bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=92, size=1.0, location=(0.57, 1.02, 0.60))
+# duvet: thrown back toward the foot end and half off the side, the way a kid leaves it in the morning.
+# A filled duvet makes few, broad folds: coarse cloth grid, stiff bending, no small-scale noise (that made it lumpy).
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=92, size=1.0)   # the old grid, only to keep the
+_tmp = bpy.context.object; _n = len(_tmp.data.vertices); bpy.data.objects.remove(_tmp, do_unlink=True)
+for _ in range(_n): random.uniform(-0.006, 0.006)   # seeded sequence identical for everything built after the bed
+rnd = random.Random(23)
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=30, y_subdivisions=52, size=1.0, location=(0.66, 1.02, 0.60))
 duv = bpy.context.object; duv.name = 'duvet'; duv.scale = (1.04, 1.90, 1); apply_tf(duv)   # must not start inside the wall
 bm = bmesh.new(); bm.from_mesh(duv.data)
-FOLD = 0.62   # head-side part is folded back over the rest
+FOLD = 0.66   # head-side part is folded back over the rest
 for v in bm.verts:
     x, y = v.co.x, v.co.y
     if y < FOLD:   # fold the head end back on top, slightly skewed so the edge runs diagonally
         d = FOLD - y
-        v.co.y = FOLD + d * 0.82 + 0.10 * (x - 0.5)
-        v.co.z += 0.09 + d * 0.05
-    v.co.z += 0.06 * math.sin(x * 6.3 + y * 2.1) * math.sin(y * 4.7 + 0.6) + random.uniform(-0.006, 0.006)
+        v.co.y = FOLD + d * 0.78 + 0.12 * (x - 0.55)
+        v.co.z += 0.07 + d * 0.06
+    # broad, soft rumples only
+    v.co.z += 0.035 * math.sin(x * 3.3 + y * 1.4 + 0.8) * math.sin(y * 2.3 + 0.4) + rnd.uniform(-0.002, 0.002)
+    v.co.x += 0.03 * math.sin(y * 3.1)       # the cover is pushed together a little across the bed
 bm.to_mesh(duv.data); bm.free()
 for o in (matt,):
     c = o.modifiers.new('col', 'COLLISION'); o.collision.thickness_outer = 0.01; o.collision.cloth_friction = 30
@@ -257,9 +264,9 @@ floor_c = bpy.data.objects['floor']; floor_c.modifiers.new('col', 'COLLISION')
 for nm in ('bed_foot', 'bed_side', 'bed_side_l', 'wall_left'):
     bpy.data.objects[nm].modifiers.new('col', 'COLLISION')
 cl = duv.modifiers.new('cloth', 'CLOTH'); cs = cl.settings
-cs.quality = 7; cs.mass = 0.6; cs.tension_stiffness = 12; cs.compression_stiffness = 12; cs.shear_stiffness = 6; cs.bending_stiffness = 0.5
-cs.air_damping = 2.0
-cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.01; cl.collision_settings.distance_min = 0.008
+cs.quality = 8; cs.mass = 0.9; cs.tension_stiffness = 15; cs.compression_stiffness = 15; cs.shear_stiffness = 10; cs.bending_stiffness = 6.0
+cs.air_damping = 1.5
+cl.collision_settings.use_self_collision = True; cl.collision_settings.self_distance_min = 0.015; cl.collision_settings.distance_min = 0.012
 cl.point_cache.frame_end = 90
 # scarf over the foot board (invented club colours: navy / sky / white)
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=8, y_subdivisions=70, size=1.0, location=(0.62, by1 + 0.02, 0.78))
@@ -274,10 +281,10 @@ for o in (duv, scarf):   # copy the simulated shape into the mesh (applying a cl
     o.modifiers.remove(o.modifiers['cloth'])
     for v, c in zip(o.data.vertices, coords): v.co = c
 sc.frame_set(1)
-for o, th in ((duv, 0.035), (scarf, 0.01)):
+for o, th, lv in ((duv, 0.05, 2), (scarf, 0.01, 1)):
     sm_ = o.modifiers.new('smooth', 'SMOOTH'); sm_.factor = 0.6; sm_.iterations = 6   # calm the collision jitter
     s = o.modifiers.new('sol', 'SOLIDIFY'); s.thickness = th; s.offset = 1
-    o.modifiers.new('sub', 'SUBSURF').levels = 1
+    sb_ = o.modifiers.new('sub', 'SUBSURF'); sb_.levels = lv; sb_.render_levels = lv
     bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o; bpy.ops.object.shade_smooth()
 duv.data.materials.append(M['duvet'])
 sm = bpy.data.materials.new('scarf'); sm.use_nodes = True; nt = sm.node_tree

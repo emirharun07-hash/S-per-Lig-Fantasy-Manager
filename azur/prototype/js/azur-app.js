@@ -316,8 +316,25 @@
       this.bedSvg.querySelector('a').addEventListener('pointerleave', () => showBed(false));
       this.bedSvg.querySelector('a').addEventListener('focus', () => showBed(true));
       this.bedSvg.querySelector('a').addEventListener('blur', () => showBed(false));
-      // the kid outside the window
+      // the neighbour's kid crosses the park outside the window now and then
       this.windowEl = $('.azur-window');
+      this.kidTrack = $('.azur-kid-track');
+      this.kidTrack.addEventListener('animationend', e => { if (e.target === this.kidTrack) this.kidTrack.classList.remove('is-run', 'is-back'); });
+      this.scheduleKid(5000 + Math.random() * 5000);
+    }
+    scheduleKid(ms) {
+      clearTimeout(this.kidTimer);
+      this.kidTimer = setTimeout(() => { this.runKid(); this.scheduleKid(22000 + Math.random() * 38000); }, ms);
+    }
+    runKid() {
+      const t = this.kidTrack, w = this.windowEl;
+      if (!t || this.reduced || document.hidden || w.hidden || !(+w.style.opacity > 0.2) || t.classList.contains('is-run')) return;
+      const far = Math.random();            // further away: smaller, higher in the window, slower across it
+      t.style.setProperty('--kid-s', (6 + far * 4).toFixed(1) + 's');
+      t.style.setProperty('--kid-h', (0.15 - far * 0.05).toFixed(3));
+      t.style.setProperty('--kid-y', (7 + far * 6).toFixed(1) + '%');
+      t.classList.toggle('is-back', Math.random() < 0.5);
+      void t.offsetWidth; t.classList.add('is-run');
     }
 
     placeChrome() {

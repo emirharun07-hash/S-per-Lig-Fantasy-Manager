@@ -16,7 +16,8 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | Camera options | Rendered: presets A–F plus bed detail G in `scene/build_room.py` (`CAMS`). Owner decides later; bed is out of frame in most angles, so a layout change (bed against the left poster wall) is proposed |
 | Views + light passes | **Rendering** via `scene/render_queue.py` (detached, resumable, commits every output): beauty plates, depth maps, hanger + drop sprites, 7 light passes for views room / rail / rail_m / bed |
 | Interactive prototype | **Published**: https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy (code in `prototype/`, config in `prototype/js/azur-config.js`) |
-| Real camera moves | **Later (owner reminder)**: replace the fake pans (room → rail, room → bed) with pre-rendered flights |
+| Real camera moves | **Queued after the views** (`scene/render_moves.py`, chained by `tools/start_queue.sh`): room → rail and room → bed, 36 frames each, a golden-hour set and a night set. The player (`azur-app.js`) uses them as soon as all frames exist and falls back to the fake pans until then; phones keep the fake pan |
+| Bed fix | **In progress**: the duvet looked lumpy and grey. New stiffer, coarser cloth, washed sky-blue cover, white pillow (`build_room.py`); bed camera candidates rendered to `.cache/test/bed/`. After the choice: rebuild `.cache/azur_room.blend`, delete room/bed outputs that show the bed, restart the queue |
 
 ## Owner feedback on the first still (2026-10-06)
 
@@ -40,9 +41,9 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Next
 
-1. Let the render queue finish (`tail azur/.cache/queue.log`). If it stopped: `sh azur/tools/start_queue.sh` or `setsid nohup python3 azur/scene/render_queue.py > azur/.cache/queue_run.txt 2>&1 &`. Finished outputs are skipped.
+1. Let the renders finish (`tail azur/.cache/queue.log`). If they stopped: `sh azur/tools/start_queue.sh` (runs the view queue, then the camera moves; does nothing if they already run). Finished outputs are skipped.
 2. After new renders land: test in the headless browser (`azur/tools/prototype_shots.cjs`), tune `daylight` keys and garment grading, republish the artifact (same file path / URL above) with the new files under `assets/views/`.
-3. Polish: drop sprite + hanger sprite alignment, window kid, mobile swipe feel, reduced motion. Scene: the duvet looks lumpy from the room camera (more smoothing / fewer self-collision artefacts), boots are placeholders.
+3. Polish: drop sprite + hanger sprite alignment once rendered (a scene-accurate SVG hanger stands in until then). Done tonight: phone rail settles on a garment after a swipe, neon light on the garments comes from the sign, window kid crosses now and then instead of looping. Scene: boots are placeholders.
 4. Later: real camera flights, bed easter egg, Phase 2 (Shopify) only after explicit approval.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
