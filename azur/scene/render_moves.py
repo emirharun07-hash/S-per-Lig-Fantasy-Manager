@@ -65,8 +65,8 @@ def light_variant(sc, variant):
         bg.default_value = 2.2; rq.world_tint(sc, (0.04, 0.055, 0.11))
         nb.inputs['Emission Color'].default_value = (*[g * 1.05 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
         L = bpy.data.objects['L_lamp']; L.hide_render = False; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
-        S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.7; S.data.color = (1.0, 0.7, 0.38)
-        sc.view_settings.exposure = 3.2
+        S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.3; S.data.color = (0.95, 0.84, 0.7)
+        sc.view_settings.exposure = 3.0
 
 
 def drop_objects():
