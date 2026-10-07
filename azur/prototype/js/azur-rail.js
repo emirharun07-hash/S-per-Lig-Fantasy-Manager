@@ -138,6 +138,24 @@
       this.place();
     }
 
+    /* During a pre-rendered camera move: place the garments for one frame of the flight. comp maps the frame's
+       (u, v) to the screen; f holds that frame's projected slots, the neon and the drop bag's box. */
+    fly(f, comp, dropBox, dropSrc) {
+      this.comp = comp; this.viewData = { neon: f.neon };
+      this.geom = this.items.map((g, i) => {
+        const s = f.slots[i]; if (!s) return null;
+        const drop = g.p.type === 'drop';
+        if (drop && !dropBox) return null;
+        return { hook: s.hook, top: s.top, bottom: s.bottom, depthM: s.depth, scale: 1, sprite: drop ? { box: dropBox } : null };
+      });
+      const drop = this.items.find(g => g.p.type === 'drop');
+      if (drop && dropSrc) {
+        const img = drop.el.querySelector('.azur-g__dropimg'), bag = drop.el.querySelector('.azur-bag');
+        if (img && img.getAttribute('src') !== dropSrc) { img.src = dropSrc; img.hidden = false; if (bag) bag.hidden = true; }
+      }
+      this.place();
+    }
+
     /* Recompute pixel geometry (call on resize / pan / parallax). */
     place() {
       const comp = this.comp; if (!comp || !comp.cssW) return;

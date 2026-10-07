@@ -147,8 +147,11 @@
       return this.moveFrames[key];
     }
     preloadMoves() {
-      const mix = this.moveMix();
-      Object.keys(this.moves || {}).forEach(name => { if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night'); });
+      const mix = this.moveMix(), base = A.config.assetBase;
+      Object.keys(this.moves || {}).forEach(name => {
+        if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night');
+        const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = base + v + '/drop.webp'; });
+      });
     }
     findMove(from, to) {
       const mix = this.moveMix();
@@ -197,15 +200,31 @@
         }
       };
       const idx = k => mv.reverse ? n - 1 - k : k;
-      // the first frame is the current camera: fade it in while the live garments step aside
+      // garments fly along: the frames are rendered without them, the live garment layer follows the projected
+      // hangers frame by frame (moves.json track). Older moves without a track hide the garments instead.
+      const tr = m.track && m.track.length === n ? m.track : null;
+      const ref = (day || night)[0], iw = ref.naturalWidth, ih = ref.naturalHeight;
+      const cv = cover(ref).map(x => x);   // [sx, sy, sw, sh, ...] in image pixels
+      const proxy = { cssW: W, cssH: H, toScreen: (u, v) => [(u * iw - cv[0]) / cv[2] * W, (v * ih - cv[1]) / cv[3] * H] };
+      const sb = v => A.sprites && A.sprites[v] && A.sprites[v].drop && A.sprites[v].drop.box;
+      const sA = sb(m.from_), sB = sb(m.to);
+      const dropAt = j => {
+        const b = tr[j].drop; if (!b) return null;
+        const t = j / (n - 1), a0 = tr[0].drop, b0 = tr[n - 1].drop;
+        return b.map((x, q) => x + (sA && a0 ? (1 - t) * (sA[q] - a0[q]) : 0) + (sB && b0 ? t * (sB[q] - b0[q]) : 0));
+      };
+      const dropSrc = j => { const v = j / (n - 1) < 0.5 ? m.from_ : m.to; return sb(v) ? A.config.assetBase + v + '/drop.webp' : null; };
+      const fly = k => { if (tr) { const j = idx(k); this.rail.fly(tr[j], proxy, dropAt(j), dropSrc(j)); } };
+      // the first frame is the current camera: fade it in
       draw(idx(0)); c.style.transform = ''; c.hidden = false;
-      this.layer.classList.add('is-moving');
+      if (tr) { this.world.insertBefore(c, this.layer); c.style.zIndex = '0'; this.root.classList.add('is-flying'); fly(0); }
+      else this.layer.classList.add('is-moving');
       await c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => { });
       await new Promise(res => {
         const t0 = performance.now();
         const tick = now => {
           const k = Math.max(0, Math.min(n - 1, Math.floor((now - t0) / 1000 * fps)));   // rAF time can precede t0
-          draw(idx(k));
+          draw(idx(k)); fly(k);
           if (k < n - 1) requestAnimationFrame(tick); else res();
         };
         requestAnimationFrame(tick);
@@ -213,8 +232,10 @@
       await this.enterView(to);
       this.comp.render(this.light);
       c.getAnimations().forEach(a => a.cancel());
+      this.root.classList.remove('is-flying');
       await c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out' }).finished.catch(() => { });
-      c.hidden = true; c.style.filter = ''; this.layer.classList.remove('is-moving');
+      c.hidden = true; c.style.filter = ''; c.style.zIndex = ''; this.layer.classList.remove('is-moving');
+      if (c.parentNode !== this.stage || c.previousElementSibling !== this.world) this.world.after(c);
     }
 
     updateChips() {

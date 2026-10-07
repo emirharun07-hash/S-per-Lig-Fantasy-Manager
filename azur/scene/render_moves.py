@@ -1,14 +1,16 @@
 """AZUR camera moves: pre-rendered flights between views, replacing the prototype's fake pans.
 
 Renders room -> rail and room -> bed as image sequences (the way back plays them reversed).
-Garments stay in the frames (they are baked for the flight; the interactive layer takes over at the end).
+The garments are left out of the frames: the prototype's own garment layer flies along, placed per frame from the
+projected hanger positions and the drop bag's box stored in moves.json (so they look the same before, during and
+after the move).
 Two light variants per move: 'day' (the approved golden-hour look, graded toward the clock in the browser)
 and 'night' (the 22:30 mix of the light passes: night sky, neon, desk lamp, street light). The browser
 crossfades them by how dark it is. Day frames of every move render first, so a usable set exists early.
 
 Usage:  python3 azur/scene/render_moves.py              (all moves, resumable)
         python3 azur/scene/render_moves.py room-rail    (one move)
-Env:    AZUR_MOVES_FRAMES=36  AZUR_MOVES_SAMPLES=48  AZUR_MOVES_RES=1280x720
+Env:    AZUR_MOVES_FRAMES=36  AZUR_MOVES_SAMPLES=48  AZUR_MOVES_RES=1280x720  AZUR_MOVES_OUT=<dir> (tests)
 Rough cost on this 4-core CPU: ~1.5 min per frame, so 36 frames ~ 1 h per move and variant.
 """
 import os, sys, json, math, time
@@ -21,7 +23,7 @@ import render_queue as rq   # reuses scene loading, views, light setup and git s
 FRAMES = int(os.environ.get('AZUR_MOVES_FRAMES', 36))
 SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 48))
 RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1280x720').split('x'))
-OUT = os.path.join(rq.ROOT, 'prototype', 'assets', 'moves')
+OUT = os.environ.get('AZUR_MOVES_OUT') or os.path.join(rq.ROOT, 'prototype', 'assets', 'moves')
 MOVES = {
     'room-rail': dict(a='room', b='rail', lift=0.18),     # the camera rises a little mid-flight, like a person stepping in
     'room-bed':  dict(a='room', b='bed', lift=0.08),
@@ -67,21 +69,39 @@ def light_variant(sc, variant):
         sc.view_settings.exposure = 3.3
 
 
+def drop_objects():
+    """The covered drop garment: bag, tag, string, zip and its own hanger and hook."""
+    bag_x = bpy.data.objects['drop_bag'].matrix_world.translation.x
+    keep = ('drop_', 'tag', 'tagtext', 'string', 'zip')
+    return [o for o in rq.garments() if o.name.startswith(keep) or (o.name.startswith(('hanger', 'hook')) and abs(o.matrix_world.translation.x - bag_x) < 0.05)]
+
+
+def drop_box(sc, cam, objs):
+    from bpy_extras.object_utils import world_to_camera_view
+    pts = [world_to_camera_view(sc, cam, o.matrix_world @ Vector(c)) for o in objs for c in o.bound_box]
+    xs = [p.x for p in pts]; ys = [1 - p.y for p in pts]
+    return [round(min(xs), 4), round(min(ys), 4), round(max(xs), 4), round(max(ys), 4)]
+
+
 def render_move(sc, name, spec, variant):
     d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
     prefix = 'f' if variant == 'day' else 'n'
     light_variant(sc, variant)
+    drops = [o for o in drop_objects() if not rq.BASE_HIDE.get(o.name)]
+    for o in rq.garments(): o.hide_render = True
     sc.render.resolution_x, sc.render.resolution_y = RES
     cam = sc.camera; cd = cam.data; cd.sensor_fit = 'AUTO'; cd.sensor_width = 36
-    saved = []
+    saved = []; track = []
     for i in range(FRAMES):
         dst = os.path.join(d, f'{prefix}{i:03d}.webp')
-        if os.path.exists(dst): continue
         t = i / (FRAMES - 1)
         loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
         cam.location = loc; cd.lens = lens
         cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
         cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
+        bpy.context.view_layer.update()
+        slots, neon = rq.project_slots(sc, cam); track.append(dict(slots=slots, neon=neon, drop=drop_box(sc, cam, drops)))
+        if os.path.exists(dst): continue
         png = dst.replace('.webp', '.png'); secs = rq.render_to(sc, png); rq.to_webp(png, dst, q=80)
         rq.log('move', name, variant, i, secs, 's'); saved.append(dst)
         if len(saved) >= 6:                     # commit in small batches
@@ -89,7 +109,7 @@ def render_move(sc, name, spec, variant):
     meta = os.path.join(OUT, 'moves.json')
     m = json.load(open(meta)) if os.path.exists(meta) else {}
     e = m.setdefault(name, {})
-    e.update(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES))
+    e.update(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES), track=track)
     e['variants'] = sorted(set(e.get('variants', [])) | {variant})
     json.dump(m, open(meta, 'w'), indent=1)
     rq.git_save(saved + [meta], f'AZUR move {name} ({variant}): complete')

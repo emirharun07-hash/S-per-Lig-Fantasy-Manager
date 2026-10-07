@@ -206,6 +206,23 @@ def encode_pass(exr, dst):
 
 
 # ------------------------------------------------------------------ jobs
+def project_slots(sc, cam):
+    """Garment slots (one per hook, left to right) and the neon sign as seen by cam at the current resolution."""
+    def uv(p):
+        c = world_to_camera_view(sc, cam, Vector(p)); return [round(c.x, 4), round(1 - c.y, 4), round(c.z, 3)]
+    hooks = sorted([o for o in bpy.data.objects if o.name.startswith('hook')], key=lambda o: o.matrix_world.translation.x)
+    slots = []
+    for h in hooks:
+        top = h.matrix_world.translation + Vector((0, -0.018, 0.072))   # where the hook sits on the bar
+        garment_top = h.matrix_world.translation + Vector((0, 0, -0.008))
+        bottom = garment_top + Vector((0, 0, -0.74))
+        a, b, t = uv(garment_top), uv(bottom), uv(top)
+        left, right = uv(garment_top + Vector((-0.35, 0, 0))), uv(garment_top + Vector((0.35, 0, 0)))
+        slots.append(dict(hook=t[:2], top=a[:2], bottom=b[:2], width=round(right[0] - left[0], 4), depth=a[2]))
+    neon = bpy.data.objects['neon_plate']; npt = [neon.matrix_world @ Vector(c) for c in neon.bound_box]
+    return slots, uv((sum(p.x for p in npt) / 8, min(p.y for p in npt), sum(p.z for p in npt) / 8))[:2]
+
+
 def job_projections(sc):
     """Screen positions of the hangers, rail, window, bed and neon for every view (u, v from top-left, 0..1)."""
     path = os.path.join(OUT, 'views.json')

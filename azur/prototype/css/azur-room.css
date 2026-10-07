@@ -44,6 +44,9 @@ button { font: inherit; color: inherit; }
 .azur-rail { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; pointer-events: none; }
 .azur-g { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; transition: opacity .25s ease; }
 .azur-layer.is-moving .azur-g, .azur-layer.is-moving .azur-label, .azur-layer.is-moving .azur-info { opacity: 0; transition-duration: .16s; }
+/* pre-rendered camera move: the garments fly along with the frames, everything tied to a fixed view steps aside */
+.is-flying .azur-label, .is-flying .azur-info, .is-flying .azur-window, .is-flying .azur-bed, .is-flying .azur-drop, .is-flying .azur-hint { opacity: 0 !important; transition: none; }
+.is-flying .azur-g { transition: none; }
 .azur-g__pivot { position: relative; transform-origin: 50% 0; will-change: transform; }
 .azur-g__hanger { position: absolute; z-index: 0; height: auto; pointer-events: none; filter: brightness(calc(var(--g-bright, 1) * 1.02)) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
 .azur-g__body { position: relative; z-index: 1; transform-origin: 50% 0; will-change: transform, filter; }
