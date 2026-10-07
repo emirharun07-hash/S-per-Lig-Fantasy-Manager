@@ -16,7 +16,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 | Camera options | Rendered: presets A–F plus bed detail G in `scene/build_room.py` (`CAMS`). Owner decides later; bed is out of frame in most angles, so a layout change (bed against the left poster wall) is proposed |
 | Views + light passes | **Done** (04:32 UTC): beauty plates, depth maps, hanger + drop sprites, all 7 light passes for room / rail / rail_m / bed. Checked in the browser across the day and published (artifact version 8) |
 | Interactive prototype | **Published**: https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy (code in `prototype/`, config in `prototype/js/azur-config.js`) |
-| Real camera moves | **Live** (artifact version 11): room → rail day + night, room → bed day; garments fly along. **room → bed night rendering** in the cloud, ready about 09:30 UTC |
+| Real camera moves | **Done and live** (artifact version 12, 09:20 UTC): room → rail and room → bed (and back), each with a day and a night set; garments fly along. Phones and rail ↔ bed keep the fake move |
 | Bed fix | **Done in the scene, re-rendering**: the duvet looked lumpy and grey. Now it is simulated the way it happens (head edge pulled back on a hook, then let go): a thrown-back sky-blue duvet with soft folds, the white pillow free. Bed camera unchanged. Room and bed plates/passes are re-rendered with the new `.cache/azur_room.blend`; rail views do not show the bed and stay valid |
 
 ## Owner feedback on the first still (2026-10-06)
@@ -41,10 +41,13 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Next
 
-1. Let the renders finish (`tail azur/.cache/queue.log`). If they stopped: `sh azur/tools/start_queue.sh` (runs the view queue, then the camera moves; does nothing if they already run). Finished outputs are skipped.
-2. After new renders land: test in the headless browser (`azur/tools/prototype_shots.cjs`), tune `daylight` keys and garment grading, republish the artifact (same file path / URL above) with the new files under `assets/views/`.
-3. Polish. Done tonight: phone rail settles on a garment after a swipe; neon light on the garments comes from the sign; window kid crosses now and then; hangers show only the hook (the wooden bar sits inside the jersey); the drop bag sits exactly where it was rendered; daylight tuned on the real rail passes (quiet neon by day, darker garments at night); phones load other views on demand. Still open: magazine masthead reads "ANSTO" from the bed camera (text runs under the duvet; shrink it next time the scene is rebuilt), boots are placeholders, tune room/bed/rail_m light once their passes exist.
-4. Later: real camera flights, bed easter egg, Phase 2 (Shopify) only after explicit approval.
+Nothing is rendering. Waiting for the owner's feedback on artifact version 12.
+
+1. Owner decides: the bed easter egg (ideas: magazine "ANSTOSS" opens the brand story / lookbook; the drop sign-up on the bed; or atmosphere only).
+2. Small scene fixes for the next render batch (rebuild `.cache/azur_room.blend`, re-render room + bed plates/passes and the moves that show the bed): magazine masthead (fix already in `build_room.py`), real football boots instead of placeholders.
+3. Seen in testing: during room → bed the flying jerseys leave the frame at the top for a few frames (correct in 3D, can look odd); option: fade a garment once its hook leaves the frame.
+4. Faster renders later: the owner's Mac (M5) via `azur/tools/render_on_mac.sh`, once git there uses a private GitHub login (the work account blocked uploads).
+5. Phase 2 (Shopify theme) only after explicit approval.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
