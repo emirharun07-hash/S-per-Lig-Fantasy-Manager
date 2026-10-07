@@ -64,14 +64,16 @@ python3 azur/scene/build_room.py -- preview azur/renders/preview.png azur/.cache
 python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th arg: camera preset(s), e.g. A,B,F
 ```
 
-Rendering on the owner's laptop (MacBook with M5 chip, Metal): about 5-8x faster than this cloud CPU
-(a camera-move frame ~15-25 s instead of ~2 min; all view passes ~40 min instead of ~4.5 h).
-On the Mac, in the cloned repo: `sh azur/tools/render_on_mac.sh` (or `... moves` / `... queue`). It installs everything
-on the first run, renders with `AZUR_GPU=1` and commits/pushes like the cloud queue. A Claude session on the Mac
-(Desktop app, or `claude remote-control` in the repo folder) can run it too. Never render the same job on both machines
-at once. Note: the Mac rebuilds the scene itself; the cloth (duvet, scarf) may differ very slightly from the cloud build,
-so re-render whole views or whole move sets there, not single passes of a cloud-rendered view.
-`AZUR_GPU=1` also picks OptiX/CUDA (NVIDIA), HIP (AMD) or oneAPI (Intel Arc); the queue log says which device it used.
+Rendering on the owner's machines (estimates from Blender Open Data medians vs. tonight's cloud timings):
+- PC: Ryzen 7 5800X + Radeon RX 6750 XT 12 GB (HIP): full re-render ~55-75 min, a camera-move frame ~10-14 s.
+  `powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 [all|moves|queue]` (needs Git for Windows
+  and a current AMD driver; untested so far). Preferred: private machine, so the GitHub login works.
+- MacBook Air M5 (Metal, fanless, throttles under long load): full re-render ~60-90 min. `sh azur/tools/render_on_mac.sh`.
+  Its git is tied to a work account, uploads failed on 2026-10-07.
+- Cloud (4 Xeon vCPU, no GPU): full re-render ~8 h.
+Both scripts install everything on the first run, render with `AZUR_GPU=1`, skip finished outputs and commit/push like
+the cloud queue. Never render the same job on two machines at once. A local machine rebuilds the scene itself; the cloth
+(duvet, scarf) may differ very slightly from the cloud build, so re-render whole views or whole move sets there.
 
 Local test of the prototype: `cd azur/prototype && python3 -m http.server 8765`, then `sh azur/tools/mkdev.sh` wraps index.html into `_dev.html`; run Chromium with `--no-proxy-server`.
 
