@@ -29,6 +29,8 @@
     opacity: 0; visibility: hidden; pointer-events: none; }
   .js body:has(#inhalt > .shopify-section:first-child > .azur[data-hero]) .header--overlay { transition: opacity .35s ease, visibility 0s linear .35s; }
   .js body:has(#inhalt > .shopify-section:first-child > .azur[data-hero]) .header--overlay.is-solid { transition: opacity .35s ease; }
+  .js body:has(#inhalt > .shopify-section:first-child > .azur[data-hero])
+    .section-header:has(.header--overlay:not(.is-solid)) { pointer-events: none; }   /* :has() cannot nest */
 </style>
 {{ 'azur-room.css' | asset_url | stylesheet_tag }}
 
