@@ -7,7 +7,7 @@
 
   /* Stand-in while hanger.webp is not rendered: the scene's hanger drawn from its own geometry (millimetres,
      anchor = hook origin at 0,0; the wooden V sits behind the garment, only the hook shows above the collar). */
-  const HANGER_FALLBACK = { w: 0.44, anchor: [0.22, 0.096], src: 'data:image/svg+xml,' + encodeURIComponent(
+  const HANGER_FALLBACK = { w: 0.44, h: 0.166, anchor: [0.22, 0.096], src: 'data:image/svg+xml,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-220 -96 440 166">
       <path d="M-205 58 Q0 -36 205 58" fill="none" stroke="#6d4526" stroke-width="18" stroke-linecap="round"/>
       <path d="M-200 52 Q0 -40 200 52" fill="none" stroke="#a87a4c" stroke-width="5" stroke-linecap="round" opacity=".7"/>
@@ -156,7 +156,9 @@
           const b = g.sprite.box;
           const p0 = comp.toScreen(b[0], b[1], d), p1 = comp.toScreen(b[2], b[3], d);
           w = p1[0] - p0[0]; ox = p0[0] - top[0] + w / 2; oy = p0[1] - top[1];
-          return { x: top[0], y: top[1], h: p1[1] - p0[1], w, hook, ox, oy, sprite: true, d };
+          // the sprite swings around its own hook, which is not the centre of the box (the tag hangs to one side)
+          const ax = Math.max(0.1, Math.min(0.9, (hook[0] - p0[0]) / Math.max(1, w)));
+          return { x: top[0] + ox, y: top[1] + oy, h: p1[1] - p0[1], w, hook, ox: 0, oy: 0, ax, sprite: true, d };   // box centre / top
         }
         return { x: top[0], y: top[1], h, w, hook, ox, oy, sprite: false, d };
       });
@@ -165,15 +167,20 @@
         const p = this.px[i]; g.el.hidden = !p; if (!p) return;
         g.el.style.zIndex = String(10 + i);
         g.el.style.width = p.w + 'px'; g.el.style.height = p.h + 'px';
+        g.pivot.style.transformOrigin = p.sprite ? `${(p.ax * 100).toFixed(1)}% 0` : '';
         g.body.style.width = p.w + 'px'; g.body.style.height = p.h + 'px';
         if (g.hanger) {
           // exact size from the scene: metres times this garment's pixels per metre (garments are 0.74 m long)
           const k = p.h / 0.74, hs = A.sprites && A.sprites.hanger;
-          const m = hs && !g.hangerFallback ? { w: hs.size[0] * hs.metres_per_px, anchor: [hs.anchor[0] * hs.metres_per_px, hs.anchor[1] * hs.metres_per_px] } : HANGER_FALLBACK;
+          const mpp = hs && hs.metres_per_px;
+          const m = hs && !g.hangerFallback ? { w: hs.size[0] * mpp, h: hs.size[1] * mpp, anchor: [hs.anchor[0] * mpp, hs.anchor[1] * mpp] } : HANGER_FALLBACK;
           g.hanger.style.width = (m.w * k) + 'px';
           g.hanger.style.left = (p.w / 2 - m.anchor[0] * k) + 'px';
           // the anchor is the hook origin, 8 mm above the garment top; the hook rises above it
           g.hanger.style.top = (-(m.anchor[1] + 0.008) * k) + 'px';
+          // the wooden bar sits inside the jersey: only the hook and the neck of the hanger show
+          const cl = 0.035, below = 0.022;
+          g.hanger.style.clipPath = `inset(0px ${((m.w - m.anchor[0] - cl) * k).toFixed(1)}px ${((m.h - m.anchor[1] - below) * k).toFixed(1)}px ${((m.anchor[0] - cl) * k).toFixed(1)}px)`;
           g.hanger.hidden = p.sprite;
         }
         // neon light falls on the garments from the sign: direction and strength by distance on screen

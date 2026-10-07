@@ -313,6 +313,8 @@ def job_bag_sprite(sc, key):
     meta = os.path.join(OUT, 'sprites.json'); d = json.load(open(meta)) if os.path.exists(meta) else {}
     d.setdefault(key, {})['drop'] = dict(box=[bb[0] / W_, bb[1] / H_, bb[2] / W_, bb[3] / H_])
     json.dump(d, open(meta, 'w'), indent=1)
+    sys.path.insert(0, os.path.join(ROOT, 'tools')); import clean_sprite   # drop specks that blow up the box
+    clean_sprite.clean(key, OUT)
     log('drop sprite', key, secs, 's'); return [dst, meta]
 
 
