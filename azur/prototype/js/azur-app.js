@@ -1,0 +1,371 @@
+/* AZUR — app: views, camera moves, pointer, phones, window, header, loop.
+   Desktop starts in the room (establishing shot). Clicking a jersey there moves the camera to the rail and opens
+   that jersey in one step. The bed has its own view (easter egg to come). Phones start at the rail and swipe along it.
+   Camera moves are faked from stills for now (zoom, drift, blur); real pre-rendered moves can replace go() later. */
+(function () {
+  const A = window.AZUR = window.AZUR || {};
+  const $ = (s, r = document) => r.querySelector(s);
+  const fetchJSON = url => fetch(url, { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  const lin2srgb = c => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  const DEPTH = { near: 0.4, far: 6.5 };
+
+  class App {
+    async init() {
+      const cfg = A.config;
+      this.root = $('#azur'); this.stage = $('.azur-stage'); this.world = $('.azur-world');
+      this.canvas = $('.azur-canvas'); this.fallbackImg = $('.azur-fallback'); this.layer = $('.azur-layer');
+      this.snap = $('.azur-snap'); this.snapCtx = this.snap.getContext('2d');
+      this.reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+      this.reduced = this.reducedQuery.matches;
+      this.isMobile = matchMedia(cfg.mobileQuery).matches;
+      this.root.classList.toggle('is-mobile', this.isMobile);
+      this.applyPalette();
+
+      const base = cfg.assetBase;
+      [this.views, this.passes, A.sprites] = await Promise.all([fetchJSON(base + 'views.json'), fetchJSON(base + 'passes.json'), fetchJSON(base + 'sprites.json')]);
+      this.comp = new A.Compositor(this.canvas);
+      this.root.classList.toggle('no-webgl', !this.comp.ok);
+      this.rail = new A.Rail(this.layer, A.products, this);
+      this.drop = new A.Drop(this.layer, this);
+      this.shop = new A.Shop(this);
+      this.depthMaps = {};
+      this.parallax = [0, 0]; this.parallaxTarget = [0, 0];
+      this.pan = 0.5; this.panVel = 0;
+      this.light = A.light.current();
+      this.buildChrome();
+      this.bindPointer(); this.bindKeys();
+      window.addEventListener('resize', () => this.resize());
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.kick(); });
+      this.reducedQuery.addEventListener && this.reducedQuery.addEventListener('change', e => { this.reduced = e.matches; });
+      if (A.Panel) this.panel = new A.Panel(this);
+
+      const start = this.isMobile ? cfg.startView.mobile : cfg.startView.desktop;
+      await this.enterView(start);
+      this.root.classList.add('is-ready');
+      this.lastT = performance.now(); this.lightAt = 0; this.running = true;
+      this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient();
+      requestAnimationFrame(t => this.frame(t));
+      setTimeout(() => this.showHint(), this.reduced ? 200 : 1600);
+      // other views load in the background so camera moves never wait
+      setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
+      this.handleHash();
+    }
+
+    applyPalette() {
+      const p = A.config.palettes[A.config.palette], r = document.documentElement.style;
+      r.setProperty('--glow', p.glow); r.setProperty('--highlight', p.highlight); r.setProperty('--ink', p.ink); r.setProperty('--night', p.night);
+    }
+
+    /* ---------------------------------------------------------------- views */
+    async enterView(key) {
+      this.viewKey = key;
+      const v = this.views[key] || {};
+      const mode = await this.comp.load(key, this.passes);
+      if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
+      this.root.dataset.view = key; this.root.dataset.mode = mode;
+      this.fallbackImg.hidden = !(mode === 'beauty' && !this.comp.ok);
+      if (!this.comp.ok && mode === 'beauty') this.fallbackImg.src = A.config.assetBase + key + '/beauty.webp';
+      this.root.classList.toggle('is-missing', mode === 'none');
+      await this.loadDepth(key);
+      const slots = v.slots || [];
+      const avgDepth = slots.length ? slots.reduce((s, x) => s + x.depth, 0) / slots.length : 2.5;
+      this.comp.focus = this.encDepth(avgDepth);
+      this.pan = key === 'rail_m' ? 0.38 : 0.5;
+      this.rail.layout(key, v, this.comp);
+      this.rail.setSelected(-1); this.rail.setHover(-1);
+      this.drop.close();
+      this.updateChips();
+      this.resize();
+    }
+
+    /* Fake camera move: the current frame pushes toward the target and blurs, the next view settles in. */
+    async go(to, opts = {}) {
+      if (this.busy) return;
+      if (to === this.viewKey) { if (opts.select != null) this.select(opts.select); return; }
+      this.busy = true; this.hideHint();
+      const m = A.config.motion.pan, from = this.viewKey;
+      const back = to === 'room';
+      const focus = opts.focus || [this.stage.clientWidth / 2, this.stage.clientHeight / 2];
+      await this.comp.load(to, this.passes, false);
+      if (this.reduced) {
+        await this.enterView(to);
+        this.world.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 });
+      } else {
+        this.comp.render(this.light);
+        this.comp.snapshotInto(this.snapCtx);
+        this.snap.hidden = false;
+        const W = this.stage.clientWidth, H = this.stage.clientHeight;
+        const ox = (focus[0] / W * 100).toFixed(1) + '% ' + (focus[1] / H * 100).toFixed(1) + '%';
+        this.snap.style.transformOrigin = ox;
+        const z = back ? 1 / m.zoom : m.zoom;
+        const drift = (back ? -1 : 1) * m.drift * W * (focus[0] / W - 0.5);
+        const out = this.snap.animate([
+          { transform: 'none', filter: 'blur(0px)', opacity: 1 },
+          { transform: `translate3d(${-drift}px,0,0) scale(${z})`, filter: `blur(${m.blurPx}px)`, opacity: 1, offset: 0.75 },
+          { transform: `translate3d(${-drift * 1.2}px,0,0) scale(${z * (back ? 0.96 : 1.04)})`, filter: `blur(${m.blurPx * 1.4}px)`, opacity: 0 }
+        ], { duration: m.outMs + m.inMs * 0.45, easing: 'cubic-bezier(.55,0,.6,1)', fill: 'forwards' });
+        this.layer.classList.add('is-moving');
+        await new Promise(r => setTimeout(r, m.outMs * 0.55));
+        await this.enterView(to);
+        const zin = back ? 1.22 : 0.86;
+        await this.world.animate([
+          { transform: `scale(${zin}) translate3d(${drift * 0.6}px,0,0)`, filter: `blur(${m.blurPx}px)`, opacity: 0 },
+          { transform: 'none', filter: 'blur(0px)', opacity: 1 }
+        ], { duration: m.inMs, easing: 'cubic-bezier(.16,.8,.25,1)' }).finished.catch(() => { });
+        out.cancel(); this.snap.hidden = true;
+        this.layer.classList.remove('is-moving');
+      }
+      this.busy = false;
+      if (opts.select != null) setTimeout(() => this.select(opts.select), this.reduced ? 0 : 120);
+      this.kick();
+    }
+
+    updateChips() {
+      this.chips.querySelectorAll('button').forEach(b => {
+        const on = b.dataset.view === this.viewKey || (b.dataset.view === 'rail' && this.viewKey === 'rail_m');
+        b.setAttribute('aria-current', on ? 'true' : 'false');
+      });
+      this.bedSvg.style.display = this.viewKey === 'room' ? '' : 'none';
+      this.tease.classList.toggle('is-on', this.viewKey === 'bed');
+    }
+
+    /* ---------------------------------------------------------------- selection + products */
+    select(i) {
+      if (i >= 0 && this.viewKey === 'room') {
+        const rect = this.rail.garmentRect(i);
+        return this.go(this.isMobile ? 'rail_m' : 'rail', { select: i, focus: rect ? [rect.left + rect.width / 2, rect.top + rect.height * 0.4] : null });
+      }
+      this.hideHint();
+      this.rail.setSelected(i);
+      const sel = i >= 0 && A.products[i];
+      this.setWorldDim(sel ? A.config.motion.select.dimRoom : 1, sel ? A.config.motion.select.blurRoom : 0);
+      this.root.classList.toggle('has-selection', !!sel);
+      if (i < 0) this.drop.close();
+      this.kick();
+    }
+    onGarmentClick(i) {
+      if (this.dragMoved) return;
+      if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
+      this.select(i);
+    }
+    onHover(i) {
+      if (i >= 0) this.hideHint();
+      this.stage.classList.toggle('is-pointing', i >= 0);
+      this.kick();
+    }
+    openProduct(i) {
+      const p = A.products[i]; if (!p) return;
+      this.shop.open(p, this.rail.garmentRect(i));
+    }
+    afterProductClose() { const s = this.rail.selected; if (s >= 0) this.rail.items[s].hit.focus({ preventScroll: true }); }
+    setWorldDim(d = 1, blur = 0) {
+      if (this.rail.selected >= 0 && d === 1) { d = A.config.motion.select.dimRoom; blur = A.config.motion.select.blurRoom; }
+      this.dimTarget = d;
+      this.canvas.style.filter = blur ? `blur(${blur}px)` : '';
+      this.fallbackImg.style.filter = this.canvas.style.filter;
+      this.kick();
+    }
+    setCartCount(n) { if (this.cartBtn) this.cartBtn.querySelector('span').textContent = n; }
+    bumpCart() { this.cartBtn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 420 }); }
+
+    /* ---------------------------------------------------------------- depth (same values the shader sees) */
+    encDepth(metres) { return lin2srgb(Math.max(0, Math.min(1, (DEPTH.far - metres) / (DEPTH.far - DEPTH.near)))); }
+    async loadDepth(key) {
+      if (this.depthMaps[key] !== undefined) return;
+      this.depthMaps[key] = null;
+      const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = A.config.assetBase + key + '/depth.png'; });
+      if (!im) return;
+      const c = document.createElement('canvas'); const w = 200, h = Math.round(200 * im.naturalHeight / im.naturalWidth);
+      c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, w, h);
+      this.depthMaps[key] = { w, h, data: x.getImageData(0, 0, w, h).data };
+    }
+    depthAt(u, v, metres) {
+      if (metres != null) return this.encDepth(metres);
+      const d = this.depthMaps[this.viewKey];
+      if (!d) return this.comp.focus || 0.6;
+      const x = Math.max(0, Math.min(d.w - 1, Math.round(u * (d.w - 1)))), y = Math.max(0, Math.min(d.h - 1, Math.round(v * (d.h - 1))));
+      return d.data[(y * d.w + x) * 4] / 255;
+    }
+
+    /* ---------------------------------------------------------------- chrome: header, view chips, hint, bed, window */
+    buildChrome() {
+      const c = A.config.copy;
+      const head = $('.azur-head');
+      this.cartBtn = head.querySelector('.azur-head__cart');
+      this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
+      head.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault(); const t = a.dataset.go;
+        if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'bed') this.go('bed'); else this.go(t);
+      }));
+      this.chips = $('.azur-views');
+      this.chips.addEventListener('click', e => {
+        const b = e.target.closest('button[data-view]'); if (!b) return;
+        let v = b.dataset.view; if (v === 'rail' && this.isMobile) v = 'rail_m';
+        this.select(-1); this.go(v);
+      });
+      this.hint = $('.azur-hint'); this.hint.textContent = this.isMobile ? c.hintMobile : c.hintDesktop;
+      this.tease = $('.azur-tease'); this.tease.textContent = c.bedTease;
+      // bed hotspot (room view)
+      this.bedSvg = $('.azur-bed');
+      this.bedPoly = this.bedSvg.querySelector('polygon');
+      const goBed = () => { this.select(-1); const r = this.bedPoly.getBoundingClientRect(); this.go('bed', { focus: [r.left + r.width / 2, r.top + r.height / 2] }); };
+      this.bedSvg.querySelector('a').addEventListener('click', e => { e.preventDefault(); goBed(); });
+      this.bedSvg.querySelector('a').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBed(); } });
+      // the kid outside the window
+      this.windowEl = $('.azur-window');
+    }
+
+    placeChrome() {
+      const comp = this.comp, v = this.views[this.viewKey] || {}, vc = A.config.views[this.viewKey] || {};
+      // bed hotspot
+      if (this.viewKey === 'room' && vc.bedHotspot) {
+        const W = this.stage.clientWidth, H = this.stage.clientHeight;
+        this.bedSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const pts = vc.bedHotspot.map(([u, w]) => comp.toScreen(u, w, this.depthAt(u, Math.min(0.99, w))));
+        this.bedPoly.setAttribute('points', pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' '));
+      }
+      // window: clip a small exterior layer to the glass so the kid stays behind it
+      const win = v.window;
+      if (win && win.every(p => p[0] > -0.3 && p[0] < 1.3) && !this.isMobileView()) {
+        const d = this.depthAt((win[0][0] + win[2][0]) / 2, (win[0][1] + win[2][1]) / 2);
+        const pts = win.map(([u, w]) => comp.toScreen(u, w, d));
+        const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+        const x0 = Math.min(...xs), y0 = Math.min(...ys), x1 = Math.max(...xs), y1 = Math.max(...ys);
+        const el = this.windowEl;
+        el.hidden = false;
+        el.style.transform = `translate3d(${x0.toFixed(1)}px, ${y0.toFixed(1)}px, 0)`;
+        el.style.width = (x1 - x0) + 'px'; el.style.height = (y1 - y0) + 'px';
+        el.style.clipPath = `polygon(${pts.map(p => `${(p[0] - x0).toFixed(1)}px ${(p[1] - y0).toFixed(1)}px`).join(',')})`;
+        el.style.setProperty('--wh', (y1 - y0) + 'px');
+      } else this.windowEl.hidden = true;
+    }
+    isMobileView() { return this.viewKey === 'rail_m'; }
+
+    showHint() {
+      if (this.hintDone) return;
+      const p = this.rail.px && this.rail.px.filter(Boolean);
+      if (p && p.length) {
+        const x = (p[0].x + p[p.length - 1].x) / 2, y = Math.max(...p.map(q => q.y + q.h)) + 18;
+        this.hint.style.transform = `translate3d(${x.toFixed(0)}px, ${Math.min(y, this.stage.clientHeight - 70).toFixed(0)}px, 0) translateX(-50%)`;
+      }
+      this.hint.classList.add('is-on');
+      this.hintTimer = setTimeout(() => this.hideHint(), 11000);
+    }
+    hideHint() { if (this.hintDone) return; this.hintDone = true; this.hint.classList.remove('is-on'); clearTimeout(this.hintTimer); }
+
+    /* ---------------------------------------------------------------- pointer, swipe, keys */
+    bindPointer() {
+      const st = this.stage;
+      let last = null, down = null;
+      st.addEventListener('pointermove', e => {
+        const r = st.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+        const now = performance.now();
+        const vx = last ? (x - last.x) / Math.max(8, now - last.t) * 1000 : 0;
+        last = { x, y, t: now };
+        if (e.pointerType !== 'touch') {
+          this.parallaxTarget = [(x / r.width - 0.5) * 2, (y / r.height - 0.5) * 2];
+          this.rail.pointerMove(x, y, vx);
+        }
+        if (down && this.viewKey === 'rail_m') {
+          const dx = x - down.x;
+          if (Math.abs(dx) > 6) this.dragMoved = true;
+          const span = this.stage.clientWidth * (1 / this.comp.map[2] - 1) || 1;
+          this.pan = Math.max(0, Math.min(1, down.pan - dx / span));
+          this.panVel = -vx / span;
+          this.rail.panImpulse(vx);
+          this.kick();
+        }
+      });
+      st.addEventListener('pointerleave', () => { this.parallaxTarget = [0, 0]; this.rail.pointerLeave(); last = null; });
+      st.addEventListener('pointerdown', e => {
+        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head')) return;
+        const r = st.getBoundingClientRect();
+        down = { x: e.clientX - r.left, pan: this.pan }; this.dragMoved = false;
+      });
+      window.addEventListener('pointerup', () => { down = null; setTimeout(() => { this.dragMoved = false; }, 0); });
+      // phones: tilt the room very slightly with a slow drift instead of a pointer
+      if (this.isMobile) this.parallaxTarget = [0, 0];
+      // click on the empty room deselects
+      st.addEventListener('click', e => {
+        if (e.target.closest('.azur-g, .azur-drop, .azur-info, .azur-views, .azur-bed, .azur-head')) return;
+        if (this.rail.selected >= 0) this.select(-1);
+      });
+    }
+
+    bindKeys() {
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          if (this.shop.pdp.classList.contains('is-on')) return this.shop.close();
+          if (this.shop.drawer.classList.contains('is-on')) return this.shop.toggleCart(false);
+          if (this.drop.card.classList.contains('is-on')) { this.drop.hideCard(); return this.select(-1); }
+          if (this.rail.selected >= 0) return this.select(-1);
+          if (this.viewKey !== 'room' && !this.isMobile) return this.go('room');
+        }
+      });
+    }
+
+    handleHash() {
+      const h = decodeURIComponent(location.hash.slice(1));
+      if (!h) return;
+      const i = A.products.findIndex(p => p.handle === h);
+      if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
+      else if (h === 'bett') this.go('bed');
+    }
+
+    /* ---------------------------------------------------------------- loop */
+    resize() {
+      const w = this.stage.clientWidth, h = this.stage.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.comp.pan = this.pan;
+      this.comp.layout(w, h, dpr);
+      this.rail.place(); this.placeChrome();
+      this.dirty = true; this.kick();
+    }
+    kick() { this.dirty = true; }
+
+    frame(t) {
+      const dt = Math.min(0.05, (t - this.lastT) / 1000); this.lastT = t;
+      if (document.hidden) { requestAnimationFrame(tt => this.frame(tt)); return; }
+      const cfg = A.config;
+      // light: follow the clock (cheap, once a second) or the design panel
+      if (t - this.lightAt > 1000 || this.lightDirty) {
+        this.lightAt = t; this.lightDirty = false;
+        this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient(); this.dirty = true;
+      }
+      // parallax eases toward the pointer; phones drift very slowly so the room still feels spatial
+      const vc = cfg.views[this.viewKey] || {}, k = this.reduced ? 0 : (vc.parallax || 0.01) * cfg.motion.intensity;
+      let tx = this.parallaxTarget[0], ty = this.parallaxTarget[1];
+      if (this.isMobile && !this.reduced) { const s = t / 1000; tx = Math.sin(s * 0.21) * 0.6; ty = Math.sin(s * 0.17) * 0.3; }
+      const e = cfg.motion.parallaxEase;
+      const nx = this.parallax[0] + (-tx * k - this.parallax[0]) * e, ny = this.parallax[1] + (-ty * k * 0.6 - this.parallax[1]) * e;
+      const pmove = Math.abs(nx - this.parallax[0]) + Math.abs(ny - this.parallax[1]) > 1e-6;
+      this.parallax = [nx, ny]; this.comp.parallax = this.parallax;
+      // phones: momentum after a swipe along the rail
+      if (this.viewKey === 'rail_m' && Math.abs(this.panVel) > 1e-4 && !this.dragMoved) {
+        this.pan = Math.max(0, Math.min(1, this.pan + this.panVel * dt)); this.panVel *= Math.pow(0.04, dt);
+        this.rail.panImpulse(-this.panVel * this.stage.clientWidth); this.dirty = true;
+      }
+      if (this.comp.pan !== this.pan) { this.comp.pan = this.pan; this.comp.layout(this.stage.clientWidth, this.stage.clientHeight, Math.min(window.devicePixelRatio || 1, 2)); this.dirty = true; }
+      // selection dims the room smoothly
+      const dT = this.dimTarget == null ? 1 : this.dimTarget;
+      if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
+      if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
+      this.rail.step(dt, this.reduced);
+      if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
+      requestAnimationFrame(tt => this.frame(tt));
+    }
+
+    /* UI follows the room's light: labels switch to night styling after dusk. */
+    applyAmbient() {
+      const s = this.light, r = this.root;
+      r.style.setProperty('--night-amt', s.night.toFixed(3));
+      r.classList.toggle('is-night', s.night > 0.5);
+      const kid = this.windowEl;
+      if (kid) kid.style.opacity = Math.max(0, Math.min(1, (s.window - 0.45) * 2)).toFixed(2);
+      if (this.panel) this.panel.sync(s);
+    }
+  }
+
+  A.App = App;
+  const boot = () => { A.app = new App(); A.app.init().catch(err => { console.error(err); document.documentElement.classList.add('azur-error'); }); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();

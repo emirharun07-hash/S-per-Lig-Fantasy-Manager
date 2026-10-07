@@ -1,0 +1,330 @@
+/* AZUR — the garment rail.
+   Every product hangs as its own layer on top of the rendered room, placed where the hangers are in the 3D scene
+   (assets/views/views.json). Motion is physical: springs for lift, push and turn, a damped pendulum on each hook.
+   Hover moves through the garments; a click turns one toward you and shows one quiet line underneath. */
+(function () {
+  const A = window.AZUR = window.AZUR || {};
+
+  class Spring {
+    constructor(v = 0) { this.v = v; this.t = v; this.vel = 0; }
+    step(dt, k, c) { const a = k * (this.t - this.v) - c * this.vel; this.vel += a * dt; this.v += this.vel * dt; }
+    snap() { this.v = this.t; this.vel = 0; }
+    get moving() { return Math.abs(this.t - this.v) > 1e-4 || Math.abs(this.vel) > 1e-4; }
+  }
+
+  class Garment {
+    constructor(product, index, rail) {
+      this.p = product; this.i = index; this.rail = rail;
+      this.lift = new Spring(); this.fwd = new Spring(); this.turn = new Spring(); this.push = new Spring(); this.tilt = new Spring();
+      this.bright = new Spring(1);
+      this.theta = 0; this.omega = 0; this.phase = index * 1.7;
+      this.el = this.build();
+    }
+    build() {
+      const p = this.p, cfg = A.config, el = document.createElement('li');
+      el.className = 'azur-g' + (p.type === 'drop' ? ' azur-g--drop' : '');
+      el.dataset.index = this.i;
+      const label = p.type === 'drop' ? `${p.name}. ${p.description}` : `${p.name}, ${A.formatPrice(p.price)}`;
+      el.innerHTML = `
+        <div class="azur-g__shadow" aria-hidden="true"></div>
+        <div class="azur-g__pivot">
+          <img class="azur-g__hanger" alt="" aria-hidden="true" src="${cfg.assetBase}hanger.webp" onerror="this.remove()">
+          <div class="azur-g__body">
+            ${p.type === 'drop' ? this.dropMarkup() : `
+            <img class="azur-g__img" src="${p.image}" alt="" draggable="false">
+            <div class="azur-g__tint" aria-hidden="true" style="-webkit-mask-image:url(${p.image});mask-image:url(${p.image})"></div>
+            <div class="azur-g__glow" aria-hidden="true" style="-webkit-mask-image:url(${p.image});mask-image:url(${p.image})"></div>`}
+          </div>
+        </div>
+        <button class="azur-g__hit" type="button" aria-label="${label}" data-index="${this.i}"></button>`;
+      this.pivot = el.querySelector('.azur-g__pivot');
+      this.body = el.querySelector('.azur-g__body');
+      this.shadow = el.querySelector('.azur-g__shadow');
+      this.hit = el.querySelector('.azur-g__hit');
+      this.hanger = el.querySelector('.azur-g__hanger');
+      return el;
+    }
+    dropMarkup() {
+      return `<img class="azur-g__img azur-g__dropimg" alt="" draggable="false" hidden>
+        <div class="azur-bag" aria-hidden="true">
+          <span class="azur-bag__zip"></span>
+          <img class="azur-bag__logo" src="assets/brand/azur-logo-paper.webp" alt="">
+          <span class="azur-bag__tag">Nächster<br>Drop</span>
+        </div>`;
+    }
+    kick(impulse) { this.omega += impulse; }
+  }
+
+  class Rail {
+    constructor(root, products, app) {
+      this.app = app; this.root = root;
+      this.list = document.createElement('ul');
+      this.list.className = 'azur-rail'; this.list.setAttribute('aria-label', 'Trikots am Kleiderständer');
+      root.appendChild(this.list);
+      this.items = products.map((p, i) => new Garment(p, i, this));
+      this.items.forEach(g => this.list.appendChild(g.el));
+      this.hover = -1; this.selected = -1; this.view = null; this.geom = [];
+      this.pointer = { x: -1e4, y: -1e4, vx: 0, inside: false };
+      this.t = 0; this.shadowStrength = 1;
+      this.label = document.createElement('div'); this.label.className = 'azur-label'; this.label.setAttribute('aria-hidden', 'true');
+      root.appendChild(this.label);
+      this.info = document.createElement('div'); this.info.className = 'azur-info'; this.info.setAttribute('role', 'region'); this.info.setAttribute('aria-live', 'polite');
+      root.appendChild(this.info);
+      this.bind();
+    }
+
+    bind() {
+      this.list.addEventListener('click', e => {
+        const b = e.target.closest('.azur-g__hit'); if (!b) return;
+        const i = +b.dataset.index;
+        this.app.onGarmentClick(i);
+      });
+      this.list.addEventListener('focusin', e => {
+        const b = e.target.closest('.azur-g__hit'); if (!b) return;
+        this.setHover(+b.dataset.index, true);
+      });
+      this.list.addEventListener('focusout', () => { if (!this.pointer.inside) this.setHover(-1); });
+      this.list.addEventListener('keydown', e => {
+        const b = e.target.closest('.azur-g__hit'); if (!b) return;
+        const i = +b.dataset.index;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const j = Math.max(0, Math.min(this.items.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
+          this.items[j].hit.focus();
+          if (this.selected >= 0 && this.view !== 'room') this.app.select(j);
+        }
+      });
+      this.info.addEventListener('click', e => {
+        const a = e.target.closest('[data-action]'); if (!a) return;
+        e.preventDefault();
+        if (a.dataset.action === 'view') this.app.openProduct(this.selected);
+        if (a.dataset.action === 'back') this.app.select(-1);
+      });
+    }
+
+    /* Place the garments for a view using the projected hanger positions. */
+    layout(viewKey, viewData, comp) {
+      this.view = viewKey; this.viewData = viewData; this.comp = comp;
+      const cfg = A.config, vcfg = cfg.views[viewKey] || {};
+      this.root.classList.toggle('is-room', viewKey === 'room');
+      this.root.classList.toggle('is-mobile', viewKey === 'rail_m');
+      const slots = (viewData && viewData.slots) || [];
+      const sprite = (A.sprites && A.sprites[viewKey] && A.sprites[viewKey].drop) || null;
+      this.geom = this.items.map((g, i) => {
+        const s = slots[i]; if (!s) return null;
+        return { hook: s.hook, top: s.top, bottom: s.bottom, depthM: s.depth, scale: vcfg.garmentScale || 1, sprite: g.p.type === 'drop' ? sprite : null };
+      });
+      // drop garment: use its own rendered sprite when this view has one
+      const drop = this.items.find(g => g.p.type === 'drop');
+      if (drop) {
+        const img = drop.el.querySelector('.azur-g__dropimg'), bag = drop.el.querySelector('.azur-bag');
+        const has = !!sprite;
+        if (img) { img.hidden = !has; if (has) img.src = cfg.assetBase + viewKey + '/drop.webp'; }
+        if (bag) bag.hidden = has;
+        drop.hasSprite = has;
+      }
+      this.place();
+    }
+
+    /* Recompute pixel geometry (call on resize / pan / parallax). */
+    place() {
+      const comp = this.comp; if (!comp || !comp.cssW) return;
+      const depthAt = this.app.depthAt.bind(this.app);
+      this.px = this.geom.map((g, i) => {
+        if (!g) return null;
+        const d = depthAt(g.top[0], g.top[1], g.depthM);
+        const top = comp.toScreen(g.top[0], g.top[1], d);
+        const bot = comp.toScreen(g.bottom[0], g.bottom[1], d);
+        const hook = comp.toScreen(g.hook[0], g.hook[1], d);
+        const h = Math.max(20, (bot[1] - top[1])) * g.scale;
+        const it = this.items[i];
+        let w = h * (it.p.imageAspect || 0.9);
+        let ox = 0, oy = 0;
+        if (g.sprite) {   // sprite box is in view-plate coordinates
+          const b = g.sprite.box;
+          const p0 = comp.toScreen(b[0], b[1], d), p1 = comp.toScreen(b[2], b[3], d);
+          w = p1[0] - p0[0]; ox = p0[0] - top[0] + w / 2; oy = p0[1] - top[1];
+          return { x: top[0], y: top[1], h: p1[1] - p0[1], w, hook, ox, oy, sprite: true, d };
+        }
+        return { x: top[0], y: top[1], h, w, hook, ox, oy, sprite: false, d };
+      });
+      const cfg = A.config;
+      this.items.forEach((g, i) => {
+        const p = this.px[i]; g.el.hidden = !p; if (!p) return;
+        g.el.style.zIndex = String(10 + i);
+        g.el.style.width = p.w + 'px'; g.el.style.height = p.h + 'px';
+        g.body.style.width = p.w + 'px'; g.body.style.height = p.h + 'px';
+        if (g.hanger) {
+          const hs = A.sprites && A.sprites.hanger;
+          const hw = p.h * (cfg.garments.hangerWidthM / 0.74) * 1.18;
+          g.hanger.style.width = hw + 'px';
+          g.hanger.style.left = (p.w / 2 - hw / 2) + 'px';
+          // the sprite anchor sits where the garment top hangs; the hook rises above it
+          const anchorY = hs ? hs.anchor[1] / hs.size[0] * hw : hw * 0.21;
+          g.hanger.style.top = (-anchorY) + 'px';
+          g.hanger.hidden = p.sprite;
+        }
+      });
+    }
+
+    setHover(i, fromKeyboard) {
+      if (i === this.hover) return;
+      const prev = this.hover; this.hover = i;
+      const mi = A.config.motion.intensity * A.config.interactionStrength;
+      const sw = A.config.motion.swing;
+      if (prev >= 0 && this.items[prev]) this.items[prev].kick(sw.leaveKick * mi * (Math.random() > 0.5 ? 1 : -1));
+      if (i >= 0 && this.items[i]) this.items[i].kick(-sw.hoverKick * mi * Math.sign(this.pointer.vx || 1));
+      this.app.onHover(i, fromKeyboard);
+      this.updateLabel();
+    }
+
+    setSelected(i) {
+      this.selected = i;
+      this.items.forEach((g, j) => g.el.classList.toggle('is-selected', j === i));
+      if (i >= 0) this.items[i].kick(A.config.motion.swing.selectKick * A.config.motion.intensity);
+      this.updateInfo();
+      this.updateLabel();
+    }
+
+    /* Pointer from the app (CSS px inside the stage). Finds the garment under it along the rail. */
+    pointerMove(x, y, vx) {
+      this.pointer.x = x; this.pointer.y = y; this.pointer.vx = vx;
+      if (!this.px || !this.px.length) return;
+      let best = -1, bestDist = 1e9;
+      this.px.forEach((p, i) => {
+        if (!p) return;
+        const cx = p.x + this.items[i].push.v * p.w;
+        const inBand = y > p.y - p.h * 0.12 && y < p.y + p.h * 1.02 && x > cx - p.w * 0.62 && x < cx + p.w * 0.62;
+        if (!inBand) return;
+        const dist = Math.abs(x - cx);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      });
+      this.pointer.inside = best >= 0;
+      // brushing past a garment near its hook makes it swing a little (digital wardrobe reference)
+      const m = A.config.motion, mi = m.intensity * A.config.interactionStrength;
+      this.px.forEach((p, i) => {
+        if (!p) return;
+        const near = Math.abs(x - p.x) < p.w * 0.6 && y > p.y - p.h * 0.2 && y < p.y + p.h;
+        if (near) this.items[i].omega += vx * m.swing.impulse * mi;
+      });
+      if (this.selected < 0 || this.view === 'room') this.setHover(best);
+    }
+    pointerLeave() { this.pointer.inside = false; this.pointer.x = -1e4; if (this.selected < 0 || this.view === 'room') this.setHover(-1); }
+
+    /* Pan velocity on phones: the whole rail swings against the motion. */
+    panImpulse(v) {
+      const m = A.config.motion; const mi = m.intensity * A.config.interactionStrength;
+      this.items.forEach(g => g.omega -= v * m.swing.impulse * 0.9 * mi);
+    }
+
+    updateLabel() {
+      const i = this.selected >= 0 && this.view !== 'room' ? -1 : this.hover;
+      const el = this.label;
+      if (i < 0 || !this.items[i] || !this.px || !this.px[i]) { el.classList.remove('is-on'); return; }
+      const p = this.items[i].p;
+      el.innerHTML = p.type === 'drop'
+        ? `<span class="azur-label__name">${p.name}</span><span class="azur-label__meta">${p.description}</span><span class="azur-label__cta">Ansehen</span>`
+        : `<span class="azur-label__name">${p.name}</span><span class="azur-label__meta">${A.formatPrice(p.price)}</span><span class="azur-label__cta">${A.config.copy.view}</span>`;
+      el.classList.add('is-on');
+      this.labelFor = i;
+    }
+
+    updateInfo() {
+      const i = this.selected, el = this.info, c = A.config.copy;
+      if (i < 0 || this.view === 'room') { el.classList.remove('is-on'); el.innerHTML = ''; return; }
+      const p = this.items[i].p;
+      if (p.type === 'drop') { el.classList.remove('is-on'); el.innerHTML = ''; this.app.drop.open(); return; }
+      this.app.drop.close();
+      const n = String(i + 1).padStart(2, '0');
+      el.innerHTML = `
+        <span class="azur-info__n">${n}</span>
+        <span class="azur-info__name">${p.name}</span>
+        <span class="azur-info__price">${A.formatPrice(p.price)}</span>
+        <a class="azur-info__cta" href="${p.productUrl}" data-action="view">${c.viewJersey} <span aria-hidden="true">→</span></a>
+        <button class="azur-info__back" type="button" data-action="back">${c.putBack}</button>`;
+      el.classList.add('is-on');
+    }
+
+    /* Physics + DOM transforms. Returns true while anything is still moving. */
+    step(dt, reduced) {
+      this.t += dt;
+      const cfg = A.config, m = cfg.motion, mi = m.intensity * cfg.interactionStrength;
+      const k = m.spring.stiffness, c = m.spring.damping;
+      const h = this.hover, s = (this.view === 'room') ? -1 : this.selected;
+      let moving = false;
+      this.items.forEach((g, i) => {
+        const p = this.px && this.px[i]; if (!p) return;
+        // targets
+        let lift = 0, fwd = 0, turn = 0, push = 0, tilt = 0, bright = 1;
+        if (s >= 0) {
+          if (i === s) { lift = m.select.lift; fwd = m.select.forward; turn = m.select.turnDeg; bright = 1.04; }
+          else { const d = i - s; push = Math.sign(d) * m.select.push * Math.pow(m.hover.falloff, Math.abs(d) - 1); bright = 0.86; }
+        } else if (h >= 0) {
+          if (i === h) { lift = m.hover.lift; fwd = m.hover.forward; turn = m.hover.turnDeg; bright = m.hover.bright;
+            tilt = m.hover.tiltDeg * Math.max(-1, Math.min(1, (this.pointer.x - p.x) / (p.w * 0.5))); }
+          else { const d = i - h; push = Math.sign(d) * m.hover.neighbourPush * Math.pow(m.hover.falloff, Math.abs(d) - 1); }
+        }
+        g.lift.t = lift * mi; g.fwd.t = fwd * mi; g.turn.t = turn * Math.min(1, mi); g.push.t = push * mi; g.tilt.t = tilt * mi; g.bright.t = bright;
+        if (reduced) { [g.lift, g.fwd, g.turn, g.push, g.tilt, g.bright].forEach(sp => sp.snap()); g.theta = 0; g.omega = 0; }
+        else {
+          [g.lift, g.fwd, g.turn, g.push, g.tilt, g.bright].forEach(sp => sp.step(dt, k, c));
+          // damped pendulum on the hook (degrees)
+          const sw = m.swing; const acc = -sw.stiffness * g.theta - sw.damping * g.omega;
+          g.omega += acc * dt; g.theta += g.omega * dt;
+          g.theta = Math.max(-sw.maxDeg, Math.min(sw.maxDeg, g.theta));
+        }
+        moving = moving || g.lift.moving || g.fwd.moving || g.turn.moving || g.push.moving || Math.abs(g.omega) > 0.02 || Math.abs(g.theta) > 0.02;
+        const idle = reduced ? 0 : m.idle.swayDeg * Math.sin(this.t * 2 * Math.PI / m.idle.periodS + g.phase);
+        const ang = g.theta + idle + g.tilt.v;
+        const scale = 1 + g.fwd.v;
+        const x = p.x + g.push.v * p.w, y = p.y - g.lift.v * p.h;
+        g.el.style.transform = `translate3d(${(x - p.w / 2).toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+        g.pivot.style.transform = `rotate(${ang.toFixed(3)}deg) scale(${scale.toFixed(4)})`;
+        const fan = p.sprite ? 0 : cfg.garments.fanDeg;
+        g.body.style.transform = `perspective(${cfg.garments.perspective}px) rotateY(${(fan + g.turn.v).toFixed(2)}deg)`;
+        g.body.style.filter = `brightness(${(g.bright.v).toFixed(3)})`;
+        // the shadow on the wall separates as the garment comes forward
+        const sh = cfg.garments.shadow, sep = 1 + g.fwd.v * 6 + g.lift.v * 4;
+        g.shadow.style.transform = `translate3d(${(sh.x * p.h * sep).toFixed(1)}px, ${(sh.y * p.h * sep).toFixed(1)}px, 0) rotate(${(ang * 0.6).toFixed(2)}deg) scale(${(1 + g.fwd.v * 0.4).toFixed(3)})`;
+        g.shadow.style.filter = `blur(${(sh.blur * p.h * sep).toFixed(1)}px)`;
+        g.shadow.style.opacity = (sh.alpha * this.shadowStrength / Math.sqrt(sep)).toFixed(3);
+        g.el.style.zIndex = String(i === s ? 60 : i === h ? 40 + i : 10 + i);
+      });
+      this.positionOverlays();
+      return moving;
+    }
+
+    positionOverlays() {
+      const i = this.labelFor;
+      if (this.label.classList.contains('is-on') && this.px && this.px[i]) {
+        const p = this.px[i], g = this.items[i];
+        const x = p.x + g.push.v * p.w + p.w * 0.34, y = p.y - g.lift.v * p.h + p.h * 0.1;
+        this.label.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      }
+      const s = this.selected;
+      if (s >= 0 && this.px && this.px[s]) {
+        const p = this.px[s], g = this.items[s];
+        const bottom = p.y - g.lift.v * p.h + p.h * (1 + g.fwd.v) + 14;
+        const x = p.x + g.push.v * p.w;
+        this.info.style.transform = `translate3d(${x.toFixed(1)}px, ${bottom.toFixed(1)}px, 0) translateX(-50%)`;
+        this.app.drop.position(x, p.y + p.h * 0.18, p);
+      }
+    }
+
+    /* Light the garments like the room around them (see daylight[].garment in the config). */
+    applyLight(state) {
+      const [b, warm, cool] = state.garment;
+      const glow = A.config.palettes[A.config.palette].glow;
+      this.root.style.setProperty('--g-bright', b.toFixed(3));
+      this.root.style.setProperty('--g-warm', warm.toFixed(3));
+      this.root.style.setProperty('--g-cool', cool.toFixed(3));
+      this.root.style.setProperty('--g-neon', (Math.min(1, state.neon) * (0.15 + 0.6 * state.night)).toFixed(3));
+      this.root.style.setProperty('--glow', glow);
+      this.shadowStrength = 0.5 + 0.5 * (1 - state.night);
+    }
+
+    garmentRect(i) { return this.items[i] && this.items[i].body.getBoundingClientRect(); }
+  }
+
+  A.Rail = Rail;
+})();
