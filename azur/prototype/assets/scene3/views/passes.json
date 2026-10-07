@@ -38,5 +38,33 @@
   "ceiling": 8.419399800808351,
   "street": 19.729076669951873,
   "spot": 3.7684746292727995
+ },
+ "states": {
+  "room": {
+   "evening": {
+    "rects": [
+     [
+      0,
+      858,
+      1511,
+      1350
+     ]
+    ],
+    "passes": [
+     "sky",
+     "sun_low",
+     "sun_high",
+     "neon",
+     "lamp",
+     "spot",
+     "street"
+    ],
+    "res": [
+     2400,
+     1350
+    ],
+    "complete": true
+   }
+  }
  }
 }
