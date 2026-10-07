@@ -3,6 +3,8 @@
 # Needs: pip install bpy==5.0.1 (Python 3.11) and the Poly Haven assets from scene/fetch_assets.py
 import bpy, bmesh, math, json, random, os, sys
 from mathutils import Vector, Euler, Matrix
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import garment          # jerseys: cloth-simulated shells on wooden hangers (round 3)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -16,10 +18,10 @@ random.seed(11)
 # ---------------------------------------------------------------- scene config (metres, Z up)
 ROOM = dict(w=3.4, d=4.0, h=2.5)
 WIN = dict(y0=2.30, y1=3.30, z0=0.92, z1=2.20, reveal=0.30)       # right wall opening
-RAIL = dict(x0=0.45, x1=2.60, y=2.95, z=1.66, r=0.0125)
+RAIL = dict(x0=0.76, x1=2.76, y=2.95, z=1.66, r=0.0125)      # starts right of the desk (desk ends at x 0.60)
 CAM = dict(loc=(1.25, 0.22, 0.86), target=(2.0, 3.40, 1.02), lens=24, fstop=2.8)
 SUN = dict(dir=(-1.0, 0.22, -0.12), strength=3.0, color=(1.0, 0.60, 0.33), angle=0.8)
-NEON = dict(x=1.56, z=2.22, color=(0.086, 0.722, 1.0), strength=1.6)   # Azur Electric #16B8FF
+NEON = dict(x=1.76, z=2.22, color=(0.086, 0.722, 1.0), strength=1.6)   # Azur Electric #16B8FF
 JERSEYS = ['frankfurt', 'berlin', 'brasilien', 'deutschland', 'tuerkei']
 JERSEY_H = 0.74
 FAN = math.radians(25)
@@ -290,7 +292,8 @@ bpy.ops.object.select_all(action='DESELECT'); matt.select_set(True); bpy.context
 # pillow at the head end (collides with the duvet)
 bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0.5, 0.16, 0.5))
 pil = bpy.context.object; pil.name = 'pillow'; pil.scale = (0.66, 0.44, 0.15); apply_tf(pil)
-pil.rotation_euler = (0, math.radians(3), math.radians(-6))
+bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+pil.rotation_euler = (0, math.radians(9), math.radians(-24)); pil.location += Vector((-0.03, 0.06, 0.02))   # slept on, pushed crooked
 pil.modifiers.new('sub', 'SUBSURF').levels = 3
 ptx = bpy.data.textures.new('pillownoise', 'CLOUDS'); ptx.noise_scale = 0.6
 pd = pil.modifiers.new('disp', 'DISPLACE'); pd.texture = ptx; pd.strength = 0.01
@@ -301,8 +304,8 @@ pil.modifiers.new('col', 'COLLISION')
 # duvet: thrown back the way a kid leaves it in the morning. Simulated like it happens: the duvet lies over the
 # bed, its head edge is pulled back toward the foot end in an arc (pinned to a moving hook), then let go to settle.
 # A filled duvet makes few, broad folds: coarse cloth grid, soft rumples, light smoothing.
-DUVET = dict(grid=(36, 64), cx=0.60, z=0.52, amp=0.03, fx=7.0, fy=5.0, push=0.035, mass=0.5, bend=0.8,
-             pull_mid=(0.55, 0.60, 0.92), pull_to=(0.70, 1.18, 0.58), pull_rz=28, pull_f=52, frames=60, settle=45)
+DUVET = dict(grid=(36, 64), cx=0.60, z=0.52, amp=0.05, fx=9.0, fy=6.5, push=0.06, mass=0.5, bend=0.6,
+             pull_mid=(0.70, 0.70, 0.95), pull_to=(1.05, 1.30, 0.50), pull_rz=52, pull_f=52, frames=60, settle=50)
 bpy.ops.mesh.primitive_grid_add(x_subdivisions=56, y_subdivisions=92, size=1.0)   # the old grid, only to keep the
 _tmp = bpy.context.object; _n = len(_tmp.data.vertices); bpy.data.objects.remove(_tmp, do_unlink=True)
 for _ in range(_n): random.uniform(-0.006, 0.006)   # seeded sequence identical for everything built after the bed
@@ -313,6 +316,7 @@ bm = bmesh.new(); bm.from_mesh(duv.data)
 for v in bm.verts:
     x, y = v.co.x, v.co.y
     v.co.z += DV['amp'] * math.sin(x * DV['fx'] + y * 1.4 + 0.8) * math.sin(y * DV['fy'] + 0.4) + rnd.uniform(-0.002, 0.002)
+    v.co.z += 0.025 * math.sin(x * 17.0 + y * 6.0) * math.sin(y * 13.0 - x * 4.0)     # teen bed: crumples, not waves
     v.co.x += DV['push'] * math.sin(y * 3.1)       # the cover is pushed together a little across the bed
 bm.to_mesh(duv.data); bm.free()
 for o in (matt,):
@@ -387,7 +391,7 @@ def hanger(x, yaw):
     """Wooden hanger with a swivel hook; returns the attach matrix for the garment (top centre)."""
     org = Vector((x, ry + 0.018, rz - 0.072))
     # hook (in the YZ plane, around the bar)
-    pts = [(0, 0, 0), (0, 0, 0.045), (0, 0.004, 0.064), (0, -0.006, 0.084), (0, -0.024, 0.091), (0, -0.04, 0.08), (0, -0.043, 0.064), (0, -0.036, 0.055)]
+    pts = [(0, 0, -0.065), (0, 0, 0), (0, 0, 0.045), (0, 0.004, 0.064), (0, -0.006, 0.084), (0, -0.024, 0.091), (0, -0.04, 0.08), (0, -0.043, 0.064), (0, -0.036, 0.055)]
     cu = bpy.data.curves.new('hook', 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = 0.0022; cu.bevel_resolution = 3
     sp = cu.splines.new('POLY'); sp.points.add(len(pts) - 1)
     for i, p in enumerate(pts): sp.points[i].co = (*p, 1)
@@ -507,10 +511,12 @@ def jersey_mesh(name, front_path, back_path, h=JERSEY_H, cell=0.011, depth=0.055
 meta = json.load(open(A + '/jerseys/meta.json'))
 n = len(JERSEYS) + 1
 xs = [RAIL['x0'] + 0.20 + i * (RAIL['x1'] - RAIL['x0'] - 0.40) / (n - 1) for i in range(n)]
+KNIT = tex_paths('cotton_jersey')['nor_gl']
 for i, k in enumerate(JERSEYS):
     mt = hanger(xs[i], FAN + random.uniform(-0.04, 0.04))
-    jo = jersey_mesh('jersey_' + k, *JERSEY_PHOTOS[k]); jo.matrix_world = mt
-    hanger.body.hide_render = True
+    bpy.data.objects.remove(hanger.body, do_unlink=True)          # the wooden hanger now sits inside the jersey
+    jo, hg = garment.jersey('jersey_' + k, *JERSEY_PHOTOS[k], knit_normal=KNIT, hanger_mat=M['hanger'])
+    jo.matrix_world = mt; hg.matrix_world = mt
 
 # 6th hanger: the covered "Nächster Drop" garment bag
 mt = hanger(xs[-1], FAN * 0.6)
@@ -642,14 +648,15 @@ fill_wall('left', 2.05, D - 0.03, 0.86, H - 0.03, seed=5)
 
 # ---------------------------------------------------------------- AZUR neon (LED neon flex traced from the real signature)
 nj = json.load(open(HERE + '/neon_paths.json'))
-ncu = bpy.data.curves.new('neon', 'CURVE'); ncu.dimensions = '3D'; ncu.bevel_depth = 0.0042; ncu.bevel_resolution = 4
+ncu = bpy.data.curves.new('neon', 'CURVE'); ncu.dimensions = '3D'; ncu.bevel_depth = 0.0048; ncu.bevel_resolution = 6; ncu.resolution_u = 24
 for p in nj['paths']:
     sp = ncu.splines.new('NURBS'); sp.points.add(len(p) - 1); sp.use_endpoint_u = True; sp.order_u = 3
     for i, (x, y) in enumerate(p): sp.points[i].co = (x, 0, y, 1)
 neon = link(bpy.data.objects.new('neon', ncu)); neon.location = (NEON['x'], D - 0.035, NEON['z']); 
 nm_ = bpy.data.materials.new('neon_tube'); nm_.use_nodes = True; b = nm_.node_tree.nodes['Principled BSDF']
-b.inputs['Base Color'].default_value = (0.75, 0.93, 1.0, 1); b.inputs['Emission Color'].default_value = (*NEON['color'], 1)
-b.inputs['Emission Strength'].default_value = NEON['strength']; b.inputs['Roughness'].default_value = 0.35; b.inputs['Coat Weight'].default_value = 0.5
+b.inputs['Base Color'].default_value = (0.86, 0.94, 0.98, 1); b.inputs['Emission Color'].default_value = (*NEON['color'], 1)
+b.inputs['Emission Strength'].default_value = NEON['strength']; b.inputs['Roughness'].default_value = 0.42; b.inputs['Coat Weight'].default_value = 0.3
+b.inputs['Subsurface Weight'].default_value = 0.5; b.inputs['Subsurface Radius'].default_value = (0.004, 0.006, 0.008)   # milky LED silicone
 neon.data.materials.append(nm_)
 plate = box('neon_plate', NEON['x'] - nj['width'] / 2 - 0.03, NEON['x'] + nj['width'] / 2 + 0.03, D - 0.03, D - 0.024, NEON['z'] - nj['height'] / 2 - 0.03, NEON['z'] + nj['height'] / 2 + 0.03,
             flat('acrylic', (1, 1, 1), rough=0.05, **{'Transmission Weight': 1.0, 'IOR': 1.49}), 0.006)
@@ -756,9 +763,14 @@ for lx, ly in ((DX1 - 0.05, DY0 + 0.02), (DX1 - 0.05, DY1 - 0.055), (0.015, DY0 
     box('desk_leg', lx, lx + 0.035, ly, ly + 0.035, 0, DZ - 0.028, pine, 0.002)
 box('desk_drawer', 0.04, DX1 - 0.02, DY1 - 0.44, DY1 - 0.07, DZ - 0.17, DZ - 0.03, pine, 0.003)
 box('drawer_knob', DX1 - 0.02, DX1 + 0.006, DY1 - 0.265, DY1 - 0.245, DZ - 0.11, DZ - 0.09, M['silver'], 0.002)
-import_gltf('desk_lamp_arm_01', loc=(0.16, DY1 - 0.16, DZ), rot_z=math.radians(-120))
-import_gltf('binder_notebook', loc=(0.30, DY0 + 0.38, DZ + 0.001), rot_z=math.radians(78))
-import_gltf('stationery_supplies', loc=(0.14, DY0 + 0.14, DZ + 0.074), rot_z=math.radians(80))
+def rest_on(root, z):
+    """Put an imported model down so its lowest point touches z (models come with their own origins)."""
+    bpy.context.view_layer.update()
+    lo = min((o.matrix_world @ Vector(c)).z for o in root.children_recursive if o.type == 'MESH' for c in o.bound_box)
+    root.location.z += z - lo
+rest_on(import_gltf('desk_lamp_arm_01', loc=(0.16, DY1 - 0.16, DZ), rot_z=math.radians(-120))[0], DZ)
+rest_on(import_gltf('binder_notebook', loc=(0.30, DY0 + 0.38, DZ + 0.001), rot_z=math.radians(78))[0], DZ)
+rest_on(import_gltf('stationery_supplies', loc=(0.14, DY0 + 0.14, DZ + 0.074), rot_z=math.radians(80))[0], DZ)
 # exercise books, stacked a bit crooked
 for i, (c_, rz) in enumerate([((0.15, 0.32, 0.55), 6), ((0.75, 0.2, 0.15), -4), ((0.9, 0.85, 0.25), 11)]):
     bk = box('heft', -0.105, 0.105, -0.148, 0.148, 0, 0.006, flat('heft', c_, rough=0.6), 0.001)
@@ -772,7 +784,7 @@ for lx in (0.16,):
     for ly in (-0.18, 0.16):
         ch.append(box('cpost', lx, lx + 0.025, ly, ly + 0.025, 0.455, 0.86, pine, 0.002))
     ch.append(box('cback', lx - 0.004, lx + 0.03, -0.18, 0.185, 0.72, 0.84, pine, 0.003))
-group('chair', ch, loc=(0.86, 2.98, 0), rot_z=math.radians(-28))
+group('chair', ch, loc=(0.74, 2.47, 0), rot_z=math.radians(9))        # pulled out from the desk, facing it
 
 # football boots: dropped by the bed, one on its side (metaball upper, rubber soleplate, studs)
 def boot(name, loc, rot, tilt=0.0):
@@ -905,6 +917,124 @@ cov.parent = mag
 mtc = bpy.data.curves.new('masthead', 'FONT'); mtc.body = 'ANSTOSS'; mtc.size = 0.034; mtc.align_x = 'CENTER'
 mto = link(bpy.data.objects.new('masthead', mtc)); mto.parent = mag; mto.location = (0, 0.1, 0.0046)
 mto.data.materials.append(flat('masthead', (0.95, 0.95, 0.93), rough=0.4))
+
+# ---------------------------------------------------------------- the room through the day (round 3)
+# Objects tagged 'azur_state' appear only in the named states (render_queue.set_state): 'night' (the teen asleep),
+# 'morning' (just got up), 'evening' (back from school); '!night' = all states but night. Untagged = always.
+# Day is the base: only untagged and '!night' objects. Each state is rendered as patches over the day plates.
+def tag(o, states):
+    for x in [o] + list(o.children_recursive): x['azur_state'] = states
+    return o
+
+def fabric(name, col, sheen=0.5, rough=0.9, scale=40):
+    m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree; b = nt.nodes['Principled BSDF']
+    b.inputs['Base Color'].default_value = (*col, 1); b.inputs['Roughness'].default_value = rough
+    b.inputs['Sheen Weight'].default_value = sheen; b.inputs['Sheen Roughness'].default_value = 0.4
+    t = tex_paths('cotton_jersey'); tc = nt.nodes.new('ShaderNodeTexCoord'); mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale,) * 3
+    nn = nt.nodes.new('ShaderNodeTexImage'); nn.image = img(t['nor_gl'], 'Non-Color'); nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.4
+    nt.links.new(tc.outputs['UV'], mp.inputs[0]); nt.links.new(mp.outputs[0], nn.inputs[0]); nt.links.new(nn.outputs[0], nm.inputs['Color']); nt.links.new(nm.outputs[0], b.inputs['Normal'])
+    return m
+
+def cloth_drop(name, size, loc, mat, rot_z=0.0, frames=60, crumple=0.04, seed=1, grid=(20, 24), thick=0.008, collide=()):
+    """A piece of clothing dropped onto something and left there."""
+    r = random.Random(seed)
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=grid[0], y_subdivisions=grid[1], size=1.0, location=loc)
+    o = bpy.context.object; o.name = name; o.scale = (size[0], size[1], 1); o.rotation_euler = (0, 0, rot_z); apply_tf(o)
+    ph = [r.random() * 6 for _ in range(4)]
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    for v in bm.verts:
+        v.co.z += crumple * math.sin(v.co.x * 21 + ph[0]) * math.sin(v.co.y * 17 + ph[1]) + 0.5 * crumple * math.sin(v.co.x * 9 + v.co.y * 11 + ph[2])
+    bm.to_mesh(o.data); bm.free()
+    added = [c.modifiers.new('col', 'COLLISION') for c in collide if not any(m.type == 'COLLISION' for m in c.modifiers)]
+    cloth_on(o, 0.25, 0.15); bake_cloth(o, frames)
+    for c in collide:
+        for m in [m for m in c.modifiers if m in added]: c.modifiers.remove(m)
+    sm_ = o.modifiers.new('smooth', 'SMOOTH'); sm_.factor = 0.5; sm_.iterations = 2
+    so_ = o.modifiers.new('sol', 'SOLIDIFY'); so_.thickness = thick; so_.offset = 1
+    o.modifiers.new('sub', 'SUBSURF').levels = 1
+    bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o; bpy.ops.object.shade_smooth()
+    o.data.materials.append(mat)
+    return o
+
+# hoodie over the chair back (every state: he wears it outside? no, the grey one stays home)
+chair_parts = [o for o in bpy.data.objects['chair'].children]
+hood = cloth_drop('hoodie', (0.72, 0.44), (0.92, 2.50, 0.98), fabric('hoodie', (0.21, 0.22, 0.24)), rot_z=math.radians(9),
+                  frames=70, crumple=0.03, seed=4, collide=chair_parts)
+
+# morning: the pyjama shirt dropped by the bed, the phone left on the duvet
+tag(cloth_drop('pyjama', (0.50, 0.44), (1.18, 0.55, 0.12), fabric('pyjama', (0.30, 0.38, 0.50)), rot_z=math.radians(-20), frames=50, seed=7), 'morning')
+pz, _ = surface_z(0.55, 0.62)
+phone = box('phone', -0.036, 0.036, -0.075, 0.075, 0.0, 0.008, flat('phone', (0.02, 0.02, 0.025), rough=0.12, **{'Coat Weight': 0.8}), 0.006)
+phone.location = (0.55, 0.62, pz + 0.002); phone.rotation_euler = (math.radians(3), math.radians(-4), math.radians(35)); tag(phone, 'morning')
+
+# evening (and still there at night): the school backpack dropped by the desk, exercise books slid out of it
+def backpack(loc, rot_z):
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    bp = bpy.context.object; bp.name = 'backpack'; bp.scale = (0.30, 0.15, 0.40); bp.location = (0, 0, 0.20); apply_tf(bp)
+    bv = bp.modifiers.new('bev', 'BEVEL'); bv.width = 0.05; bv.segments = 5
+    bp.modifiers.new('sub', 'SUBSURF').levels = 2
+    tx = bpy.data.textures.new('packslump', 'CLOUDS'); tx.noise_scale = 0.15
+    dm = bp.modifiers.new('disp', 'DISPLACE'); dm.texture = tx; dm.strength = 0.02
+    bpy.ops.object.shade_smooth()
+    mat = fabric('backpack', (0.035, 0.09, 0.07), sheen=0.2, rough=0.7, scale=60)
+    bp.data.materials.append(mat)
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    pk = bpy.context.object; pk.name = 'backpack_pocket'; pk.scale = (0.22, 0.06, 0.18); pk.location = (0, -0.09, 0.14); apply_tf(pk)
+    pk.modifiers.new('bev', 'BEVEL').width = 0.03; pk.modifiers.new('sub', 'SUBSURF').levels = 2; bpy.ops.object.shade_smooth()
+    pk.data.materials.append(mat)
+    hd = bpy.data.curves.new('pack_handle', 'CURVE'); hd.dimensions = '3D'; hd.bevel_depth = 0.008
+    spx = hd.splines.new('BEZIER'); spx.bezier_points.add(2)
+    for i, pt in enumerate([(-0.04, 0.02, 0.39), (0.0, 0.03, 0.44), (0.04, 0.02, 0.39)]):
+        bpt = spx.bezier_points[i]; bpt.co = pt; bpt.handle_left_type = bpt.handle_right_type = 'AUTO'
+    ho = link(bpy.data.objects.new('pack_handle', hd)); ho.data.materials.append(flat('webbing', (0.02, 0.02, 0.02), rough=0.8))
+    root = group('backpack_root', [bp, pk, ho], loc=loc, rot_z=rot_z)
+    root.rotation_euler = (math.radians(-14), 0, rot_z)          # leaning back against nothing, half tipped
+    return root
+tag(backpack((1.20, 2.12, 0.0), math.radians(32)), 'evening night')
+for i, (x, y, rz, hcol) in enumerate([(1.02, 2.30, 18, (0.75, 0.2, 0.15)), (0.98, 2.16, -30, (0.15, 0.32, 0.55)), (1.10, 2.42, 64, (0.9, 0.85, 0.25))]):
+    hb = box('floor_heft', -0.105, 0.105, -0.148, 0.148, 0.0, 0.006, flat('heft', hcol, rough=0.6), 0.001)
+    hb.location = (x, y, 0.001 + i * 0.0002); hb.rotation_euler = (0, 0, math.radians(rz)); tag(hb, 'evening night')
+pc_ = cyl('pencil_case', (0.86, 2.05, 0.035), (1.06, 2.0, 0.035), 0.033, fabric('pencil_case', (0.04, 0.05, 0.12), sheen=0.2), verts=20)
+tag(pc_, 'evening night')
+
+# night: the teen asleep on his side under the duvet, one socked foot out at the foot end
+sleeper = []
+for nm, c, r_ in (('torso', (0.50, 0.78, 0.53), (0.17, 0.33, 0.15)), ('hips', (0.52, 1.18, 0.51), (0.18, 0.17, 0.13)),
+                  ('thighs', (0.62, 1.42, 0.49), (0.14, 0.2, 0.09)), ('shins', (0.58, 1.72, 0.47), (0.11, 0.2, 0.07)),
+                  ('shoulder', (0.53, 0.42, 0.58), (0.16, 0.12, 0.14))):
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1.0, location=c)
+    so = bpy.context.object; so.name = 'sleeper_' + nm; so.scale = r_; apply_tf(so); so.hide_render = True
+    so.modifiers.new('col', 'COLLISION'); so.collision.thickness_outer = 0.01; sleeper.append(so)
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=34, y_subdivisions=54, size=1.0, location=(0.58, 1.10, 0.95))
+nd = bpy.context.object; nd.name = 'duvet_night'; nd.scale = (1.06, 1.56, 1); nd.rotation_euler = (0, 0, math.radians(-4)); apply_tf(nd)
+rn = random.Random(5); bm = bmesh.new(); bm.from_mesh(nd.data)
+for v in bm.verts: v.co.z += 0.015 * math.sin(v.co.x * 11 + v.co.y * 3) * math.sin(v.co.y * 9) + rn.uniform(-0.002, 0.002)
+bm.to_mesh(nd.data); bm.free()
+cloth_on(nd, DV['mass'], DV['bend']); bake_cloth(nd, 60)
+for o in sleeper: o.modifiers.remove(o.modifiers['col'])
+for o_, th, lv_, sf, si in ((nd, 0.05, 2, 0.45, 2),):
+    sm_ = o_.modifiers.new('smooth', 'SMOOTH'); sm_.factor = sf; sm_.iterations = si
+    s_ = o_.modifiers.new('sol', 'SOLIDIFY'); s_.thickness = th; s_.offset = 1
+    sb_ = o_.modifiers.new('sub', 'SUBSURF'); sb_.levels = lv_; sb_.render_levels = lv_
+    bpy.ops.object.select_all(action='DESELECT'); o_.select_set(True); bpy.context.view_layer.objects.active = o_; bpy.ops.object.shade_smooth()
+nd.data.materials.append(M['duvet']); tag(nd, 'night')
+tag(bpy.data.objects['duvet'], '!night')
+# the socked foot sticking out under the duvet's foot end, resting on the mattress
+bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1.0, location=(0, 0, 0))
+ft = bpy.context.object; ft.name = 'sock'; ft.scale = (0.045, 0.125, 0.04); apply_tf(ft)
+bm = bmesh.new(); bm.from_mesh(ft.data)
+for v in bm.verts:            # heel rounder, toes flatter, a little arch
+    if v.co.y > 0.05: v.co.z *= 0.75
+    v.co.z += 0.012 * math.exp(-((v.co.y + 0.02) / 0.05) ** 2) * (1 if v.co.z > 0 else 0)
+bm.to_mesh(ft.data); bm.free(); ft.modifiers.new('sub', 'SUBSURF').levels = 1; bpy.ops.object.shade_smooth()
+ft.location = (0.60, 1.90, 0.44); ft.rotation_euler = (math.radians(8), math.radians(-70), math.radians(-14))
+ft.data.materials.append(fabric('sock', (0.82, 0.82, 0.8), sheen=0.6)); tag(ft, 'night')
+# the magazine slid off the bed onto the floor in the night
+mn = box('magazine_night', -0.105, 0.105, -0.14, 0.14, 0.0, 0.004, M['paper'], 0.001)
+mn.location = (1.13, 1.76, 0.001); mn.rotation_euler = (0, 0, math.radians(-17))   # in the bed view's frame
+for ch_ in list(bpy.data.objects['magazine'].children):
+    cp = ch_.copy(); cp.data = ch_.data.copy() if ch_.data else None; link(cp); cp.parent = mn; cp.matrix_parent_inverse = ch_.matrix_parent_inverse.copy()
+tag(mn, 'night'); tag(bpy.data.objects['magazine'], '!night')
 
 # ---------------------------------------------------------------- cameras (the owner may still change the angle; all presets render from one build)
 CAMS = {

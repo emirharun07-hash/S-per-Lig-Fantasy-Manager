@@ -5,6 +5,12 @@ and every finished output is committed and pushed so nothing is lost if the mach
 
 Usage:  python3 azur/scene/render_queue.py            (all jobs)
         python3 azur/scene/render_queue.py rail       (only jobs for one view)
+
+scene3 (round 3): the room changes through the day. Objects carry an 'azur_state' tag (build_room.py); 'day' is the
+base and gets every light pass, 'morning', 'evening' and 'night' are stored as patches: only the rectangles where
+they differ from day, for the light passes that state uses. masks.png per view (and state) gives the bed, the rail
+and the magazine as white outlines for hover. A newer render request (azur/render_request.json on the branch)
+stops the queue between jobs, so a fixed scene replaces a stale run.
 Env:    AZUR_GPU=1            render on the graphics chip (e.g. on the owner's laptop), CPU otherwise
         AZUR_QUEUE_NO_GIT=1   skip commits (local testing)
         AZUR_QUEUE_FAST=1     tiny resolution and samples (pipeline test)
@@ -17,9 +23,9 @@ from bpy_extras.object_utils import world_to_camera_view
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 REPO = os.path.dirname(ROOT)
-SET = os.environ.get('AZUR_SET', 'scene2')    # scene2: jerseys are real 3D garments inside the renders
+SET = os.environ.get('AZUR_SET', 'scene3')    # scene2: jerseys in the renders; scene3: + times of day, masks, hi-res
 OUT = os.path.join(ROOT, 'prototype', 'assets', SET, 'views')
-BLEND = os.environ.get('AZUR_BLEND') or os.path.join(ROOT, '.cache', f"azur_room_{os.environ.get('AZUR_SET', 'scene2')}.blend")   # rebuilt per scene set
+BLEND = os.environ.get('AZUR_BLEND') or os.path.join(ROOT, '.cache', f"azur_room_{SET}.blend")   # rebuilt per scene set
 LOG = os.path.join(ROOT, '.cache', 'queue.log')
 FAST = bool(os.environ.get('AZUR_QUEUE_FAST'))
 if FAST: OUT = os.path.join(ROOT, '.cache', 'queue_test')
@@ -27,21 +33,35 @@ NO_GIT = bool(os.environ.get('AZUR_QUEUE_NO_GIT'))
 ONLY = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 
 # ------------------------------------------------------------------ views (camera presets the prototype moves between)
+HI = SET not in ('scene1', 'scene2')      # scene3: sharper plates (2400 wide: no upscaling on large and HiDPI screens)
+RX = 0.24 if HI else 0.0                  # scene3 moved the rail 0.24 m right (it stood in the desk)
 VIEWS = {
     # establishing shot: high in the front-left corner, the whole room
-    'room':   dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19, res=(1600, 900)),
+    'room':   dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19, res=(2400, 1350) if HI else (1600, 900)),
     # the rail: centred, closer and a little higher than the first stills
-    'rail':   dict(loc=(1.72, 0.70, 1.40), target=(1.85, 3.60, 1.18), lens=24, res=(1600, 900)),
+    'rail':   dict(loc=(1.72 + RX, 0.70, 1.40), target=(1.85 + RX, 3.60, 1.18), lens=24, res=(2400, 1350) if HI else (1600, 900)),
     # the bed (easter egg, content decided later)
-    'bed':    dict(loc=(1.55, 0.35, 1.35), target=(0.45, 1.50, 0.48), lens=26, res=(1600, 900)),
+    'bed':    dict(loc=(1.55, 0.35, 1.35), target=(0.45, 1.50, 0.48), lens=26, res=(2400, 1350) if HI else (1600, 900)),
     # phones start at the rail; the plate is wider than a phone so the visitor can swipe along it
-    'rail_m': dict(loc=(1.55, 1.15, 1.30), target=(1.55, 3.40, 1.12), lens=20, res=(1440, 1600), fit='VERTICAL', sensor=24),
+    'rail_m': dict(loc=(1.55 + RX, 1.15, 1.30), target=(1.55 + RX, 3.40, 1.12), lens=20, res=(1800, 2000) if HI else (1440, 1600), fit='VERTICAL', sensor=24),
 }
+FOCUS = Vector((1.55 + RX, 2.95, 1.2))   # depth of field: sharp on the jerseys
 # light passes: each rendered alone, white light, mixed and tinted in the browser
 PASSES = ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'ceiling', 'street', 'spot']
 SUN = {'sun_low': (-1.0, 0.22, -0.12), 'sun_high': (-1.0, 0.12, -0.78)}
 DEPTH_NEAR, DEPTH_FAR = 0.4, 6.5   # metres; depth.png stores near=white, far=black (sRGB-encoded)
 GARMENT_PREFIX = ('jersey_', 'drop_', 'hanger', 'hook', 'tag', 'tagtext', 'string', 'zip')
+# times of day (scene3): which light passes each state needs (azur-config.js daylight weights over the state's hours)
+STATES = ['day', 'morning', 'evening', 'night']
+STATE_PASSES = {'morning': ['sky', 'sun_high', 'neon', 'spot', 'street'],
+                'evening': ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street'],
+                'night':   ['sky', 'neon', 'lamp', 'spot', 'street']}
+# hover outlines: the objects that make up the bed, the rail and the magazine (masks.png channels R, G, B)
+MASK_GROUPS = {
+    'bed': ('mattress', 'duvet', 'pillow', 'bed_', 'leg', 'sock', 'phone'),
+    'rail': ('bar', 'upright', 'foot', 'caster', 'hook', 'hanger', 'jersey_', 'drop_', 'tag', 'tagtext', 'string', 'zip'),
+    'mag': ('magazine', 'masthead'),
+}
 
 
 def log(*a):
@@ -52,6 +72,27 @@ def log(*a):
 
 
 _last_push = [0.0]
+BRANCH = 'claude/shopify-notification-signup-o5avym'
+REQ_ID = os.environ.get('AZUR_REQUEST_ID')     # set by the PC's watch mode (tools/render_step.ps1)
+_sup = [0.0]
+
+
+def superseded():
+    """True when the branch carries a newer render request than the one this run belongs to (checked once a minute)."""
+    if not REQ_ID or NO_GIT or time.time() - _sup[0] < 60: return False
+    _sup[0] = time.time()
+    try:
+        subprocess.run(['git', '-C', REPO, 'fetch', '-q', 'origin', BRANCH], capture_output=True, timeout=90)
+        r = subprocess.run(['git', '-C', REPO, 'show', f'origin/{BRANCH}:azur/render_request.json'], capture_output=True, text=True, timeout=30)
+        rid = json.loads(r.stdout).get('id')
+        return bool(rid) and rid != REQ_ID
+    except Exception:
+        return False
+
+
+def stop_if_superseded():
+    if superseded():
+        log('a newer render request is on the branch: stopping this run'); git_push(force=True); sys.exit(3)
 
 
 def git_push(force=False):
@@ -59,8 +100,8 @@ def git_push(force=False):
     if NO_GIT or (not force and time.time() - _last_push[0] < 120): return
     for attempt in range(6):
         try:
-            subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '-q', 'origin', 'claude/shopify-notification-signup-o5avym'], capture_output=True)
-            subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:claude/shopify-notification-signup-o5avym'], check=True, capture_output=True)
+            subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '--autostash', '-q', 'origin', BRANCH], capture_output=True)
+            subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:' + BRANCH], check=True, capture_output=True)
             _last_push[0] = time.time(); return
         except Exception as e:
             log('git push retry', attempt, e)
@@ -132,14 +173,35 @@ def open_scene():
         L = bpy.data.lights.new('L_spot', 'SPOT'); L.energy = 60.0; L.spot_size = math.radians(72); L.spot_blend = 0.85; L.shadow_soft_size = 0.05
         o = bpy.data.objects.new('L_spot', L); sc.collection.objects.link(o)
         can = bpy.data.objects['spot_can']; c = sum((can.matrix_world @ Vector(v) for v in can.bound_box), Vector()) / 8
-        aim = Vector((1.55, 2.95, 1.25)); o.location = c + (aim - c).normalized() * 0.1
+        aim = Vector((1.55 + RX, 2.95, 1.25)); o.location = c + (aim - c).normalized() * 0.1
         o.rotation_euler = (aim - c).to_track_quat('-Z', 'Y').to_euler()
     # opal ceiling light emits only in its own pass
     cm = bpy.data.objects['ceiling_light'].data.materials[0]
     cm.node_tree.nodes['Principled BSDF'].inputs['Emission Color'].default_value = (1, 1, 1, 1)
-    global BASE_HIDE
-    BASE_HIDE = {o.name: o.hide_render for o in bpy.data.objects}
+    global BASE_HIDE, SAVED_HIDE
+    SAVED_HIDE = {o.name: o.hide_render for o in bpy.data.objects}
+    BASE_HIDE = {o.name: o.hide_render or not state_visible(o, 'day') for o in bpy.data.objects}
+    restore_visibility()
     return sc
+
+
+def state_visible(o, state):
+    """build_room tags: 'night', 'evening night', '!night' (all but night); untagged objects are always there."""
+    tags = str(o.get('azur_state', '')).split()
+    if not tags: return True
+    return state in tags or (any(t.startswith('!') for t in tags) and '!' + state not in tags)
+
+
+def set_state(state):
+    """Show what belongs to one time of day (on top of restore_visibility)."""
+    for o in bpy.data.objects:
+        if 'azur_state' in o and not SAVED_HIDE.get(o.name): o.hide_render = not state_visible(o, state)
+
+
+def state_objects(state):
+    """Objects whose visibility differs between day and `state`."""
+    return [o for o in bpy.data.objects if 'azur_state' in o and o.type in ('MESH', 'CURVE', 'FONT', 'META')
+            and state_visible(o, state) != state_visible(o, 'day')]
 
 
 def restore_visibility():
@@ -158,7 +220,7 @@ def set_view(sc, key):
     cd.sensor_fit = v.get('fit', 'AUTO')
     if 'sensor' in v: cd.sensor_height = v['sensor']
     else: cd.sensor_width = 36
-    cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - Vector(v['loc'])).length
+    cd.dof.focus_distance = (FOCUS - Vector(v['loc'])).length
     rx, ry = v['res']
     if FAST: rx, ry = rx // 5, ry // 5
     sc.render.resolution_x, sc.render.resolution_y = rx, ry
@@ -204,8 +266,9 @@ def render_settings(sc, kind):
     cy = sc.cycles; r = sc.render
     r.film_transparent = False
     sc.view_layers[0].material_override = None
-    cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'; cy.adaptive_threshold = 0.02
-    cy.samples = 8 if FAST else {'beauty': 224, 'pass': 192, 'depth': 4, 'sprite': 128}[kind]
+    cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'; cy.adaptive_threshold = 0.01 if HI else 0.02
+    cy.samples = 8 if FAST else {'beauty': 256 if HI else 224, 'pass': 384 if HI else 192, 'depth': 4, 'sprite': 128}[kind]
+    r.use_border = False
     if kind == 'depth': cy.use_denoising = False
     if kind in ('pass', 'depth'):
         sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'; sc.view_settings.exposure = 0.0
@@ -233,20 +296,48 @@ def to_webp(src_png, dst, q=86):
     im = Image.open(src_png); im.save(dst, 'WEBP', quality=q, method=6); os.remove(src_png)
 
 
-def encode_pass(exr, dst):
-    """Linear EXR -> 8-bit WebP with a Reinhard curve; the browser undoes it: lin = (y / (1 - y)) / scale, y = enc^2.2."""
-    from PIL import Image
+EXR = os.path.join(ROOT, '.cache', 'exr', SET)     # scene3 keeps the linear day passes to find what a state changes
+if FAST: EXR = os.path.join(OUT, 'exr')
+ENC_REF = 1.5 if HI else 0.5     # where the 97th percentile lands before the curve: scene3 spends more codes on the dark
+
+
+def read_exr(exr):
     img = bpy.data.images.load(exr); w, h = img.size
     px = np.empty(w * h * 4, dtype=np.float32); img.pixels.foreach_get(px)
     bpy.data.images.remove(img)
-    rgb = px.reshape(h, w, 4)[::-1, :, :3]
+    return px.reshape(h, w, 4)[::-1, :, :3].copy()
+
+
+def pass_scale(rgb):
     lum = rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-    ref = float(np.percentile(lum, 97))
-    scale = 0.5 / max(ref, 1e-6)
+    return ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
+
+
+def encode_rgb(rgb, scale):
+    """Linear light -> 8-bit codes with a Reinhard curve; the browser undoes it: lin = (y / (1 - y)) / scale, y = enc^2.2."""
     x = np.clip(rgb * scale, 0, None)
-    enc = np.power(x / (1.0 + x), 1 / 2.2)
-    Image.fromarray(np.clip(enc * 255 + 0.5, 0, 255).astype(np.uint8)).save(dst, 'WEBP', quality=90, method=6)
-    os.remove(exr)
+    return np.clip(np.power(x / (1.0 + x), 1 / 2.2) * 255 + 0.5, 0, 255).astype(np.uint8)
+
+
+def pass_quality(p):
+    if not HI: return 90
+    return 97 if p == 'neon' else 94           # the sign is the brand: least compression where it glows
+
+
+def save_webp(codes, dst, q):
+    from PIL import Image
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    Image.fromarray(codes).save(dst, 'WEBP', quality=q, method=6)
+
+
+def encode_pass(exr, dst, p='', keep=None):
+    """Linear EXR -> WebP (see encode_rgb); returns the scale for passes.json. keep: move the EXR there instead of deleting."""
+    rgb = read_exr(exr); scale = pass_scale(rgb)
+    save_webp(encode_rgb(rgb, scale), dst, pass_quality(p))
+    if keep:
+        os.makedirs(os.path.dirname(keep), exist_ok=True); os.replace(exr, keep)
+    else:
+        os.remove(exr)
     return scale
 
 
@@ -311,6 +402,8 @@ def job_projections(sc):
             floor_under_rail=uv(((min(xs) + max(xs)) / 2, cy, 0.0))[:2],
         )
         if mag: data[key]['magazine'] = magazine_corners(mag, uv)
+        magn = bpy.data.objects.get('magazine_night')     # scene3: at night it slid off the bed onto the floor
+        if magn: data[key]['magazine_night'] = magazine_corners(magn, uv)
     os.makedirs(OUT, exist_ok=True)
     json.dump(data, open(path, 'w'), indent=1)
     return [path]
@@ -352,7 +445,7 @@ def job_pass(sc, key, p, meta):
     if os.path.exists(dst): return None
     set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p)
     exr = dst.replace('.webp', '.exr'); secs = render_to(sc, exr)
-    meta.setdefault(key, {})[p] = encode_pass(exr, dst)
+    meta.setdefault(key, {})[p] = encode_pass(exr, dst, p, keep=os.path.join(EXR, key, p + '.exr') if HI else None)
     mpath = os.path.join(OUT, 'passes.json'); json.dump(meta, open(mpath, 'w'), indent=1)
     log('pass', key, p, secs, 's'); return [dst, mpath]
 
@@ -543,6 +636,165 @@ def job_beauty_at(sc, key, dst, prepare):
     log('beauty', os.path.basename(os.path.dirname(dst)), secs, 's'); return [dst]
 
 
+# ------------------------------------------------------------------ scene3: hover outlines and times of day
+def in_group(o, prefixes):
+    while o is not None:
+        if o.name.startswith(prefixes): return True
+        o = o.parent
+    return False
+
+
+def emission(name, rgb):
+    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (*rgb, 1); out = nt.nodes.new('ShaderNodeOutputMaterial')
+    nt.links.new(em.outputs[0], out.inputs['Surface'])
+    return m
+
+
+def job_masks(sc, key, state='day'):
+    """masks.png (half size, for hover tests: R bed, G rail, B magazine) and glow.png (full size: their outlines as a
+    white glow outside the silhouette, added in the browser on hover). night: masks_night.png / glow_night.png."""
+    sfx = '' if state == 'day' else '_' + state
+    dst = os.path.join(OUT, key, f'masks{sfx}.png'); gdst = os.path.join(OUT, key, f'glow{sfx}.png')
+    if os.path.exists(dst): return None
+    set_view(sc, key); render_settings(sc, 'depth'); lights_off(sc); restore_visibility(); set_state(state)
+    sc.cycles.samples = 1 if FAST else 8; sc.cycles.filter_width = 1.0; sc.camera.data.dof.use_dof = False
+    sc.render.film_transparent = True; sc.render.image_settings.color_mode = 'RGBA'
+    mats = {g: emission('azur_mask_' + g, c) for g, c in zip(MASK_GROUPS, ((1, 0, 0), (0, 1, 0), (0, 0, 1)))}
+    saved = {}
+    for o in bpy.data.objects:
+        if o.type not in ('MESH', 'CURVE', 'FONT', 'META') or o.hide_render: continue
+        g = next((g for g, pre in MASK_GROUPS.items() if in_group(o, pre)), None)
+        if g and hasattr(o.data, 'materials') and len(o.material_slots):
+            saved[o.name] = [s_.material for s_ in o.material_slots]
+            for s_ in o.material_slots: s_.material = mats[g]
+        elif g and hasattr(o.data, 'materials'):
+            o.data.materials.append(mats[g]); saved[o.name] = []
+        else:
+            o.is_holdout = True
+    sc.view_settings.view_transform = 'Raw'
+    png = dst.replace('.png', '_tmp.png'); secs = render_to(sc, png)
+    for name, ms in saved.items():
+        o = bpy.data.objects[name]
+        if not ms: o.data.materials.pop(); continue
+        for s_, m in zip(o.material_slots, ms): s_.material = m
+    sc.camera.data.dof.use_dof = True; sc.cycles.filter_width = 1.5
+    from PIL import Image
+    from scipy import ndimage as ndi
+    a = np.asarray(Image.open(png).convert('RGBA')).astype(np.float32) / 255.0; os.remove(png)
+    m = np.stack([a[..., 3] * (a[..., c] > 0.5) for c in range(3)], -1)          # coverage per group
+    h, w = m.shape[:2]; k = w / 2400.0
+    glow = np.zeros_like(m)
+    for c in range(3):
+        mc = m[..., c]
+        if mc.max() < 0.5: continue
+        line = np.clip(ndi.maximum_filter(mc, size=max(3, int(round(5 * k)))) - mc, 0, 1)           # ~2 px line around it
+        halo = ndi.gaussian_filter(ndi.maximum_filter(mc, size=max(3, int(round(9 * k)))), sigma=7 * k)
+        glow[..., c] = np.clip(line * 0.95 + halo * (1 - mc) * 0.55, 0, 1)
+    Image.fromarray((m[::2, ::2] * 255 + 0.5).astype(np.uint8)).save(dst, optimize=True)
+    Image.fromarray((glow * 255 + 0.5).astype(np.uint8)).save(gdst, optimize=True)
+    log('masks', key, state, secs, 's'); return [dst, gdst]
+
+
+def frame_box(sc, objs, margin, sun_dirs=()):
+    """Screen box (u0, v0, u1, v1 from top-left) of objects' bounding boxes, grown by margin; None if out of the frame.
+    sun_dirs: also cover the shadows those sun directions throw onto the floor."""
+    cam = sc.camera; pts = []
+    for o in objs:
+        for c in o.bound_box:
+            w = o.matrix_world @ Vector(c); ws = [w]
+            for d in sun_dirs:
+                d = Vector(d).normalized()
+                if d.z < -1e-3 and w.z > 0: ws.append(w + d * (w.z / -d.z))
+            for x in ws:
+                q = world_to_camera_view(sc, cam, x)
+                if q.z > 0: pts.append((min(max(q.x, -1), 2), min(max(1 - q.y, -1), 2)))
+    if not pts: return None
+    u0, u1 = min(p[0] for p in pts) - margin, max(p[0] for p in pts) + margin
+    v0, v1 = min(p[1] for p in pts) - margin, max(p[1] for p in pts) + margin
+    if u1 < 0 or v1 < 0 or u0 > 1 or v0 > 1: return None
+    return max(0, u0), max(0, v0), min(1, u1), min(1, v1)
+
+
+def day_exr(sc, key, p, meta):
+    path = os.path.join(EXR, key, p + '.exr')
+    if not os.path.exists(path):           # the webp exists from an earlier run but not the linear pass: render it again
+        set_view(sc, key); render_settings(sc, 'pass'); restore_visibility(); set_pass(sc, p)
+        tmp = path.replace('.exr', '_day_tmp.exr'); os.makedirs(os.path.dirname(path), exist_ok=True)
+        render_to(sc, tmp); os.replace(tmp, path)
+    return path
+
+
+def merge_boxes(boxes, gap):
+    boxes = [list(b) for b in boxes]
+    changed = True
+    while changed:
+        changed = False
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                a, b = boxes[i], boxes[j]
+                if a[0] - gap <= b[2] and b[0] - gap <= a[2] and a[1] - gap <= b[3] and b[1] - gap <= a[3]:
+                    boxes[i] = [min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])]; del boxes[j]; changed = True; break
+            if changed: break
+    return boxes
+
+
+def job_state(sc, key, state, meta):
+    """Patches for one time of day. The state's passes are rendered only around what changes (its objects, plus the
+    floor shadows of the sun passes it uses), compared with day, and the rectangles that differ are stored as
+    <key>/<state>/<pass>_<n>.webp, encoded with the day pass's scale so the browser copies them into the day textures."""
+    st = meta.setdefault('states', {}).setdefault(key, {})
+    if st.get(state, {}).get('complete'): return None
+    mpath = os.path.join(OUT, 'passes.json')
+    set_view(sc, key); bpy.context.view_layer.update()
+    rx, ry = sc.render.resolution_x, sc.render.resolution_y
+    suns = [SUN[p] for p in STATE_PASSES[state] if p in SUN]
+    box = frame_box(sc, state_objects(state), 0.12, suns)
+    if box is None:
+        st[state] = dict(rects=[], passes=[], res=[rx, ry], complete=True); json.dump(meta, open(mpath, 'w'), indent=1)
+        log('state', key, state, 'nothing of it in the picture'); return [mpath]
+    from scipy import ndimage as ndi
+    e = 10        # the denoiser sees less at the region's edge: patches stay this far inside
+    X0, X1 = int(box[0] * rx) + (e if box[0] > 0 else 0), int(np.ceil(box[2] * rx)) - (e if box[2] < 1 else 0)
+    Y0, Y1 = int(box[1] * ry) + (e if box[1] > 0 else 0), int(np.ceil(box[3] * ry)) - (e if box[3] < 1 else 0)
+    union = np.zeros((ry, rx), bool); renders = {}; secs_all = 0; changed = {}
+    for p in STATE_PASSES[state]:
+        exr = os.path.join(EXR, key, f'{state}_{p}.exr')
+        if not os.path.exists(exr):
+            set_view(sc, key); render_settings(sc, 'pass'); restore_visibility(); set_state(state); set_pass(sc, p)
+            r = sc.render; r.use_border = True; r.use_crop_to_border = False
+            r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
+            tmp = exr.replace('.exr', '_tmp.exr'); secs_all += render_to(sc, tmp); os.replace(tmp, exr)
+            sc.render.use_border = False
+            stop_if_superseded()
+        a = read_exr(exr); b = read_exr(day_exr(sc, key, p, meta)); scale = meta[key][p]
+        keep = np.ones((ry, rx), bool); keep[Y0:Y1, X0:X1] = False
+        a[keep] = b[keep]                              # outside the region the state is day
+        d = np.abs(encode_rgb(a, scale).astype(np.int16) - encode_rgb(b, scale).astype(np.int16)).max(-1)
+        d = ndi.uniform_filter(d.astype(np.float32), 3) > 2.5          # more than ~3 codes: a real change, not noise
+        union |= d; renders[p] = a; changed[p] = float(d.mean())
+    union = ndi.binary_opening(union, iterations=1)
+    lab, n = ndi.label(ndi.binary_dilation(union, iterations=14))
+    pad = 12
+    boxes = [[max(X0, s_[1].start - pad), max(Y0, s_[0].start - pad), min(X1, s_[1].stop + pad), min(Y1, s_[0].stop + pad)]
+             for s_ in ndi.find_objects(lab) if s_ is not None and (s_[1].stop - s_[1].start) * (s_[0].stop - s_[0].start) > 400]
+    boxes = merge_boxes(boxes, 24)
+    while len(boxes) > 6: boxes = merge_boxes(boxes, int(len(boxes) * 40))
+    out = []
+    for p, a in renders.items():
+        for i, (x0, y0, x1, y1) in enumerate(boxes):
+            dst = os.path.join(OUT, key, state, f'{p}_{i}.webp')
+            save_webp(encode_rgb(a[y0:y1, x0:x1], meta[key][p]), dst, pass_quality(p)); out.append(dst)
+    st[state] = dict(rects=boxes, passes=list(renders), res=[rx, ry], complete=True)
+    json.dump(meta, open(mpath, 'w'), indent=1)
+    for p in renders: os.remove(os.path.join(EXR, key, f'{state}_{p}.exr'))      # only the day passes are kept
+    area = sum((b[2] - b[0]) * (b[3] - b[1]) for b in boxes) / (rx * ry)
+    log('state', key, state, len(boxes), f'patches, {area:.0%} of the picture (region {(X1 - X0) * (Y1 - Y0) / (rx * ry):.0%}),',
+        'changed per pass', {k: round(v, 3) for k, v in changed.items()}, round(secs_all), 's')
+    return out + [mpath]
+
+
 def main():
     ensure_blend()
     sc = open_scene()
@@ -550,26 +802,41 @@ def main():
     meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
     views = [v for v in VIEWS if not ONLY or v in ONLY]
     jobs = [('projections', lambda: job_projections(sc))]
-    jobs += [(f'beauty {v}', (lambda v=v: job_beauty(sc, v))) for v in views]
-    jobs += [(f'depth {v}', (lambda v=v: job_depth(sc, v))) for v in views]
-    jobs += [(f'ids {v}', (lambda v=v: job_ids(sc, v))) for v in views if v != 'bed']
-    jobs += [(f'window {v}', (lambda v=v: job_window(sc, v))) for v in views if v != 'bed']
-    for v in [x for x in ('rail', 'room', 'rail_m', 'bed') if x in views]:
-        jobs += [(f'pass {v} {p}', (lambda v=v, p=p: job_pass(sc, v, p, meta))) for p in PASSES]
-    # a chosen garment, taken off the rail toward the camera (desktop rail, then phone rail)
-    for v in [x for x in ('rail', 'rail_m') if x in views]:
-        for i in range(6):
-            jobs += [(f'selected {v}@{i} {w}', (lambda v=v, i=i, w=w: job_selected(sc, v, i, w, meta))) for w in ['beauty'] + PASSES]
+    if HI:
+        # quick ones first (hover and click areas), then the day passes, the fallback stills and the times of day
+        for v in views:
+            jobs += [(f'masks {v}', (lambda v=v: job_masks(sc, v))), (f'masks {v} night', (lambda v=v: job_masks(sc, v, 'night')))]
+            if v != 'bed': jobs += [(f'ids {v}', (lambda v=v: job_ids(sc, v))), (f'window {v}', (lambda v=v: job_window(sc, v)))]
+            jobs += [(f'depth {v}', (lambda v=v: job_depth(sc, v)))]
+        for v in [x for x in ('room', 'rail', 'bed', 'rail_m') if x in views]:
+            jobs += [(f'pass {v} {p}', (lambda v=v, p=p: job_pass(sc, v, p, meta))) for p in PASSES]
+        jobs += [(f'beauty {v}', (lambda v=v: job_beauty(sc, v))) for v in views]
+        for v in [x for x in ('room', 'bed', 'rail', 'rail_m') if x in views]:
+            jobs += [(f'state {v} {st}', (lambda v=v, st=st: job_state(sc, v, st, meta))) for st in ('evening', 'night', 'morning')]
+    else:
+        jobs += [(f'beauty {v}', (lambda v=v: job_beauty(sc, v))) for v in views]
+        jobs += [(f'depth {v}', (lambda v=v: job_depth(sc, v))) for v in views]
+        jobs += [(f'ids {v}', (lambda v=v: job_ids(sc, v))) for v in views if v != 'bed']
+        jobs += [(f'window {v}', (lambda v=v: job_window(sc, v))) for v in views if v != 'bed']
+        for v in [x for x in ('rail', 'room', 'rail_m', 'bed') if x in views]:
+            jobs += [(f'pass {v} {p}', (lambda v=v, p=p: job_pass(sc, v, p, meta))) for p in PASSES]
+        # a chosen garment, taken off the rail toward the camera (desktop rail, then phone rail)
+        for v in [x for x in ('rail', 'rail_m') if x in views]:
+            for i in range(6):
+                jobs += [(f'selected {v}@{i} {w}', (lambda v=v, i=i, w=w: job_selected(sc, v, i, w, meta))) for w in ['beauty'] + PASSES]
+    failed = []
     for name, fn in jobs:
+        stop_if_superseded()
         try:
             restore_visibility()
             out = fn()
             if out: git_save(out, f'AZUR render: {name}')
         except Exception as e:
-            import traceback; log('FAILED', name, e); log(traceback.format_exc())
+            import traceback; log('FAILED', name, e); log(traceback.format_exc()); failed.append(name)
             sc = open_scene()
     git_push(force=True)
-    log('queue finished')
+    log('queue finished' + (f' with {len(failed)} failed jobs: ' + ', '.join(failed) if failed else ''))
+    if failed: sys.exit(1)
 
 
 if __name__ == '__main__':

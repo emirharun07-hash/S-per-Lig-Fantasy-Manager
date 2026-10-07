@@ -11,6 +11,9 @@ Usage:  python3 azur/scene/render_moves.py              (all moves, resumable)
         python3 azur/scene/render_moves.py room-rail    (one move)
 Env:    AZUR_MOVES_FRAMES=36  AZUR_MOVES_SAMPLES=48  AZUR_MOVES_RES=1280x720  AZUR_MOVES_OUT=<dir> (tests)
 Rough cost on this 4-core CPU: ~1.5 min per frame, so 36 frames ~ 1 h per move and variant.
+
+scene3: no pull moves (a click opens the product view right away); three variants that match the times of day, each
+with that state's objects: 'day' (midday light, also used in the morning), 'evening' (golden hour) and 'night'.
 """
 import os, sys, json, math, time
 import bpy
@@ -21,7 +24,9 @@ import render_queue as rq   # reuses scene loading, views, light setup and git s
 
 FRAMES = int(os.environ.get('AZUR_MOVES_FRAMES', 36))
 SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 48))
-RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1280x720').split('x'))
+RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1600x900' if rq.HI else '1280x720').split('x'))
+VARIANTS = ('day', 'evening', 'night') if rq.HI else ('day', 'night')
+STATE_OF = {'day': 'day', 'evening': 'evening', 'night': 'night'}
 OUT = os.environ.get('AZUR_MOVES_OUT') or os.path.join(rq.ROOT, 'prototype', 'assets', rq.SET, 'moves')
 PULL_FRAMES = int(os.environ.get('AZUR_PULL_FRAMES', 14))
 MOVES = {
@@ -30,7 +35,7 @@ MOVES = {
 }
 # a chosen garment is taken off the rail toward the camera (camera stays): 'rail-rail@2' = view rail to view rail@2
 PULL_RES = {'rail': (1280, 720), 'rail_m': (720, 800)}
-for _v in ('rail', 'rail_m'):
+for _v in ('rail', 'rail_m') if not rq.HI else ():
     for _i in range(6):
         MOVES[f'{_v}-{_v}@{_i}'] = dict(a=_v, b=f'{_v}@{_i}', pull=(_v, _i))
 
@@ -60,7 +65,15 @@ def light_variant(sc, variant):
     sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.04
     bg = sc.world.node_tree.nodes['Background'].inputs['Strength']
     nb = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
-    if variant == 'day':          # golden hour, the approved stills
+    if variant == 'day' and rq.HI:        # azur-config.js daylight key h 12.5
+        bg.default_value = 2.2; rq.world_tint(sc, (1.0, 1.0, 1.0))
+        s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0 * 0.75; s.data.color = (1.0, 0.96, 0.88)
+        s.rotation_euler = Vector(rq.SUN['sun_high']).normalized().to_track_quat('-Z', 'Y').to_euler()
+        nb.inputs['Emission Color'].default_value = (*[g * 0.08 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
+        sc.view_settings.exposure = 2.65
+        if 'L_spot' in bpy.data.objects:
+            P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * 0.3; P.data.color = (1.0, 0.82, 0.62)
+    elif variant in ('day', 'evening'):   # golden hour, the approved stills
         bg.default_value = 2.2; rq.world_tint(sc, (1.0, 0.86, 0.72))
         s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0; s.data.color = (1.0, 0.60, 0.33)
         s.rotation_euler = Vector(rq.SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
@@ -68,14 +81,14 @@ def light_variant(sc, variant):
         sc.view_settings.exposure = 2.65
         if 'L_spot' in bpy.data.objects:
             P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * 0.35; P.data.color = (1.0, 0.82, 0.62)
-    else:                         # azur-config.js daylight key h 22.3
-        bg.default_value = 2.2; rq.world_tint(sc, (0.04, 0.055, 0.11))
+    else:                         # azur-config.js daylight key h 22.3 (scene3: h 0, he is asleep, the desk lamp is off)
+        bg.default_value = 2.2; rq.world_tint(sc, (0.012, 0.016, 0.034) if rq.HI else (0.04, 0.055, 0.11))
         nb.inputs['Emission Color'].default_value = (*[g * 1.05 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
-        L = bpy.data.objects['L_lamp']; L.hide_render = False; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
+        L = bpy.data.objects['L_lamp']; L.hide_render = rq.HI; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
         S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.3; S.data.color = (0.95, 0.84, 0.7)
         sc.view_settings.exposure = 3.0
         if 'L_spot' in bpy.data.objects:
-            P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * 0.7; P.data.color = (1.0, 0.82, 0.62)
+            P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * (0.5 if rq.HI else 0.7); P.data.color = (1.0, 0.82, 0.62)
 
 
 def drop_objects():
@@ -94,8 +107,9 @@ def drop_box(sc, cam, objs):
 
 def render_move(sc, name, spec, variant):
     d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
-    prefix = 'f' if variant == 'day' else 'n'
+    prefix = {'day': 'f', 'night': 'n', 'evening': 'e'}[variant]
     light_variant(sc, variant)
+    if rq.HI: rq.restore_visibility(); rq.set_state(STATE_OF[variant])
     drops = [o for o in drop_objects() if not rq.BASE_HIDE.get(o.name)]
     pull = spec.get('pull')
     frames = PULL_FRAMES if pull else FRAMES
@@ -117,7 +131,7 @@ def render_move(sc, name, spec, variant):
             loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
             cam.location = loc; cd.lens = lens
             cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
-            cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
+            cd.dof.focus_distance = (rq.FOCUS - loc).length
         bpy.context.view_layer.update()
         slots, neon = rq.project_slots(sc, cam); track.append(dict(slots=slots, neon=neon, drop=drop_box(sc, cam, drops)))
         if os.path.exists(dst):
@@ -127,7 +141,8 @@ def render_move(sc, name, spec, variant):
         try: secs = rq.render_to(sc, png)
         finally:
             if posed: rq.unpose(posed)
-        rq.to_webp(png, dst, q=80)
+        rq.to_webp(png, dst, q=86 if rq.HI else 80)
+        rq.stop_if_superseded()
         rq.log('move', name, variant, i, secs, 's'); saved.append(dst)
         if len(saved) >= 6:                     # commit in small batches
             rq.git_save(saved, f'AZUR move {name} ({variant}): frames up to {i}'); saved = []
@@ -145,7 +160,7 @@ def main():
     rq.ensure_blend()
     sc = rq.open_scene()
     names = [n for n in MOVES if not rq.ONLY or n in rq.ONLY]
-    for variant in ('day', 'night'):
+    for variant in VARIANTS:
         for n in names:
             rq.restore_visibility()
             render_move(sc, n, MOVES[n], variant)
