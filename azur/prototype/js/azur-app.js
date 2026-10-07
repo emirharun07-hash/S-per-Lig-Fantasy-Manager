@@ -333,7 +333,14 @@
     }
     /* Garment under a stage point (scene2): reads the rendered id mask of the current view. -1 = none. */
     garmentAt(x, y) {
-      const v = this.comp.view; if (!this.plate || !v || !v.idsImg) return -1;
+      const cv = this.comp.view; if (!this.plate || !cv) return -1;
+      // a posed view (rail@i) reads its rail's mask for the garments still hanging; the posed one is found by its box
+      const posed = cv.key.includes('@'), v = posed ? this.comp.cache[cv.key.split('@')[0]] : cv;
+      if (posed) {
+        const sel = this.rail.selected, p = this.rail.px && this.rail.px[sel];
+        if (p && x > p.x - p.w * 0.62 && x < p.x + p.w * 0.62 && y > p.y - p.h * 0.05 && y < p.y + p.h * 1.15) return sel;
+      }
+      if (!v || !v.idsImg) return -1;
       if (!v.idsData) {
         const im = v.idsImg, c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
         const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
