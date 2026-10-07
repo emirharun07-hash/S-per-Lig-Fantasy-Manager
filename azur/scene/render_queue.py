@@ -170,8 +170,8 @@ def render_settings(sc, kind):
         except Exception: pass
         sc.view_settings.exposure = 2.65
     s = r.image_settings
-    if kind == 'pass':
-        s.file_format = 'OPEN_EXR'; s.color_depth = '16'; s.exr_codec = 'ZIP'
+    if kind == 'pass':   # colour mode must be set every time: the depth job leaves it at BW
+        s.file_format = 'OPEN_EXR'; s.color_mode = 'RGB'; s.color_depth = '16'; s.exr_codec = 'ZIP'
     else:
         s.file_format = 'PNG'; s.color_mode = 'RGBA' if kind == 'sprite' else 'RGB'; s.color_depth = '8'
 
