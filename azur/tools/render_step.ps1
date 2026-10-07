@@ -6,6 +6,7 @@
 #   jobs: preview (quick look, azur/previews), queue (plates, passes, masks, times of day), moves (camera flights),
 #         export (jersey models for the product view); "queue:room,bed" passes arguments.
 #   rebuild: build the scene again and drop that set's earlier outputs (they belong to the old scene).
+#   redo: outputs to delete first so they render again, as patterns in the set's folder ("views/*/masks*.png").
 # A request runs once (its id is remembered in azur/.cache/render_request_done.txt). A newer request stops a running
 # one between two renders. What the PC is doing goes to azur/render_status.json (pushed), so the cloud can see it.
 param([switch]$Hello)
@@ -83,6 +84,14 @@ if ($req.rebuild) {
     # outputs of the old scene would be skipped as "done": remove them (they come back from the new scene)
     Remove-Item -Recurse -Force ("azur\prototype\assets\" + $env:AZUR_SET) -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force ("$Cache\exr\" + $env:AZUR_SET) -ErrorAction SilentlyContinue
+  }
+}
+if ($req.redo) {
+  # outputs to render again (patterns inside this set's folder, e.g. "views/*/masks*.png")
+  $setDir = "azur\prototype\assets\" + $env:AZUR_SET + "\"
+  foreach ($pat in $req.redo) {
+    if ($pat -match '\.\.' -or [System.IO.Path]::IsPathRooted($pat)) { continue }
+    Get-ChildItem -Path ($setDir + ($pat -replace '/', '\')) -File -ErrorAction SilentlyContinue | Remove-Item -Force
   }
 }
 uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg

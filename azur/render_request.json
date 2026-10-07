@@ -1,7 +1,8 @@
 {
-  "id": "r3-2",
-  "note": "Runde 3 fortsetzen im neuen Wartemodus: Vorschau, 3D-Modelle, restliche Bilder, Kamerafahrten (Fertiges bleibt)",
+  "id": "r3-3",
+  "note": "Runde 3 fortsetzen im neuen Wartemodus: Vorschau, 3D-Modelle, Umriss-Masken neu (ohne Fussbaelle), restliche Bilder, Kamerafahrten",
   "set": "scene3",
   "rebuild": false,
+  "redo": ["views/*/masks*.png", "views/*/glow*.png"],
   "jobs": ["preview", "export", "queue", "moves"]
 }

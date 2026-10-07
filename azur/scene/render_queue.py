@@ -57,10 +57,11 @@ STATE_PASSES = {'morning': ['sky', 'sun_high', 'neon', 'spot', 'street'],
                 'evening': ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street'],
                 'night':   ['sky', 'neon', 'lamp', 'spot', 'street']}
 # hover outlines: the objects that make up the bed, the rail and the magazine (masks.png channels R, G, B)
+# names are exact object names (Blender's .001 suffixes allowed); a trailing * makes a prefix
 MASK_GROUPS = {
-    'bed': ('mattress', 'duvet', 'pillow', 'bed_', 'leg', 'sock', 'phone'),
-    'rail': ('bar', 'upright', 'foot', 'caster', 'hook', 'hanger', 'jersey_', 'drop_', 'tag', 'tagtext', 'string', 'zip'),
-    'mag': ('magazine', 'masthead'),
+    'bed': ('mattress', 'duvet*', 'pillow', 'bed_*', 'leg', 'sock', 'phone'),
+    'rail': ('bar', 'upright', 'foot', 'caster', 'hook', 'hanger', 'jersey_*', 'drop_*', 'tag', 'tagtext', 'string', 'zip*'),
+    'mag': ('magazine*', 'masthead'),
 }
 
 
@@ -659,9 +660,14 @@ def job_beauty_at(sc, key, dst, prepare):
 
 
 # ------------------------------------------------------------------ scene3: hover outlines and times of day
-def in_group(o, prefixes):
-    while o is not None:
-        if o.name.startswith(prefixes): return True
+def name_in(name, names):
+    base = name.split('.')[0]
+    return any(name.startswith(n[:-1]) if n.endswith('*') else base == n for n in names)
+
+
+def in_group(o, names):
+    while o is not None:                     # children count for their parent (the magazine's masthead)
+        if name_in(o.name, names): return True
         o = o.parent
     return False
 
