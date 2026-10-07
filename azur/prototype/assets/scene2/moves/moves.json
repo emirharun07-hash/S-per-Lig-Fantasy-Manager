@@ -11061,7 +11061,8 @@
   ],
   "kind": "pull",
   "variants": [
-   "day"
+   "day",
+   "night"
   ]
  },
  "rail-rail@2": {
