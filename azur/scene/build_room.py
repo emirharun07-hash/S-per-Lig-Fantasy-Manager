@@ -714,6 +714,7 @@ mz, _ = surface_z(0.62, 1.42)
 mag = box('magazine', -0.105, 0.105, -0.14, 0.14, 0.0, 0.004, M['paper'], 0.001)
 mag.location = (0.62, 1.42, mz + 0.002); mag.rotation_euler = (math.radians(4), math.radians(-3), math.radians(28))
 cov = poster(A + '/posters/hero_a.jpg', 0.205, 0.275, Matrix.Translation((0, 0, 0.0042)), gloss=True, border=0.0, tape=False)
+for v in cov.data.vertices: v.co.z = 0.0   # a magazine cover lies flat (poster() peels a corner, which hid the masthead)
 cov.parent = mag
 mtc = bpy.data.curves.new('masthead', 'FONT'); mtc.body = 'ANSTOSS'; mtc.size = 0.034; mtc.align_x = 'CENTER'
 mto = link(bpy.data.objects.new('masthead', mtc)); mto.parent = mag; mto.location = (0, 0.1, 0.0046)
