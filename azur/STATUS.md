@@ -66,6 +66,20 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Publishing: `python3 azur/tools/build_artifact.py` assembles `azur/.cache/publish/` (page + `files.json`); move frames
   are packed into strips there (an artifact version holds at most 511 files).
 
+## Phase 2: Shopify (started 2026-10-07 evening, owner approved: "Kannst du all das in Shopify reinmachen?")
+
+- Draft theme **"Azur Zimmer (Entwurf)"** `gid://shopify/OnlineStoreTheme/208669016403` (copy of the live theme
+  "Azur Drops + Teaser" `208428204371`, which stays untouched). Preview (logged into the admin, or after the storefront
+  password): https://azurclothing.com/?preview_theme_id=208669016403 · editor:
+  https://admin.shopify.com/store/5vpchz-hd/themes/208669016403/editor
+- In the draft: `sections/azur-room.liquid` (room = first homepage section under the overlay header, products from the
+  section settings, real cart via /cart/add.js + the theme drawer, drop sign-up via the customer form, tags newsletter,
+  drops), `snippets/azur-room-data.liquid`, `assets/azur-room.js|css`, fonts, `templates/index.json` (room, then the
+  existing sections; the campaign hero is disabled, not deleted). Source: `azur/theme/` (see its README).
+- Renders: 226 files in Content > Files, names `azr1-…` (all READY). Shopify fetched them from this public repo.
+- Not testable from the cloud: the storefront is password-protected. Local stand-in: `tools/theme_harness.py`.
+- Publishing the draft (making it live) is the owner's step in the admin, after the preview looks right.
+
 ## Next
 
 **Artifact version 15 is live** (17:12 UTC): everything of scene2. Views room / rail / rail_m / bed and all
