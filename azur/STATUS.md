@@ -68,7 +68,10 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Next
 
-The owner's PC is rendering scene2 (chosen-garment views, then moves room→rail / room→bed and the pulls, day + night).
+**Artifact version 14 is live** (15:53 UTC): scene2 views (room, rail, rail_m, bed, all `rail@i` / `rail_m@i`), the
+magazine, the window video; the old scene1 files were removed from the artifact (version 13 added, 14 removed).
+Camera moves in v14 are the fake zoom until the scene2 moves are published. The owner's PC is rendering the moves
+(started 17:52 local, about 5 s per frame, about 480 frames: day first, then night).
 
 1. When the PC is done: pull, test the full flow (room → click → move → pull → info; magazine), tune light, then
    `build_artifact.py` and publish to the same artifact URL.
