@@ -265,7 +265,15 @@ def project_slots(sc, cam):
         left, right = uv(garment_top + Vector((-0.35, 0, 0))), uv(garment_top + Vector((0.35, 0, 0)))
         slots.append(dict(hook=t[:2], top=a[:2], bottom=b[:2], width=round(right[0] - left[0], 4), depth=a[2]))
     neon = bpy.data.objects['neon_plate']; npt = [neon.matrix_world @ Vector(c) for c in neon.bound_box]
+    mag = bpy.data.objects.get('magazine')   # the ANSTOSS magazine on the duvet opens the brand story (bed view)
     return slots, uv((sum(p.x for p in npt) / 8, min(p.y for p in npt), sum(p.z for p in npt) / 8))[:2]
+
+
+def magazine_corners(mag, uv):
+    """The magazine's top face as four screen points (clockwise from the masthead's left)."""
+    bb = [Vector(c) for c in mag.bound_box]; x0, x1 = min(c.x for c in bb), max(c.x for c in bb)
+    y0, y1, z = min(c.y for c in bb), max(c.y for c in bb), max(c.z for c in bb)
+    return [uv(mag.matrix_world @ Vector(p))[:2] for p in ((x0, y1, z), (x1, y1, z), (x1, y0, z), (x0, y0, z))]
 
 
 def job_projections(sc):
@@ -277,6 +285,7 @@ def job_projections(sc):
     glass = bpy.data.objects['glass']; gp = [glass.matrix_world @ Vector(c) for c in glass.bound_box]
     matt = bpy.data.objects['mattress']; mp = [matt.matrix_world @ Vector(c) for c in matt.bound_box]
     neon = bpy.data.objects['neon_plate']; npt = [neon.matrix_world @ Vector(c) for c in neon.bound_box]
+    mag = bpy.data.objects.get('magazine')   # the ANSTOSS magazine on the duvet opens the brand story (bed view)
     for key in VIEWS:
         set_view(sc, key); bpy.context.view_layer.update(); cam = sc.camera
         def uv(p):
@@ -301,6 +310,7 @@ def job_projections(sc):
             neon=uv((sum(p.x for p in npt) / 8, min(p.y for p in npt), sum(p.z for p in npt) / 8))[:2],
             floor_under_rail=uv(((min(xs) + max(xs)) / 2, cy, 0.0))[:2],
         )
+        if mag: data[key]['magazine'] = magazine_corners(mag, uv)
     os.makedirs(OUT, exist_ok=True)
     json.dump(data, open(path, 'w'), indent=1)
     return [path]

@@ -11,7 +11,7 @@
     <nav class="azur-head__nav" aria-label="Hauptnavigation">
       <a href="#trikots" data-go="rail">Shop</a>
       <a href="#trikots" data-go="rail">Kollektion</a>
-      <a href="#bett" data-go="bed">Über uns</a>
+      <a href="#anstoss" data-go="mag">Über uns</a>
       <button class="azur-head__cart" type="button" aria-label="Warenkorb öffnen">Warenkorb (<span>0</span>)</button>
     </nav>
   </header>
@@ -35,12 +35,17 @@
       <svg class="azur-bed" aria-hidden="false" preserveAspectRatio="none">
         <a href="#bett" role="button" tabindex="0" aria-label="Zum Bett"><polygon points="0,0 0,0 0,0"/></a>
       </svg>
+      <svg class="azur-bed azur-magspot" aria-hidden="false" preserveAspectRatio="none" style="display:none">
+        <a href="#anstoss" role="button" tabindex="0" aria-label="Das Heft ANSTOSS lesen"><polygon points="0,0 0,0 0,0"/></a>
+      </svg>
       <div class="azur-layer"></div>
     </div>
     <canvas class="azur-snap" aria-hidden="true" hidden></canvas>
     <p class="azur-hint" aria-live="polite"></p>
     <p class="azur-tease" aria-live="polite"></p>
     <p class="azur-bedlabel" aria-hidden="true">Bett</p>
+    <p class="azur-bedlabel azur-maglabel" aria-hidden="true">ANSTOSS lesen</p>
+    <span class="azur-magglint" aria-hidden="true"></span>
     <nav class="azur-views" aria-label="Ansicht wählen">
       <button type="button" data-view="room">Zimmer</button>
       <button type="button" data-view="rail">Ständer</button>
@@ -84,4 +89,5 @@
 <script src="js/azur-drop.js"></script>
 <script src="js/azur-shop.js"></script>
 <script src="js/azur-panel.js"></script>
+<script src="js/azur-mag.js"></script>
 <script src="js/azur-app.js"></script>

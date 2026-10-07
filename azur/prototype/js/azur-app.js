@@ -38,6 +38,7 @@
       this.rail = new A.Rail(this.layer, A.products, this);
       this.drop = new A.Drop(this.layer, this);
       this.shop = new A.Shop(this);
+      this.mag = A.Mag ? new A.Mag(this) : null;
       this.depthMaps = {};
       this.parallax = [0, 0]; this.parallaxTarget = [0, 0];
       this.pan = 0.5; this.panVel = 0;
@@ -279,6 +280,9 @@
         b.setAttribute('aria-current', on ? 'true' : 'false');
       });
       this.bedSvg.style.display = this.viewKey === 'room' ? '' : 'none';
+      const magOn = this.viewKey === 'bed' && !!this.mag && !!(this.views.bed && this.views.bed.magazine);
+      this.magSvg.style.display = magOn ? '' : 'none'; this.magGlint.classList.toggle('is-on', magOn);
+      if (!magOn) this.magLabel.classList.remove('is-on');
       this.tease.classList.toggle('is-on', this.viewKey === 'bed');
     }
 
@@ -306,8 +310,10 @@
         return this.go(railKey, { select: i, focus: rect ? [rect.left + rect.width / 2, rect.top + rect.height * 0.4] : null });
       }
       if (this.busy) return;
-      const target = i >= 0 ? `${railKey}@${i}` : railKey;
-      if (this.viewKey === target) return;
+      let target = i >= 0 ? `${railKey}@${i}` : railKey;
+      const ps = this.passes && this.passes[target];
+      if (i >= 0 && !(ps && Object.keys(ps).length >= 7)) target = railKey;   // pose not rendered yet: select on the rail as it hangs
+      if (this.viewKey === target && (target.includes('@') || this.rail.selected === i)) return;
       this.rail.setSelected(-1); this.rail.setHover(-1); this.root.classList.remove('has-selection');
       if (i >= 0 && this.viewKey !== railKey) await this.go(railKey);      // another one is out: hang it back first
       await this.go(target);
@@ -340,10 +346,26 @@
       if (i >= 0) this.hideHint();
       if (this.plate && i >= 0 && !this.isMobile) {
         const k = (this.viewKey === 'room' ? 'rail' : this.viewKey.split('@')[0]) + '@' + i;
-        if (!this.comp.cache[k]) this.comp.load(k, this.passes, false);
+        if (!this.comp.cache[k] && this.passes[k] && Object.keys(this.passes[k]).length >= 7) this.comp.load(k, this.passes, false);
       }
       this.stage.classList.toggle('is-pointing', i >= 0);
       this.kick();
+    }
+    /* ANSTOSS: from anywhere, walk to the bed first, then the magazine opens out of its place on the duvet. */
+    async openMag() {
+      if (!this.mag || this.mag.isOpen) return;
+      if (this.viewKey !== 'bed') {
+        if (!this.plate) this.select(-1);
+        const r = this.bedPoly.getBoundingClientRect();
+        await this.go('bed', this.viewKey === 'room' && r.width ? { focus: [r.left + r.width / 2, r.top + r.height / 2] } : {});
+        this.placeChrome();
+      }
+      const r = this.magSvg.style.display !== 'none' ? this.magPoly.getBoundingClientRect() : null;
+      this.mag.open(r && r.width > 2 ? r : null);
+    }
+    showOnRail(i) {
+      if (this.plate) return this.select(i);
+      this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
     }
     openProduct(i) {
       const p = A.products[i]; if (!p) return;
@@ -387,7 +409,7 @@
       this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
       head.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => {
         e.preventDefault(); const t = a.dataset.go;
-        if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'bed') this.go('bed'); else this.go(t);
+        if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'mag') this.openMag(); else this.go(t);
       }));
       this.chips = $('.azur-views');
       this.chips.addEventListener('click', e => {
@@ -414,6 +436,19 @@
       this.bedSvg.querySelector('a').addEventListener('pointerleave', () => showBed(false));
       this.bedSvg.querySelector('a').addEventListener('focus', () => showBed(true));
       this.bedSvg.querySelector('a').addEventListener('blur', () => showBed(false));
+      // the ANSTOSS magazine on the duvet (bed view) opens the brand story + lookbook
+      this.magSvg = $('.azur-magspot'); this.magPoly = this.magSvg.querySelector('polygon');
+      this.magLabel = $('.azur-maglabel'); this.magLabel.textContent = c.magSpot; this.magGlint = $('.azur-magglint');
+      const ma = this.magSvg.querySelector('a');
+      ma.addEventListener('click', e => { e.preventDefault(); this.openMag(); });
+      ma.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.openMag(); } });
+      const showMag = on => {
+        if (on) { const r = this.magPoly.getBoundingClientRect(), s = this.stage.getBoundingClientRect();
+          this.magLabel.style.left = (r.left - s.left + r.width / 2) + 'px'; this.magLabel.style.top = (r.bottom - s.top + 10) + 'px'; }
+        this.magLabel.classList.toggle('is-on', on);
+      };
+      ['pointerenter', 'focus'].forEach(ev => ma.addEventListener(ev, () => showMag(true)));
+      ['pointerleave', 'blur'].forEach(ev => ma.addEventListener(ev, () => showMag(false)));
       // scene2: real footage of the Bolzplatz across the street plays behind the window glass (the compositor masks it)
       if (this.plate && this.comp.ok) {
         const vid = document.createElement('video');
@@ -454,6 +489,16 @@
         this.bedSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
         const pts = vc.bedHotspot.map(([u, w]) => comp.toScreen(u, w, this.depthAt(u, Math.min(0.99, w))));
         this.bedPoly.setAttribute('points', pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' '));
+      }
+      // magazine hotspot + a slow glint on its cover (bed view)
+      if (this.viewKey === 'bed' && v.magazine && this.magSvg) {
+        const W = this.stage.clientWidth, H = this.stage.clientHeight;
+        this.magSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        const cu = v.magazine.reduce((a, p) => a + p[0], 0) / 4, cw = v.magazine.reduce((a, p) => a + p[1], 0) / 4, d = this.depthAt(cu, cw);
+        const pts = v.magazine.map(([u, w]) => comp.toScreen(u, w, d));
+        this.magPoly.setAttribute('points', pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' '));
+        const g = comp.toScreen(cu, cw, d);
+        this.magGlint.style.transform = `translate3d(${g[0].toFixed(1)}px, ${g[1].toFixed(1)}px, 0)`;
       }
       // window: clip a small exterior layer to the glass so the kid stays behind it
       const win = v.window;
@@ -565,6 +610,7 @@
       const i = A.products.findIndex(p => p.handle === h);
       if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
       else if (h === 'bett') this.go('bed');
+      else if (h === 'anstoss') this.openMag();
     }
 
     /* ---------------------------------------------------------------- loop */
@@ -634,7 +680,7 @@
       const wa = hasWin ? Math.max(0, Math.min(1, (this.light.window - 0.35) / 0.5)) : 0;
       if (Math.abs(wa - c.winAmt) > 1e-3) { c.winAmt += (wa - c.winAmt) * Math.min(1, dt * 3); this.dirty = true; }
       if (!vid) return;
-      if (c.winAmt > 0.01 && !document.hidden) {
+      if (c.winAmt > 0.01 && !document.hidden && !(this.mag && this.mag.isOpen)) {   // the room rests while the magazine is open
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames
       } else if (!vid.paused) vid.pause();
@@ -648,9 +694,9 @@
       const kid = this.windowEl;
       if (kid) kid.style.opacity = Math.max(0, Math.min(1, (s.window - 0.45) * 2)).toFixed(2);
       if (this.comp) {   // outdoor footage follows the daylight a little (it was filmed on a bright afternoon)
-        const sk = s.sky, b = Math.min(1.05, 0.45 + (sk[0] + sk[1] + sk[2]) / 3 * 0.6);
+        const sk = s.sky, g = c => Math.min(1.05, 0.2 + 0.85 * c);   // dusk turns the footage dark and blue
         const warm = Array.isArray(s.sunLow) ? Math.min(1, (s.sunLow[0] || 0)) : 0;
-        this.comp.videoGrade = [b * (1 + 0.06 * warm), b * (0.98 - 0.02 * warm), b * (0.95 - 0.1 * warm)];
+        this.comp.videoGrade = [g(sk[0]) * (1 + 0.06 * warm), g(sk[1]) * (0.98 - 0.02 * warm), g(sk[2]) * (0.95 - 0.1 * warm)];
       }
       if (this.panel) this.panel.sync(s);
     }
