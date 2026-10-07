@@ -156,7 +156,8 @@
         g.body.style.width = p.w + 'px'; g.body.style.height = p.h + 'px';
         if (g.hanger) {
           const hs = A.sprites && A.sprites.hanger;
-          const hw = p.h * (cfg.garments.hangerWidthM / 0.74) * 1.18;
+          // exact size from the rendered sprite: its width in metres times this garment's pixels per metre (garments are 0.74 m long)
+          const hw = hs ? hs.size[0] * hs.metres_per_px * (p.h / 0.74) : p.h * (cfg.garments.hangerWidthM / 0.74) * 1.18;
           g.hanger.style.width = hw + 'px';
           g.hanger.style.left = (p.w / 2 - hw / 2) + 'px';
           // the sprite anchor sits where the garment top hangs; the hook rises above it
