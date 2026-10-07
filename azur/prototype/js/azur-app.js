@@ -22,7 +22,9 @@
       this.applyPalette();
 
       const base = cfg.assetBase;
-      [this.views, this.passes, A.sprites] = await Promise.all([fetchJSON(base + 'views.json'), fetchJSON(base + 'passes.json'), fetchJSON(base + 'sprites.json')]);
+      [this.views, this.passes, A.sprites, this.moves] = await Promise.all([fetchJSON(base + 'views.json'), fetchJSON(base + 'passes.json'), fetchJSON(base + 'sprites.json'),
+        fetchJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
+      this.moveFrames = {};
       this.comp = new A.Compositor(this.canvas);
       this.root.classList.toggle('no-webgl', !this.comp.ok);
       this.rail = new A.Rail(this.layer, A.products, this);
@@ -48,6 +50,7 @@
       setTimeout(() => this.showHint(), this.reduced ? 200 : 1600);
       // other views load in the background so camera moves never wait
       setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
+      setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
     }
 
@@ -87,7 +90,10 @@
       const back = to === 'room';
       const focus = opts.focus || [this.stage.clientWidth / 2, this.stage.clientHeight / 2];
       await this.comp.load(to, this.passes, false);
-      if (this.reduced) {
+      const mv = this.findMove(from, to);
+      if (mv && !this.reduced) {
+        await this.playMove(mv, to);
+      } else if (this.reduced) {
         await this.enterView(to);
         this.world.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 });
       } else {
@@ -118,6 +124,51 @@
       this.busy = false;
       if (opts.select != null) setTimeout(() => this.select(opts.select), this.reduced ? 0 : 120);
       this.kick();
+    }
+
+    /* ---------------------------------------------------------------- pre-rendered camera moves (scene/render_moves.py) */
+    preloadMoves() {
+      Object.entries(this.moves || {}).forEach(([name, m]) => {
+        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/';
+        const frames = Array.from({ length: m.frames }, (_, i) => { const im = new Image(); im.decoding = 'async'; im.src = base + 'f' + String(i).padStart(3, '0') + '.webp'; return im; });
+        this.moveFrames[name] = frames;
+      });
+    }
+    findMove(from, to) {
+      const ready = n => this.moveFrames[n] && this.moveFrames[n].every(im => im.complete && im.naturalWidth);
+      const strip = k => k === 'rail_m' ? 'rail' : k;
+      if (ready(`${strip(from)}-${strip(to)}`)) return { name: `${strip(from)}-${strip(to)}`, reverse: false };
+      if (ready(`${strip(to)}-${strip(from)}`)) return { name: `${strip(to)}-${strip(from)}`, reverse: true };
+      return null;
+    }
+    async playMove(mv, to) {
+      const frames = this.moveFrames[mv.name], n = frames.length, fps = (this.moves[mv.name] && this.moves[mv.name].fps) || 30;
+      const c = this.snap, ctx = this.snapCtx, dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const W = this.stage.clientWidth, H = this.stage.clientHeight;
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+      c.style.transform = ''; c.style.opacity = '1'; c.hidden = false;
+      const g = A.Compositor.beautyGrade(this.light), b = (g[0] + g[1] + g[2]) / 3;
+      c.style.filter = `brightness(${Math.min(1.1, b).toFixed(3)})`;   // frames are golden hour; follow the clock roughly
+      const draw = im => {
+        const ia = im.naturalWidth / im.naturalHeight, ca = c.width / c.height;
+        let sw = im.naturalWidth, sh = im.naturalHeight, sx = 0, sy = 0;
+        if (ca > ia) { sh = sw / ca; sy = (im.naturalHeight - sh) / 2; } else { sw = sh * ca; sx = (im.naturalWidth - sw) / 2; }
+        ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      };
+      this.layer.classList.add('is-moving');
+      await new Promise(res => {
+        const t0 = performance.now();
+        const tick = now => {
+          const k = Math.min(n - 1, Math.floor((now - t0) / 1000 * fps));
+          draw(frames[mv.reverse ? n - 1 - k : k]);
+          if (k < n - 1) requestAnimationFrame(tick); else res();
+        };
+        requestAnimationFrame(tick);
+      });
+      await this.enterView(to);
+      this.comp.render(this.light);
+      await c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out' }).finished.catch(() => { });
+      c.hidden = true; c.style.filter = ''; this.layer.classList.remove('is-moving');
     }
 
     updateChips() {

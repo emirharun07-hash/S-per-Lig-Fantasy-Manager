@@ -1,0 +1,84 @@
+"""AZUR camera moves: pre-rendered flights between views, replacing the prototype's fake pans.
+
+Renders room -> rail and room -> bed as image sequences (the way back plays them reversed).
+Garments stay in the frames (they are baked for the flight; the interactive layer takes over at the end).
+Lighting: the approved golden-hour look; the browser grades the frames toward the time of day.
+
+Usage:  python3 azur/scene/render_moves.py              (all moves, resumable)
+        python3 azur/scene/render_moves.py room-rail    (one move)
+Env:    AZUR_MOVES_FRAMES=36  AZUR_MOVES_SAMPLES=48  AZUR_MOVES_RES=1280x720
+Rough cost on this 4-core CPU: ~1.5-2.5 min per frame, so 36 frames ~ 1-1.5 h per move.
+"""
+import os, sys, json, math, time
+import bpy
+from mathutils import Vector
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import render_queue as rq   # reuses scene loading, views, light setup and git saving
+
+FRAMES = int(os.environ.get('AZUR_MOVES_FRAMES', 36))
+SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 48))
+RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1280x720').split('x'))
+OUT = os.path.join(rq.ROOT, 'prototype', 'assets', 'moves')
+MOVES = {
+    'room-rail': dict(a='room', b='rail', lift=0.18),     # the camera rises a little mid-flight, like a person stepping in
+    'room-bed':  dict(a='room', b='bed', lift=0.08),
+}
+
+
+def ease(t):          # smooth start and stop
+    return t * t * t * (t * (6 * t - 15) + 10)
+
+
+def camera_at(a, b, t, lift):
+    A, B = rq.VIEWS[a], rq.VIEWS[b]
+    e = ease(t)
+    loc = Vector(A['loc']).lerp(Vector(B['loc']), e) + Vector((0, 0, lift * math.sin(math.pi * e)))
+    tgt = Vector(A['target']).lerp(Vector(B['target']), ease(min(1, t * 1.15)))   # the eye leads the body slightly
+    lens = A['lens'] + (B['lens'] - A['lens']) * e
+    return loc, tgt, lens
+
+
+def render_move(sc, name, spec):
+    d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
+    rq.render_settings(sc, 'beauty'); rq.lights_off(sc)
+    sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.04
+    sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 2.2; rq.world_tint(sc, (1.0, 0.86, 0.72))
+    s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0; s.data.color = (1.0, 0.60, 0.33)
+    s.rotation_euler = Vector(rq.SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
+    nb = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
+    nb.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); nb.inputs['Emission Strength'].default_value = 1.6
+    sc.render.resolution_x, sc.render.resolution_y = RES
+    cam = sc.camera; cd = cam.data; cd.sensor_fit = 'AUTO'; cd.sensor_width = 36
+    saved = []
+    for i in range(FRAMES):
+        dst = os.path.join(d, f'f{i:03d}.webp')
+        if os.path.exists(dst): continue
+        t = i / (FRAMES - 1)
+        loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
+        cam.location = loc; cd.lens = lens
+        cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
+        cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
+        png = dst.replace('.webp', '.png'); secs = rq.render_to(sc, png); rq.to_webp(png, dst, q=80)
+        rq.log('move', name, i, secs, 's'); saved.append(dst)
+        if len(saved) >= 6:                     # commit in small batches
+            rq.git_save(saved, f'AZUR move {name}: frames up to {i}'); saved = []
+    meta = os.path.join(OUT, 'moves.json')
+    m = json.load(open(meta)) if os.path.exists(meta) else {}
+    m[name] = dict(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES))
+    json.dump(m, open(meta, 'w'), indent=1)
+    rq.git_save(saved + [meta], f'AZUR move {name}: complete')
+
+
+def main():
+    rq.ensure_blend()
+    sc = rq.open_scene()
+    names = [n for n in MOVES if not rq.ONLY or n in rq.ONLY]
+    for n in names:
+        rq.restore_visibility()
+        render_move(sc, n, MOVES[n])
+    rq.log('moves finished')
+
+
+if __name__ == '__main__':
+    main()
