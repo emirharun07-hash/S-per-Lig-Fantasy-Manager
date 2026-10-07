@@ -15,7 +15,8 @@
       ['neon', 'Neon', 0, 3, 0.01, 1],
       ['lamp', 'Schreibtischlampe', 0, 3, 0.01, 1],
       ['ceiling', 'Deckenlicht', 0, 3, 0.01, 1],
-      ['street', 'Straßenlaterne', 0, 3, 0.01, 1]
+      ['street', 'Straßenlaterne', 0, 3, 0.01, 1],
+      ['spot', 'Strahler (Ständer)', 0, 3, 0.01, 1]
     ]],
     ['Bewegung', [
       ['m:intensity', 'Animation', 0, 2, 0.01, 1],
@@ -94,7 +95,7 @@
       el.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { app.select(-1); app.go(b.dataset.view); }));
       el.querySelector('#azp-reduced').addEventListener('change', e => { app.reduced = e.target.checked || app.reducedQuery.matches; });
       el.querySelector('#azp-reset').addEventListener('click', () => {
-        Object.assign(o, { timeHours: null, exposure: 0, sky: 1, sun: 1, neon: 1, lamp: 1, ceiling: 1, street: 1, warmth: 0, contrast: 1, saturation: 1, window: 1 });
+        Object.assign(o, { timeHours: null, exposure: 0, sky: 1, sun: 1, neon: 1, lamp: 1, ceiling: 1, street: 1, spot: 1, warmth: 0, contrast: 1, saturation: 1, window: 1 });
         el.querySelectorAll('input[data-k]').forEach(inp => {
           const row = SLIDERS.flatMap(s => s[1]).find(r => r[0] === inp.dataset.k); inp.value = row[5];
           el.querySelector(`output[data-for="${inp.dataset.k}"]`).textContent = row[5];
