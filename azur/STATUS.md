@@ -61,6 +61,20 @@ python3 azur/scene/build_room.py -- preview azur/renders/preview.png azur/.cache
 python3 azur/scene/build_room.py -- final azur/renders/still.png '' A      # 4th arg: camera preset(s), e.g. A,B,F
 ```
 
+Rendering on the owner's laptop (much faster with a supported graphics chip): open a Claude session on that computer
+(Claude Desktop app, or `claude remote-control` in a terminal inside the cloned repo), or run it by hand:
+
+```bash
+git clone <repo> && cd <repo> && git checkout claude/shopify-notification-signup-o5avym
+python3.11 -m pip install bpy==5.0.1 pillow scikit-image scipy imageio-ffmpeg
+python3 azur/scene/fetch_assets.py
+AZUR_GPU=1 python3 azur/scene/render_queue.py      # then: AZUR_GPU=1 python3 azur/scene/render_moves.py
+```
+
+`AZUR_GPU=1` picks OptiX/CUDA (NVIDIA), Metal (Apple M-chips), HIP (AMD) or oneAPI (Intel Arc) and falls back to the CPU;
+the first line of `azur/.cache/queue.log` says which. Integrated Intel graphics are not supported by Cycles (no speed-up).
+Finished outputs are skipped, and each output is committed and pushed, so cloud and laptop can share the work.
+
 Local test of the prototype: `cd azur/prototype && python3 -m http.server 8765`, then `sh azur/tools/mkdev.sh` wraps index.html into `_dev.html`; run Chromium with `--no-proxy-server`.
 
 Headless Chromium for looking at web references needs the proxy CA key:

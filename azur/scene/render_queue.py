@@ -5,7 +5,8 @@ and every finished output is committed and pushed so nothing is lost if the mach
 
 Usage:  python3 azur/scene/render_queue.py            (all jobs)
         python3 azur/scene/render_queue.py rail       (only jobs for one view)
-Env:    AZUR_QUEUE_NO_GIT=1   skip commits (local testing)
+Env:    AZUR_GPU=1            render on the graphics chip (e.g. on the owner's laptop), CPU otherwise
+        AZUR_QUEUE_NO_GIT=1   skip commits (local testing)
         AZUR_QUEUE_FAST=1     tiny resolution and samples (pipeline test)
 """
 import bpy, os, sys, json, math, time, subprocess
@@ -76,10 +77,29 @@ def ensure_blend():
     subprocess.run([sys.executable, os.path.join(HERE, 'build_room.py'), '--', 'preview', '/dev/null', BLEND], check=True, env=env)
 
 
+def use_gpu(sc):
+    """AZUR_GPU=1: render on the graphics chip if Cycles finds one (OptiX/CUDA on NVIDIA, Metal on Apple, HIP on AMD,
+    oneAPI on Intel Arc). Falls back to the CPU. Returns the backend used."""
+    if not os.environ.get('AZUR_GPU'): return 'CPU'
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    for kind in ('OPTIX', 'CUDA', 'METAL', 'HIP', 'ONEAPI'):
+        try: prefs.compute_device_type = kind
+        except TypeError: continue
+        prefs.get_devices()
+        gpus = [d for d in prefs.devices if d.type == kind]
+        if gpus:
+            for d in prefs.devices: d.use = d.type == kind
+            sc.cycles.device = 'GPU'
+            return kind + ': ' + ', '.join(d.name for d in gpus)
+    return 'CPU (no supported graphics chip found)'
+
+
 def open_scene():
     bpy.ops.wm.open_mainfile(filepath=BLEND)
     sc = bpy.context.scene
     sc.cycles.device = 'CPU'
+    dev = use_gpu(sc)
+    if not getattr(open_scene, 'logged', False): log('render device', dev); open_scene.logged = True
     W = 3.4; H = 2.5
     # extra light sources for the night passes (kept out of the geometry builder)
     def point(name, loc, power, radius):
