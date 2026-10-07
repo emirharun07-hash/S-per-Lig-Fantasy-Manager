@@ -126,47 +126,90 @@
       this.kick();
     }
 
-    /* ---------------------------------------------------------------- pre-rendered camera moves (scene/render_moves.py) */
+    /* ---------------------------------------------------------------- pre-rendered camera moves (scene/render_moves.py)
+       Each move has a 'day' set (golden hour, f###.webp) and a 'night' set (n###.webp). The player grades the day
+       frames toward the clock and lays the night frames over them by how dark it is, like the passes compositor.
+       Only the sets the current light needs are downloaded. Phones (rail_m) keep the fake move. */
+    moveMix() {
+      const s = this.light, w = Math.max(0, Math.min(1, (s.night - 0.08) / 0.7));
+      return { night: w, day: w < 0.98, nightOn: w > 0.02 };
+    }
+    moveFramesFor(name, variant) {
+      const m = this.moves && this.moves[name]; if (!m || !(m.variants || ['day']).includes(variant)) return null;
+      const key = name + ':' + variant;
+      if (!this.moveFrames[key]) {
+        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = variant === 'night' ? 'n' : 'f';
+        this.moveFrames[key] = Array.from({ length: m.frames }, (_, i) => { const im = new Image(); im.decoding = 'async'; im.src = base + pre + String(i).padStart(3, '0') + '.webp'; return im; });
+      }
+      return this.moveFrames[key];
+    }
     preloadMoves() {
-      Object.entries(this.moves || {}).forEach(([name, m]) => {
-        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/';
-        const frames = Array.from({ length: m.frames }, (_, i) => { const im = new Image(); im.decoding = 'async'; im.src = base + 'f' + String(i).padStart(3, '0') + '.webp'; return im; });
-        this.moveFrames[name] = frames;
-      });
+      const mix = this.moveMix();
+      Object.keys(this.moves || {}).forEach(name => { if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night'); });
     }
     findMove(from, to) {
-      const ready = n => this.moveFrames[n] && this.moveFrames[n].every(im => im.complete && im.naturalWidth);
-      const strip = k => k === 'rail_m' ? 'rail' : k;
-      if (ready(`${strip(from)}-${strip(to)}`)) return { name: `${strip(from)}-${strip(to)}`, reverse: false };
-      if (ready(`${strip(to)}-${strip(from)}`)) return { name: `${strip(to)}-${strip(from)}`, reverse: true };
+      const mix = this.moveMix();
+      const ready = name => {
+        const need = [];
+        if (mix.day) need.push(this.moveFramesFor(name, 'day'));
+        if (mix.nightOn) need.push(this.moveFramesFor(name, 'night'));
+        if (mix.night > 0.5 && !need[need.length - 1]) return false;            // a golden-hour flight into a night room would jar
+        const sets = need.filter(Boolean);
+        return sets.length > 0 && sets.every(f => f.every(im => im.complete && im.naturalWidth));
+      };
+      if (ready(`${from}-${to}`)) return { name: `${from}-${to}`, reverse: false };
+      if (ready(`${to}-${from}`)) return { name: `${to}-${from}`, reverse: true };
       return null;
     }
     async playMove(mv, to) {
-      const frames = this.moveFrames[mv.name], n = frames.length, fps = (this.moves[mv.name] && this.moves[mv.name].fps) || 30;
+      const mix = this.moveMix(), m = this.moves[mv.name];
+      const day = mix.day && this.moveFramesFor(mv.name, 'day'), night = mix.nightOn && this.moveFramesFor(mv.name, 'night');
+      const n = m.frames, fps = m.fps || 30;
       const c = this.snap, ctx = this.snapCtx, dpr = Math.min(window.devicePixelRatio || 1, 2);
       const W = this.stage.clientWidth, H = this.stage.clientHeight;
       c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
-      c.style.transform = ''; c.style.opacity = '1'; c.hidden = false;
-      const g = A.Compositor.beautyGrade(this.light), b = (g[0] + g[1] + g[2]) / 3;
-      c.style.filter = `brightness(${Math.min(1.1, b).toFixed(3)})`;   // frames are golden hour; follow the clock roughly
-      const draw = im => {
+      // day frames are golden hour: multiply toward the clock (same grade as the beauty fallback)
+      const g = A.Compositor.beautyGrade(this.light), gmax = Math.max(1, g[0], g[1], g[2]);
+      const mul = `rgb(${g.map(x => Math.round(Math.min(1, x / gmax) * 255)).join(',')})`;
+      const nb = 0.8 + 0.2 * Math.min(1, (this.light.lamp ? (this.light.lamp[0] || this.light.lamp) : 0) / 0.85);
+      c.style.filter = gmax > 1 ? `brightness(${(1 + (gmax - 1) * (1 - mix.night)).toFixed(3)})` : '';
+      const cover = im => {
         const ia = im.naturalWidth / im.naturalHeight, ca = c.width / c.height;
         let sw = im.naturalWidth, sh = im.naturalHeight, sx = 0, sy = 0;
         if (ca > ia) { sh = sw / ca; sy = (im.naturalHeight - sh) / 2; } else { sw = sh * ca; sx = (im.naturalWidth - sw) / 2; }
-        ctx.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+        return [sx, sy, sw, sh, 0, 0, c.width, c.height];
       };
+      const draw = k => {
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        if (day) {
+          ctx.drawImage(day[k], ...cover(day[k]));
+          if (mul !== 'rgb(255,255,255)') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over'; }
+        }
+        if (night) {
+          ctx.globalAlpha = day ? mix.night : 1;
+          ctx.filter !== undefined && nb < 0.999 && (ctx.filter = `brightness(${nb.toFixed(3)})`);
+          ctx.drawImage(night[k], ...cover(night[k]));
+          if (ctx.filter !== undefined) ctx.filter = 'none';
+          ctx.globalAlpha = 1;
+        }
+      };
+      const idx = k => mv.reverse ? n - 1 - k : k;
+      // the first frame is the current camera: fade it in while the live garments step aside
+      draw(idx(0)); c.style.transform = ''; c.hidden = false;
       this.layer.classList.add('is-moving');
+      await c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => { });
       await new Promise(res => {
         const t0 = performance.now();
         const tick = now => {
-          const k = Math.min(n - 1, Math.floor((now - t0) / 1000 * fps));
-          draw(frames[mv.reverse ? n - 1 - k : k]);
+          const k = Math.max(0, Math.min(n - 1, Math.floor((now - t0) / 1000 * fps)));   // rAF time can precede t0
+          draw(idx(k));
           if (k < n - 1) requestAnimationFrame(tick); else res();
         };
         requestAnimationFrame(tick);
       });
       await this.enterView(to);
       this.comp.render(this.light);
+      c.getAnimations().forEach(a => a.cancel());
       await c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out' }).finished.catch(() => { });
       c.hidden = true; c.style.filter = ''; this.layer.classList.remove('is-moving');
     }

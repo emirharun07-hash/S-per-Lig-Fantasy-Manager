@@ -5,6 +5,16 @@
 (function () {
   const A = window.AZUR = window.AZUR || {};
 
+  /* Stand-in while hanger.webp is not rendered: the scene's hanger drawn from its own geometry (millimetres,
+     anchor = hook origin at 0,0; the wooden V sits behind the garment, only the hook shows above the collar). */
+  const HANGER_FALLBACK = { w: 0.44, anchor: [0.22, 0.096], src: 'data:image/svg+xml,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-220 -96 440 166">
+      <path d="M-205 58 Q0 -36 205 58" fill="none" stroke="#6d4526" stroke-width="18" stroke-linecap="round"/>
+      <path d="M-200 52 Q0 -40 200 52" fill="none" stroke="#a87a4c" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+      <path d="M0 6 V-44 C0 -60 7 -66 5 -78 C3 -89 -6 -93 -12 -88" fill="none" stroke="#9a9a96" stroke-width="5" stroke-linecap="round"/>
+      <path d="M-1 4 V-44 C-1 -58 5 -65 3 -76" fill="none" stroke="#e6e6e2" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>`) };
+
   class Spring {
     constructor(v = 0) { this.v = v; this.t = v; this.vel = 0; }
     step(dt, k, c) { const a = k * (this.t - this.v) - c * this.vel; this.vel += a * dt; this.v += this.vel * dt; }
@@ -28,7 +38,7 @@
       el.innerHTML = `
         <div class="azur-g__shadow" aria-hidden="true"></div>
         <div class="azur-g__pivot">
-          <img class="azur-g__hanger" alt="" aria-hidden="true" src="${cfg.assetBase}hanger.webp" onerror="this.remove()">
+          <img class="azur-g__hanger" alt="" aria-hidden="true" src="${A.sprites && A.sprites.hanger ? cfg.assetBase + 'hanger.webp' : HANGER_FALLBACK.src}">
           <div class="azur-g__body">
             ${p.type === 'drop' ? this.dropMarkup() : `
             <img class="azur-g__img" src="${p.image}" alt="" draggable="false">
@@ -42,6 +52,8 @@
       this.shadow = el.querySelector('.azur-g__shadow');
       this.hit = el.querySelector('.azur-g__hit');
       this.hanger = el.querySelector('.azur-g__hanger');
+      this.hanger.addEventListener('error', () => { this.hanger.src = HANGER_FALLBACK.src; this.hangerFallback = true; this.rail.place(); }, { once: true });
+      this.hangerFallback = !(A.sprites && A.sprites.hanger);
       return el;
     }
     dropMarkup() {
@@ -155,15 +167,22 @@
         g.el.style.width = p.w + 'px'; g.el.style.height = p.h + 'px';
         g.body.style.width = p.w + 'px'; g.body.style.height = p.h + 'px';
         if (g.hanger) {
-          const hs = A.sprites && A.sprites.hanger;
-          // exact size from the rendered sprite: its width in metres times this garment's pixels per metre (garments are 0.74 m long)
-          const hw = hs ? hs.size[0] * hs.metres_per_px * (p.h / 0.74) : p.h * (cfg.garments.hangerWidthM / 0.74) * 1.18;
-          g.hanger.style.width = hw + 'px';
-          g.hanger.style.left = (p.w / 2 - hw / 2) + 'px';
-          // the sprite anchor sits where the garment top hangs; the hook rises above it
-          const anchorY = hs ? hs.anchor[1] / hs.size[0] * hw : hw * 0.21;
-          g.hanger.style.top = (-anchorY) + 'px';
+          // exact size from the scene: metres times this garment's pixels per metre (garments are 0.74 m long)
+          const k = p.h / 0.74, hs = A.sprites && A.sprites.hanger;
+          const m = hs && !g.hangerFallback ? { w: hs.size[0] * hs.metres_per_px, anchor: [hs.anchor[0] * hs.metres_per_px, hs.anchor[1] * hs.metres_per_px] } : HANGER_FALLBACK;
+          g.hanger.style.width = (m.w * k) + 'px';
+          g.hanger.style.left = (p.w / 2 - m.anchor[0] * k) + 'px';
+          // the anchor is the hook origin, 8 mm above the garment top; the hook rises above it
+          g.hanger.style.top = (-(m.anchor[1] + 0.008) * k) + 'px';
           g.hanger.hidden = p.sprite;
+        }
+        // neon light falls on the garments from the sign: direction and strength by distance on screen
+        const n = this.viewData && this.viewData.neon;
+        if (n && !p.sprite) {
+          const q = this.comp.toScreen(n[0], n[1], p.d);
+          const dx = p.x - q[0], dy = p.y + p.h * 0.3 - q[1], dist = Math.hypot(dx, dy) / Math.max(1, this.comp.cssW);
+          const ang = Math.round(Math.atan2(dx, -dy) * 180 / Math.PI), kk = Math.exp(-Math.pow(dist / 0.42, 2)).toFixed(2);
+          if (g.glowKey !== ang + '|' + kk) { g.glowKey = ang + '|' + kk; g.el.style.setProperty('--g-glow-a', ang + 'deg'); g.el.style.setProperty('--g-glow-k', kk); }
         }
       });
     }

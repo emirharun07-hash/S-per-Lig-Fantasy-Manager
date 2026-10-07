@@ -2,12 +2,14 @@
 
 Renders room -> rail and room -> bed as image sequences (the way back plays them reversed).
 Garments stay in the frames (they are baked for the flight; the interactive layer takes over at the end).
-Lighting: the approved golden-hour look; the browser grades the frames toward the time of day.
+Two light variants per move: 'day' (the approved golden-hour look, graded toward the clock in the browser)
+and 'night' (the 22:30 mix of the light passes: night sky, neon, desk lamp, street light). The browser
+crossfades them by how dark it is. Day frames of every move render first, so a usable set exists early.
 
 Usage:  python3 azur/scene/render_moves.py              (all moves, resumable)
         python3 azur/scene/render_moves.py room-rail    (one move)
 Env:    AZUR_MOVES_FRAMES=36  AZUR_MOVES_SAMPLES=48  AZUR_MOVES_RES=1280x720
-Rough cost on this 4-core CPU: ~1.5-2.5 min per frame, so 36 frames ~ 1-1.5 h per move.
+Rough cost on this 4-core CPU: ~1.5 min per frame, so 36 frames ~ 1 h per move and variant.
 """
 import os, sys, json, math, time
 import bpy
@@ -39,20 +41,41 @@ def camera_at(a, b, t, lift):
     return loc, tgt, lens
 
 
-def render_move(sc, name, spec):
-    d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
+def srgb2lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+GLOW = [srgb2lin(int('16B8FF'[i:i + 2], 16) / 255) for i in (0, 2, 4)]   # palette A glow, as the browser mixes the neon pass
+
+
+def light_variant(sc, variant):
+    """Same light rig as render_queue's passes, mixed with the prototype's daylight weights."""
     rq.render_settings(sc, 'beauty'); rq.lights_off(sc)
     sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.04
-    sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 2.2; rq.world_tint(sc, (1.0, 0.86, 0.72))
-    s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0; s.data.color = (1.0, 0.60, 0.33)
-    s.rotation_euler = Vector(rq.SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
+    bg = sc.world.node_tree.nodes['Background'].inputs['Strength']
     nb = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
-    nb.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); nb.inputs['Emission Strength'].default_value = 1.6
+    if variant == 'day':          # golden hour, the approved stills
+        bg.default_value = 2.2; rq.world_tint(sc, (1.0, 0.86, 0.72))
+        s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0; s.data.color = (1.0, 0.60, 0.33)
+        s.rotation_euler = Vector(rq.SUN['sun_low']).normalized().to_track_quat('-Z', 'Y').to_euler()
+        nb.inputs['Emission Color'].default_value = (0.086, 0.722, 1.0, 1); nb.inputs['Emission Strength'].default_value = 1.6
+        sc.view_settings.exposure = 2.65
+    else:                         # azur-config.js daylight key h 22.3
+        bg.default_value = 2.2; rq.world_tint(sc, (0.04, 0.055, 0.11))
+        nb.inputs['Emission Color'].default_value = (*[g * 1.05 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
+        L = bpy.data.objects['L_lamp']; L.hide_render = False; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
+        S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.9; S.data.color = (1.0, 0.7, 0.38)
+        sc.view_settings.exposure = 3.3
+
+
+def render_move(sc, name, spec, variant):
+    d = os.path.join(OUT, name); os.makedirs(d, exist_ok=True)
+    prefix = 'f' if variant == 'day' else 'n'
+    light_variant(sc, variant)
     sc.render.resolution_x, sc.render.resolution_y = RES
     cam = sc.camera; cd = cam.data; cd.sensor_fit = 'AUTO'; cd.sensor_width = 36
     saved = []
     for i in range(FRAMES):
-        dst = os.path.join(d, f'f{i:03d}.webp')
+        dst = os.path.join(d, f'{prefix}{i:03d}.webp')
         if os.path.exists(dst): continue
         t = i / (FRAMES - 1)
         loc, tgt, lens = camera_at(spec['a'], spec['b'], t, spec['lift'])
@@ -60,23 +83,26 @@ def render_move(sc, name, spec):
         cam.rotation_euler = (tgt - loc).to_track_quat('-Z', 'Y').to_euler()
         cd.dof.focus_distance = (Vector((1.55, 2.95, 1.2)) - loc).length
         png = dst.replace('.webp', '.png'); secs = rq.render_to(sc, png); rq.to_webp(png, dst, q=80)
-        rq.log('move', name, i, secs, 's'); saved.append(dst)
+        rq.log('move', name, variant, i, secs, 's'); saved.append(dst)
         if len(saved) >= 6:                     # commit in small batches
-            rq.git_save(saved, f'AZUR move {name}: frames up to {i}'); saved = []
+            rq.git_save(saved, f'AZUR move {name} ({variant}): frames up to {i}'); saved = []
     meta = os.path.join(OUT, 'moves.json')
     m = json.load(open(meta)) if os.path.exists(meta) else {}
-    m[name] = dict(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES))
+    e = m.setdefault(name, {})
+    e.update(from_=spec['a'], to=spec['b'], frames=FRAMES, fps=30, res=list(RES))
+    e['variants'] = sorted(set(e.get('variants', [])) | {variant})
     json.dump(m, open(meta, 'w'), indent=1)
-    rq.git_save(saved + [meta], f'AZUR move {name}: complete')
+    rq.git_save(saved + [meta], f'AZUR move {name} ({variant}): complete')
 
 
 def main():
     rq.ensure_blend()
     sc = rq.open_scene()
     names = [n for n in MOVES if not rq.ONLY or n in rq.ONLY]
-    for n in names:
-        rq.restore_visibility()
-        render_move(sc, n, MOVES[n])
+    for variant in ('day', 'night'):
+        for n in names:
+            rq.restore_visibility()
+            render_move(sc, n, MOVES[n], variant)
     rq.log('moves finished')
 
 

@@ -45,7 +45,7 @@ button { font: inherit; color: inherit; }
 .azur-g { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; transition: opacity .25s ease; }
 .azur-layer.is-moving .azur-g, .azur-layer.is-moving .azur-label, .azur-layer.is-moving .azur-info { opacity: 0; transition-duration: .16s; }
 .azur-g__pivot { position: relative; transform-origin: 50% 0; will-change: transform; }
-.azur-g__hanger { position: absolute; z-index: 2; height: auto; pointer-events: none; filter: brightness(calc(var(--g-bright, 1) * 1.02)) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+.azur-g__hanger { position: absolute; z-index: 0; height: auto; pointer-events: none; filter: brightness(calc(var(--g-bright, 1) * 1.02)) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
 .azur-g__body { position: relative; z-index: 1; transform-origin: 50% 0; will-change: transform, filter; }
 .azur-g__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 0; user-select: none;
   filter: brightness(var(--g-bright, 1)) saturate(calc(1 - var(--g-cool, 0) * .35)); }
@@ -53,7 +53,7 @@ button { font: inherit; color: inherit; }
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: 50% 0; mask-position: 50% 0; }
 .azur-g__tint { background: linear-gradient(rgb(255 150 70 / calc(var(--g-warm, 0) * .5)), rgb(255 150 70 / calc(var(--g-warm, 0) * .5))),
   linear-gradient(rgb(70 90 150 / calc(var(--g-cool, 0) * .32)), rgb(70 90 150 / calc(var(--g-cool, 0) * .32))); mix-blend-mode: multiply; }
-.azur-g__glow { background: linear-gradient(105deg, var(--glow) 0%, transparent 55%); mix-blend-mode: screen; opacity: calc(var(--g-neon, 0) * .6); }
+.azur-g__glow { background: linear-gradient(var(--g-glow-a, 180deg), var(--glow) 0%, transparent 46%); mix-blend-mode: screen; opacity: calc(var(--g-neon, 0) * var(--g-glow-k, 1) * .34); }
 .azur-g__shadow { position: absolute; left: 12%; right: 12%; top: 6%; bottom: 2%; border-radius: 22% 22% 10% 10% / 12% 12% 6% 6%; background: #120d08;
   pointer-events: none; will-change: transform, filter, opacity; }
 .azur-g__hit { position: absolute; inset: -4% 6% 0; z-index: 3; pointer-events: auto; background: transparent; border: 0; padding: 0; cursor: pointer; border-radius: 14px; }
