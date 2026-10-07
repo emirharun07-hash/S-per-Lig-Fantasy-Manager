@@ -3971,7 +3971,8 @@
    }
   ],
   "variants": [
-   "day"
+   "day",
+   "night"
   ]
  },
  "room-bed": {
