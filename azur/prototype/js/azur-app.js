@@ -231,6 +231,7 @@
       }
       this.hideHint();
       this.rail.setSelected(i);
+      this.snapPan = null;
       const sel = i >= 0 && A.products[i];
       this.setWorldDim(sel ? A.config.motion.select.dimRoom : 1, sel ? A.config.motion.select.blurRoom : 0);
       this.root.classList.toggle('has-selection', !!sel);
@@ -345,6 +346,19 @@
     }
     isMobileView() { return this.viewKey === 'rail_m'; }
 
+    /* phones: the pan value that puts garment i in the middle of the screen, and the garment nearest the middle */
+    panSpan() { return this.stage.clientWidth * (1 / this.comp.map[2] - 1) || 1; }
+    panFor(i) {
+      const p = this.rail.px && this.rail.px[i]; if (!p) return null;
+      return Math.max(0, Math.min(1, this.pan + (p.x - this.stage.clientWidth / 2) / this.panSpan()));
+    }
+    nearestGarment() {
+      const px = this.rail.px || [], mid = this.stage.clientWidth / 2;
+      let best = -1, bd = 1e9;
+      px.forEach((p, i) => { if (p && Math.abs(p.x - mid) < bd) { bd = Math.abs(p.x - mid); best = i; } });
+      return best;
+    }
+
     showHint() {
       if (this.hintDone) return;
       const p = this.rail.px && this.rail.px.filter(Boolean);
@@ -373,8 +387,9 @@
         if (down && this.viewKey === 'rail_m') {
           const dx = x - down.x;
           if (Math.abs(dx) > 6) this.dragMoved = true;
-          const span = this.stage.clientWidth * (1 / this.comp.map[2] - 1) || 1;
-          this.pan = Math.max(0, Math.min(1, down.pan - dx / span));
+          const span = this.panSpan(), raw = down.pan - dx / span;
+          // rubber band past the ends
+          this.pan = Math.max(-0.05, Math.min(1.05, raw < 0 ? raw * 0.25 : raw > 1 ? 1 + (raw - 1) * 0.25 : raw));
           this.panVel = -vx / span;
           this.rail.panImpulse(vx);
           this.kick();
@@ -385,8 +400,10 @@
         if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head')) return;
         const r = st.getBoundingClientRect();
         down = { x: e.clientX - r.left, pan: this.pan }; this.dragMoved = false;
+        this.dragging = true; this.snapPan = null; this.panVel = 0;
       });
-      window.addEventListener('pointerup', () => { down = null; setTimeout(() => { this.dragMoved = false; }, 0); });
+      window.addEventListener('pointerup', () => { down = null; this.dragging = false; setTimeout(() => { this.dragMoved = false; }, 0); });
+      window.addEventListener('pointercancel', () => { down = null; this.dragging = false; this.dragMoved = false; });
       // phones: tilt the room very slightly with a slow drift instead of a pointer
       if (this.isMobile) this.parallaxTarget = [0, 0];
       // click on the empty room deselects
@@ -443,10 +460,23 @@
       const nx = this.parallax[0] + (-tx * k - this.parallax[0]) * e, ny = this.parallax[1] + (-ty * k * 0.6 - this.parallax[1]) * e;
       const pmove = Math.abs(nx - this.parallax[0]) + Math.abs(ny - this.parallax[1]) > 1e-6;
       this.parallax = [nx, ny]; this.comp.parallax = this.parallax;
-      // phones: momentum after a swipe along the rail
-      if (this.viewKey === 'rail_m' && Math.abs(this.panVel) > 1e-4 && !this.dragMoved) {
-        this.pan = Math.max(0, Math.min(1, this.pan + this.panVel * dt)); this.panVel *= Math.pow(0.04, dt);
-        this.rail.panImpulse(-this.panVel * this.stage.clientWidth); this.dirty = true;
+      // phones: momentum after a swipe along the rail, then the rail settles with a garment in the middle
+      if (this.viewKey === 'rail_m' && !this.dragging) {
+        const W = this.stage.clientWidth;
+        if (Math.abs(this.panVel) > 0.05 && !this.reduced && this.pan >= 0 && this.pan <= 1) {
+          const p = this.pan + this.panVel * dt, c = Math.max(0, Math.min(1, p));
+          if (c !== p) this.panVel *= -0.25;                      // soft stop at the ends
+          this.pan = c; this.panVel *= Math.pow(0.05, dt); this.snapPan = null;
+          this.rail.panImpulse(-this.panVel * W); this.dirty = true;
+        } else {
+          this.panVel = 0;
+          if (this.snapPan == null) this.snapPan = this.panFor(this.rail.selected >= 0 ? this.rail.selected : this.nearestGarment());
+          const d = this.snapPan == null ? 0 : this.snapPan - this.pan;
+          if (Math.abs(d) > 2e-4) {
+            const step = this.reduced ? d : d * Math.min(1, dt * 7);
+            this.pan += step; this.rail.panImpulse(-(step / Math.max(dt, 1e-3)) * W * 0.6); this.dirty = true;
+          }
+        }
       }
       if (this.comp.pan !== this.pan) { this.comp.pan = this.pan; this.comp.layout(this.stage.clientWidth, this.stage.clientHeight, Math.min(window.devicePixelRatio || 1, 2)); this.dirty = true; }
       // selection dims the room smoothly
