@@ -376,8 +376,9 @@
       const s = this.selected;
       if (s >= 0 && this.px && this.px[s]) {
         const p = this.px[s];
-        const bottom = Math.min(H - 96, p.y + p.h + 14);
-        this.info.style.transform = `translate3d(${p.x.toFixed(1)}px, ${bottom.toFixed(1)}px, 0) translateX(-50%)`;
+        const bottom = Math.min(H - 96, p.y + p.h + 14), W = this.app.stage.clientWidth, half = this.info.offsetWidth / 2;
+        const x = Math.max(16 + half, Math.min(W - 16 - half, p.x));      // the garment at the edge keeps its line on screen
+        this.info.style.transform = `translate3d(${x.toFixed(1)}px, ${bottom.toFixed(1)}px, 0) translateX(-50%)`;
         this.app.drop.position(p.x, p.y + p.h * 0.18, p);
       }
     }

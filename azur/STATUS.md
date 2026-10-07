@@ -36,7 +36,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Start view: the room (camera B = view `room`). Clicking a jersey moves the camera to the rail (`rail`, closer and higher than C) and opens that jersey in one step. Clicking the bed moves to the bed view (`bed`).
 - Fake camera moves for now; **real rendered moves must follow later**.
 - Phones start at the rail (`rail_m`), swipe along it, garments swing with the swipe.
-- Bed: easter egg comes later; remind the owner of the ideas (magazine "ANSTOSS" opens the brand story / lookbook; or the drop sign-up; or atmosphere only).
+- Bed: easter egg comes later (decided 2026-10-07 afternoon, owner left it to us: the magazine, see below).
 - Overlapping jerseys are fine; details only on click.
 
 ## Scene 2 (owner feedback 2026-10-07: jerseys looked pasted in)
@@ -52,15 +52,27 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 - Outside the window: real footage of kids playing on a Bolzplatz (Mixkit, free licence: https://mixkit.co/free-stock-video/young-boy-scoring-free-kick-goal-6652/),
   cut into a seamless 6.6 s loop: `prototype/assets/scene2/outside/bolzplatz.mp4`; shown through the window mask by the compositor.
 - Rendering: the owner's PC (`powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1`, about 1.5 h).
-- Prototype: scene2 mode (garments in the plate, hover via ids, click = pull-out move) is being built in `prototype/js/`.
+  Views and passes took about 20 s per image; a chosen-garment view (beauty + 8 passes) about 2.5 min.
+- Prototype scene2 mode (`cfg.plateGarments`, switched on when `assets/scene2/views/passes.json` exists): garments are in
+  the plate; hover/click read `ids.png`; clicking takes the garment off the rail (`rail@i`, pull move when rendered, a
+  crossfade otherwise; a garment whose `rail@i` is not rendered yet is selected on the rail as it hangs). The window
+  video is graded by the sky colour and fades out after dusk; it pauses while the magazine is open.
+- Bed easter egg: the magazine **ANSTOSS** on the duvet (`prototype/js/azur-mag.js`, copy in `azur-config.js` → `copy.mag`).
+  Hotspot from `views.json` → `bed.magazine` (projected by `job_projections`), a small glint, label "ANSTOSS lesen".
+  Opens a flip book: cover (CC0 photo "Children Football", sasint), editorial with the shop's own "Über Azur" text and a
+  clickable contents list, photo page, one lookbook page per jersey ("Am Ständer ansehen" walks to it, "Im Shop" opens the
+  product), the drop teaser (goes to the covered garment) and a back cover. Desktop: spreads turning on the spine; phones:
+  one page at a time. Header "Über uns" and `#anstoss` open it too. Founder names (Impressum, unpublished) are left out on purpose.
+- Publishing: `python3 azur/tools/build_artifact.py` assembles `azur/.cache/publish/` (page + `files.json`); move frames
+  are packed into strips there (an artifact version holds at most 511 files).
 
 ## Next
 
-Nothing is rendering. Waiting for the owner's feedback on artifact version 12.
+The owner's PC is rendering scene2 (chosen-garment views, then moves room→rail / room→bed and the pulls, day + night).
 
-1. Owner decides: the bed easter egg (ideas: magazine "ANSTOSS" opens the brand story / lookbook; the drop sign-up on the bed; or atmosphere only).
-2. Small scene fixes for the next render batch (rebuild `.cache/azur_room.blend`, re-render room + bed plates/passes and the moves that show the bed): magazine masthead (fix already in `build_room.py`), real football boots instead of placeholders.
-3. Seen in testing: during room → bed the flying jerseys leave the frame at the top for a few frames (correct in 3D, can look odd); option: fade a garment once its hook leaves the frame.
+1. When the PC is done: pull, test the full flow (room → click → move → pull → info; magazine), tune light, then
+   `build_artifact.py` and publish to the same artifact URL.
+2. Seen in testing: during room → bed the flying jerseys leave the frame at the top for a few frames (correct in 3D, can look odd); option: fade a garment once its hook leaves the frame.
 4. Faster renders later: the owner's Mac (M5) via `azur/tools/render_on_mac.sh`, once git there uses a private GitHub login (the work account blocked uploads).
 5. Phase 2 (Shopify theme) only after explicit approval.
 
