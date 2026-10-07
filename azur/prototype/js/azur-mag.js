@@ -30,70 +30,100 @@
       this.bind();
     }
 
-    /* ------------------------------------------------------------ content: cover, editorial, photo, 5 jerseys, drop, back */
+    /* ------------------------------------------------------------ content
+       The pages come from a list (copy.mag.pages; in Shopify the section's "Heftseite" blocks): cover, editorial
+       (with the table of contents), photo, looks (one page per jersey on the rail), look (one jersey, by key or
+       handle), text, drop, back. Empty fields fall back to the default copy, so a block only needs what changes. */
     buildPages() {
       const c = A.config.copy.mag, prods = A.products.filter(p => p.type === 'product');
-      const foot = (n, label) => `<p class="mp__foot"><span>${label}</span><span>${n}</span></p>`;
-      const pages = [];
-      pages.push(`
+      const list = (c.pages && c.pages.length ? c.pages : Mag.DEFAULT_PAGES).flatMap(pg =>
+        pg.type === 'looks' ? prods.map(p => Object.assign({}, pg, { type: 'look', key: p.key })) : [pg]);
+      const spec = list.filter(pg => pg.type !== 'look' || this.product(pg));
+      const at = {}; spec.forEach((pg, i) => { if (pg.type === 'look') at['look:' + this.product(pg).key] = i; if (pg.type === 'drop' && at.drop == null) at.drop = i; });
+      const looks = spec.filter(pg => pg.type === 'look');
+      return spec.map((pg, i) => this.pageHTML(pg, i, { at, looks, c })).filter(Boolean);
+    }
+    product(pg) { return A.products.find(p => p.type === 'product' && ((pg.key && p.key === pg.key) || (pg.handle && p.handle === pg.handle))); }
+
+    pageHTML(pg, i, { at, looks, c }) {
+      const v = (k, d) => (pg[k] != null && pg[k] !== '' ? pg[k] : d);
+      const foot = label => `<p class="mp__foot"><span>${esc(label)}</span><span>${i + 1}</span></p>`;
+      const img = (src, alt, cls = 'mp__photo') => src ? `<img class="${cls}" src="${esc(/^(https?:)?\/\//.test(src) || src.startsWith('data:') ? src : A.url(src))}" alt="${esc(alt || '')}" loading="lazy">` : '';
+      const paras = t => (Array.isArray(t) ? t : String(t || '').split(/\n\s*\n/)).filter(Boolean).map(x => `<p class="mp__body">${esc(x)}</p>`).join('');
+      switch (pg.type) {
+        case 'cover': return `
         <div class="mp mp--cover">
-          <img class="mp__photo" src="${A.url('assets/mag/cover.webp')}" alt="${c.coverAlt}" loading="lazy">
-          <p class="mp__mast" aria-label="ANSTOSS">ANSTOSS</p>
-          <p class="mp__issue">${c.issue}</p>
-          <p class="mp__lines">${c.coverLines.map(l => `<span>${l}</span>`).join('')}</p>
-          <p class="mp__sticker">${c.coverSticker}</p>
-        </div>`);
-      pages.push(`
+          ${img(v('image', 'assets/mag/cover.webp'), v('alt', c.coverAlt))}
+          <p class="mp__mast" aria-label="ANSTOSS">${esc(v('head', 'ANSTOSS'))}</p>
+          <p class="mp__issue">${esc(v('kicker', c.issue))}</p>
+          <p class="mp__lines">${(pg.lines || (pg.text ? String(pg.text).split('\n') : c.coverLines)).map(l => `<span>${esc(l)}</span>`).join('')}</p>
+          ${v('sticker', c.coverSticker) ? `<p class="mp__sticker">${esc(v('sticker', c.coverSticker))}</p>` : ''}
+        </div>`;
+        case 'editorial': {
+          const toc = looks.map(pl => { const p = this.product(pl), n = at['look:' + p.key];
+            return `<li><button type="button" data-act="goto" data-p="${n}"><span>${esc(p.name)}</span><span>${n + 1}</span></button></li>`; }).join('')
+            + (at.drop != null ? `<li><button type="button" data-act="goto" data-p="${at.drop}"><span>${esc(c.dropHead)}</span><span>${at.drop + 1}</span></button></li>` : '');
+          return `
         <div class="mp mp--text">
-          <p class="mp__kicker">${c.editorialKicker}</p>
-          <h2 class="mp__head">${c.editorialHead}</h2>
-          <p class="mp__lead">${c.editorialLead}</p>
-          ${c.about.map(t => `<p class="mp__body">${t}</p>`).join('')}
-          <p class="mp__sign">${c.sign}<span>${c.signNote}</span></p>
-          <div class="mp__toc"><p class="mp__kicker">${c.tocKicker}</p><ol>
-            ${prods.map((p, k) => `<li><button type="button" data-act="goto" data-p="${3 + k}"><span>${esc(p.name)}</span><span>${4 + k}</span></button></li>`).join('')}
-            <li><button type="button" data-act="goto" data-p="${3 + prods.length}"><span>${c.dropHead}</span><span>${4 + prods.length}</span></button></li>
-          </ol></div>
-          ${foot(2, 'ANSTOSS 01')}
-        </div>`);
-      pages.push(`
+          <p class="mp__kicker">${esc(v('kicker', c.editorialKicker))}</p>
+          <h2 class="mp__head">${esc(v('head', c.editorialHead))}</h2>
+          <p class="mp__lead">${esc(v('lead', c.editorialLead))}</p>
+          ${paras(v('text', c.about))}
+          <p class="mp__sign">${esc(v('sign', c.sign))}<span>${esc(v('signNote', c.signNote))}</span></p>
+          ${toc ? `<div class="mp__toc"><p class="mp__kicker">${esc(c.tocKicker)}</p><ol>${toc}</ol></div>` : ''}
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        }
+        case 'photo': return `
         <div class="mp mp--photo">
-          <img class="mp__photo" src="${A.url('assets/mag/story.webp')}" alt="${c.storyAlt}" loading="lazy">
-          <p class="mp__quote">${c.storyQuote}</p>
-          ${foot(3, 'ANSTOSS 01')}
-        </div>`);
-      prods.forEach((p, k) => {
-        const i = A.products.indexOf(p);
-        pages.push(`
-        <div class="mp mp--look" style="--acc:${p.accent || '#0A6A9A'}">
-          <p class="mp__kicker">${c.lookKicker} · ${String(k + 1).padStart(2, '0')}/${String(prods.length).padStart(2, '0')}</p>
-          <div class="mp__shot"><img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy"></div>
-          <h3 class="mp__name">${esc(p.name)}</h3>
-          <p class="mp__desc">${esc(firstSentence(p.description))}</p>
+          ${img(v('image', 'assets/mag/story.webp'), v('alt', c.storyAlt))}
+          <p class="mp__quote">${esc(v('quote', v('head', c.storyQuote)))}</p>
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        case 'look': {
+          const p = this.product(pg), i0 = A.products.indexOf(p), k = looks.indexOf(pg);
+          return `
+        <div class="mp mp--look" style="--acc:${esc(p.accent || '#0A6A9A')}">
+          <p class="mp__kicker">${esc(v('kicker', c.lookKicker))} · ${String(k + 1).padStart(2, '0')}/${String(looks.length).padStart(2, '0')}</p>
+          <div class="mp__shot">${img(v('image', p.image), p.name, '')}</div>
+          <h3 class="mp__name">${esc(v('head', p.name))}</h3>
+          <p class="mp__desc">${esc(v('text', firstSentence(p.description)))}</p>
           <p class="mp__price">${A.formatPrice ? A.formatPrice(p.price) : p.price + ' €'} <span>${esc(p.fit || '')}</span></p>
           <p class="mp__acts">
-            <button type="button" data-act="rail" data-i="${i}">${c.toRail}</button>
-            <a href="${esc(p.productUrl)}" target="_blank" rel="noopener">${c.toShop} <span aria-hidden="true">↗</span></a>
+            <button type="button" data-act="product" data-i="${i0}">${esc(c.toProduct || c.toRail)}</button>
+            <a href="${esc(p.productUrl)}" target="_blank" rel="noopener">${esc(c.toShop)} <span aria-hidden="true">↗</span></a>
           </p>
-          ${foot(4 + k, c.lookKicker)}
-        </div>`);
-      });
-      const di = A.products.findIndex(p => p.type === 'drop');
-      pages.push(`
+          ${foot(c.lookKicker)}
+        </div>`;
+        }
+        case 'text': return `
+        <div class="mp mp--text">
+          ${pg.kicker ? `<p class="mp__kicker">${esc(pg.kicker)}</p>` : ''}
+          ${pg.head ? `<h2 class="mp__head">${esc(pg.head)}</h2>` : ''}
+          ${pg.lead ? `<p class="mp__lead">${esc(pg.lead)}</p>` : ''}
+          ${paras(pg.text)}
+          ${pg.image ? `<div class="mp__shot">${img(pg.image, pg.alt, '')}</div>` : ''}
+          ${foot(v('foot', 'ANSTOSS 01'))}
+        </div>`;
+        case 'drop': {
+          const di = A.products.findIndex(p => p.type === 'drop');
+          return `
         <div class="mp mp--drop">
-          <p class="mp__kicker">${c.dropKicker}</p>
-          <h3 class="mp__head">${c.dropHead}</h3>
-          <p class="mp__body">${c.dropText}</p>
-          ${di >= 0 ? `<p class="mp__acts"><button type="button" data-act="rail" data-i="${di}">${c.toDrop}</button></p>` : ''}
-          ${foot(4 + prods.length, 'ANSTOSS 01')}
-        </div>`);
-      pages.push(`
+          <p class="mp__kicker">${esc(v('kicker', c.dropKicker))}</p>
+          <h3 class="mp__head">${esc(v('head', c.dropHead))}</h3>
+          <p class="mp__body">${esc(v('text', c.dropText))}</p>
+          ${di >= 0 ? `<p class="mp__acts"><button type="button" data-act="rail" data-i="${di}">${esc(c.toDrop)}</button></p>` : ''}
+          ${foot('ANSTOSS 01')}
+        </div>`;
+        }
+        case 'back': return `
         <div class="mp mp--back">
           <img class="mp__logo" src="${A.url('assets/brand/azur-logo-paper.webp')}" alt="AZUR" loading="lazy">
-          <p class="mp__bye">${c.bye}</p>
-          <p class="mp__credits">${c.credits}</p>
-        </div>`);
-      return pages;
+          <p class="mp__bye">${esc(v('head', c.bye))}</p>
+          <p class="mp__credits">${esc(v('text', c.credits))}</p>
+        </div>`;
+        default: return null;
+      }
     }
 
     /* Desktop: sheet k carries page 2k on its front and 2k+1 on its back; the cover sits alone on the right and the
@@ -182,7 +212,7 @@
       this.isOpen = true; this.returnFocus = document.activeElement;
       this.n = 0; this.page = 0;                                   // a magazine picked up again starts at its cover
       this.el.hidden = false; this.layout(); this.fit();
-      this.app.root.classList.add('is-reading');
+      this.app.root.classList.add('is-reading'); document.documentElement.classList.add('azur-mag-open');
       requestAnimationFrame(() => this.el.classList.add('is-on'));
       if (fromRect && !this.app.reduced) {
         const b = this.stage.getBoundingClientRect();
@@ -196,7 +226,7 @@
     }
     close(then) {
       if (!this.isOpen) return;
-      this.isOpen = false; this.el.classList.remove('is-on'); this.app.root.classList.remove('is-reading');
+      this.isOpen = false; this.el.classList.remove('is-on'); this.app.root.classList.remove('is-reading'); document.documentElement.classList.remove('azur-mag-open');
       this.app.setWorldDim(1, 0);
       setTimeout(() => { if (!this.isOpen) this.el.hidden = true; if (then) then(); }, this.app.reduced ? 0 : 360);
       if (!then && this.returnFocus && this.returnFocus.focus) this.returnFocus.focus({ preventScroll: true });
@@ -212,6 +242,7 @@
           if (act === 'next') return this.turn(1);
           if (act === 'goto') return this.goto(+a.dataset.p);
           if (act === 'rail') { const i = +a.dataset.i; return this.close(() => this.app.showOnRail(i)); }
+          if (act === 'product') { const i = +a.dataset.i; return this.close(() => this.app.openProduct(i)); }
         }
         if (e.target.closest('a, button')) return;
         const face = e.target.closest('.azur-mag__face');        // tap the right page to turn on, the left one to turn back
@@ -241,5 +272,6 @@
     }
   }
 
+  Mag.DEFAULT_PAGES = [{ type: 'cover' }, { type: 'editorial' }, { type: 'photo' }, { type: 'looks' }, { type: 'drop' }, { type: 'back' }];
   A.Mag = Mag;
 })();

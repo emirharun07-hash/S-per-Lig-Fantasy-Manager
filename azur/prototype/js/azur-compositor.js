@@ -1,12 +1,21 @@
 /* AZUR — room compositor.
    Draws one view of the room from its rendered light passes (WebGL2): decodes each pass back to linear light,
    mixes them with the time-of-day weights, applies depth-based parallax and an AgX-style tone curve so the
-   result matches the Blender stills. Falls back to the pre-graded beauty plate, and to a plain <img> without WebGL. */
+   result matches the Blender stills. Falls back to the pre-graded beauty plate, and to a plain <img> without WebGL.
+
+   scene3 adds three things on top:
+   - the jerseys sway: a smooth displacement field per garment (built here from the rendered id mask) bends the
+     plate around each hook, driven by the rail's pendulums (setSway)
+   - hover outlines: glow.png holds the bed, the rail and the magazine as white glows (R, G, B), faded in by setGlow
+   - times of day: morning, evening and night are rectangles rendered over the day passes (passes.json 'states');
+     setState copies them into the day textures (and puts the day pixels back when the state ends) */
 (function () {
   const A = window.AZUR = window.AZUR || {};
   const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street', 'spot'];
   const REQUIRED = PASSES.slice(0, 7);          // 'spot' (ceiling spot on the rail) exists from scene2 on
   const FILES = { sky: 'sky', sunLow: 'sun_low', sunHigh: 'sun_high', neon: 'neon', lamp: 'lamp', ceiling: 'ceiling', street: 'street', spot: 'spot' };
+  const KEY_OF = Object.fromEntries(Object.entries(FILES).map(([k, f]) => [f, k]));
+  const MAX_SWAY = 6;
 
   const VERT = `#version 300 es
   in vec2 aPos; out vec2 vUv;
@@ -15,7 +24,7 @@
   const FRAG = `#version 300 es
   precision highp float;
   in vec2 vUv; out vec4 outColor;
-  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo;
+  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo, tGlow, tSwayA, tSwayB;
   uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
   uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot;
   uniform float uHover, uHoverAmt, uHasIds;              // garment under the pointer (slot + 1), fades in
@@ -25,6 +34,9 @@
   uniform vec2 uParallax;     // uv shift at depth 0 relative to the focus plane
   uniform float uFocus, uExposure, uMode, uDim, uContrast, uSat, uHasDepth;
   uniform vec3 uGrade;        // beauty mode only: rough time-of-day grade
+  uniform vec3 uGlowAmt; uniform float uHasGlow;         // hover outlines: bed, rail, magazine
+  uniform float uHasSway, uTime; uniform vec2 uPlatePx;
+  uniform vec4 uSwayHook[${MAX_SWAY}];                   // per garment: hook (plate uv), swing angle (rad), ripple (px)
 
   vec3 dec(sampler2D t, vec2 uv, float s) {
     vec3 e = texture(t, uv).rgb;
@@ -54,10 +66,31 @@
     v = l + (1.08 * uSat) * (v - l);
     return mi * v;
   }
+  // where the plate moves under a swinging garment (rotation about its hook, a ripple running down the cloth)
+  vec2 sway(vec2 uv) {
+    vec4 wa = texture(tSwayA, uv); vec4 wb = texture(tSwayB, uv);
+    float w[6] = float[6](wa.r, wa.g, wa.b, wa.a, wb.r, wb.g);
+    float sum = w[0] + w[1] + w[2] + w[3] + w[4] + w[5];
+    if (sum < 0.002) return vec2(0.0);
+    vec2 d = vec2(0.0);
+    for (int i = 0; i < ${MAX_SWAY}; i++) {
+      if (w[i] < 0.002) continue;
+      vec4 h = uSwayHook[i];
+      vec2 p = (uv - h.xy) * uPlatePx;
+      float c = cos(h.z), s = sin(h.z);
+      vec2 r = vec2(p.x * c - p.y * s, p.x * s + p.y * c) - p;
+      float below = max(p.y, 0.0);
+      r.x += h.w * sin(below * 0.018 - uTime * 3.1 + float(i) * 1.7) * min(1.0, below / 200.0);
+      d += w[i] * r;
+    }
+    return d / max(sum, 1.0) / uPlatePx;
+  }
   void main() {
     vec2 uv = uMap.xy + vUv * uMap.zw;
     float d = uHasDepth > 0.5 ? texture(tDepth, uv).r : uFocus;
     uv += uParallax * (d - uFocus);
+    vec2 guv = uv;
+    if (uHasSway > 0.5) uv -= sway(uv);
     vec3 c;
     if (uMode < 0.5) {
       vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
@@ -78,7 +111,12 @@
       float on = 1.0 - step(0.5, abs(id - uHover));
       c = c * (1.0 + 0.16 * uHoverAmt * on) + 0.014 * uHoverAmt * on;
     }
-    outColor = vec4(clamp(c * uDim, 0.0, 1.0), 1.0);
+    c = clamp(c * uDim, 0.0, 1.0);
+    if (uHasGlow > 0.5) {                                // white outline of what the pointer is on (screen blend)
+      float g = clamp(dot(texture(tGlow, guv).rgb, uGlowAmt), 0.0, 1.0);
+      c = 1.0 - (1.0 - c) * (1.0 - g * vec3(0.97, 0.99, 1.0));
+    }
+    outColor = vec4(c, 1.0);
   }`;
 
   function loadImage(src) {
@@ -98,6 +136,8 @@
       this.view = null; this.mode = 'none';
       this.map = [0, 0, 1, 1]; this.parallax = [0, 0]; this.pan = 0.5; this.overscan = 0.03;
       this.dim = 1; this.cache = {};
+      this.glow = [0, 0, 0]; this.swayHooks = new Float32Array(MAX_SWAY * 4); this.swayOn = false; this.time = 0;
+      this.state = 'day';
       if (this.gl) this.init();
     }
     get ok() { return !!this.gl; }
@@ -115,13 +155,14 @@
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
       this.u = {};
-      const names = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo',
-        'wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
+      this.units = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'];
+      const names = this.units.concat(['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot',
         'uMap', 'uParallax', 'uFocus', 'uExposure', 'uMode', 'uDim', 'uContrast', 'uSat', 'uHasDepth', 'uGrade',
-        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade'];
+        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade',
+        'uGlowAmt', 'uHasGlow', 'uHasSway', 'uTime', 'uPlatePx', 'uSwayHook']);
       for (const n of names) this.u[n] = gl.getUniformLocation(p, n);
-      ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo'].forEach((n, i) => gl.uniform1i(this.u[n], i));
+      this.units.forEach((n, i) => gl.uniform1i(this.u[n], i));
       this.blank = this.texture(null);
       this.hover = 0; this.hoverAmt = 0; this.winAmt = 0; this.video = null; this.videoTex = null;
     }
@@ -137,41 +178,193 @@
       else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
       return t;
     }
+    dataTexture(w, h, data) {
+      const gl = this.gl, t = this.texture(null);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      return t;
+    }
 
-    /* Load a view. Resolves to 'passes', 'beauty' or 'none'. Textures are cached per view. */
+    /* Load a view. Resolves to 'passes', 'beauty' or 'none'. Textures are cached per view.
+       With low-resolution copies (passes.json _lo, published builds) those come first and the full plates follow. */
     async load(key, meta, activate = true) {
       const base = A.config.assetBase + key + '/';   // loadImage() turns these into real URLs (A.url)
-      if (this.cache[key]) { if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; } return this.cache[key].mode; }
+      if (this.cache[key]) {
+        if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; }
+        await this.cache[key].ready;
+        return this.cache[key].mode;
+      }
+      const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null, imgs: {}, state: 'day', meta };
+      this.cache[key] = v;
+      let done; v.ready = new Promise(r => { done = r; });
       const scales = (meta && meta[key]) || {};
       const have = REQUIRED.every(p => scales[FILES[p]]);
-      const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null };
       // a chosen garment's view ('rail@2') shares depth, garment ids and window mask with its view ('rail')
-      const baseDir = A.config.assetBase + key.split('@')[0] + '/';
-      const masks = (A.config.views[key.split('@')[0]] || {}).masks !== false;   // the bed view has no garments or window
-      const [depth, ids, win] = await Promise.all([
+      const baseKey = key.split('@')[0], baseDir = A.config.assetBase + baseKey + '/';
+      const vc = A.config.views[baseKey] || {};
+      const wantIds = vc.ids !== false && vc.masks !== false, wantWin = vc.window !== false && vc.masks !== false;
+      const s3 = !!A.config.scene3;
+      const [depth, ids, win, masks, glow] = await Promise.all([
         loadImage(baseDir + 'depth.png'),
-        key.includes('@') || !masks ? null : loadImage(baseDir + 'ids.png'),
-        masks ? loadImage(baseDir + 'window.png') : null]);
+        key.includes('@') || !wantIds ? null : loadImage(baseDir + 'ids.png'),
+        wantWin ? loadImage(baseDir + 'window.png') : null,
+        s3 ? loadImage(baseDir + 'masks.png') : null,
+        s3 ? loadImage(baseDir + 'glow.png') : null]);
       if (have && this.gl) {
+        const lo = meta && meta._lo && !key.includes('@');
         const list = PASSES.filter(p => scales[FILES[p]]);
-        const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
+        const imgs = await Promise.all(list.map(p => loadImage(base + (lo ? 'lo/' : '') + FILES[p] + '.webp')));
         if (imgs.every(Boolean)) {
-          list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; });
+          list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; v.imgs[p] = imgs[i]; });
           v.size = [imgs[0].naturalWidth, imgs[0].naturalHeight]; v.mode = 'passes';
+          v.texW = imgs[0].naturalWidth;
+          if (lo) v.upgrade = () => this.upgrade(v, list, base);
         }
       }
       if (ids && this.gl) v.ids = this.texture(ids, true);
-      v.idsImg = ids;
+      v.idsImg = ids; v.masksImg = masks; v.masksDay = masks;
+      if (glow && this.gl) { v.glow = v.glowDay = this.texture(glow); }
       if (win && this.gl) { v.win = this.texture(win); v.winBox = Compositor.maskBox(win); }
+      const vd = this.viewsData && this.viewsData[baseKey];
+      v.platePx = (vd && vd.res) || v.size;            // full plate size (the textures may be the low-resolution copies)
       if (v.mode === 'none') {
         const b = await loadImage(base + 'beauty.webp');
         if (b) { v.beautyImg = b; v.size = [b.naturalWidth, b.naturalHeight]; v.mode = 'beauty'; if (this.gl) v.tex.beauty = this.texture(b); }
       }
       v.depth = depth && this.gl ? this.texture(depth) : null;
-      this.cache[key] = v;
+      if (!v.platePx) v.platePx = v.size;
       if (activate) { this.view = v; this.mode = v.mode; }
+      done();
+      if (this.state !== 'day') await this.applyState(v, this.state);
       return v.mode;
     }
+
+    /* Swap a view's low-resolution passes for the full ones (idle time after the first frames). */
+    async upgrade(v, list, base) {
+      v.upgrade = null;
+      const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
+      if (!imgs.every(Boolean)) return;
+      const gl = this.gl;
+      v.chain = (v.chain || Promise.resolve()).then(async () => {
+        list.forEach((p, i) => { gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgs[i]); v.imgs[p] = imgs[i]; });
+        v.texW = imgs[0].naturalWidth;
+        const st = v.state; v.state = 'day'; v.patched = null;      // the full plates carry no patches yet
+        if (st !== 'day') await this.applyStateNow(v, st);
+      });
+      await v.chain;
+      this.onChange && this.onChange();
+    }
+
+    /* ---------------------------------------------------------------- times of day (scene3) */
+    /* The state every loaded view should show; returns once the active view shows it. */
+    async setState(state) {
+      this.state = state;
+      const jobs = Object.values(this.cache).map(v => v.ready.then(() => this.applyState(v, state)));
+      await Promise.all(jobs);
+    }
+    applyState(v, state) {                       // one change at a time per view
+      v.chain = (v.chain || Promise.resolve()).then(() => this.applyStateNow(v, state)).catch(e => console.warn(e));
+      return v.chain;
+    }
+    async applyStateNow(v, state) {
+      if (!this.gl || v.mode !== 'passes' || v.state === state) return;
+      const info = v.meta && v.meta.states && v.meta.states[v.key];
+      const gl = this.gl, kOf = st => v.texW / ((st && st.res && st.res[0]) || v.platePx[0]);
+      const want = state !== 'day' && info && info[state] && info[state].rects.length ? info[state] : null;
+      // load what the new state needs before touching the textures, so a view never shows half of it
+      let patches = null;
+      if (want) {
+        const dir = A.config.assetBase + v.key + '/' + state + '/';
+        patches = await Promise.all(want.passes.map(f => Promise.all(want.rects.map((_, i) => loadImage(dir + f + '_' + i + '.webp')))));
+        if (patches.some(arr => arr.some(x => !x))) patches = null;
+      }
+      const night = state === 'night';
+      const [masksN, glowN] = A.config.scene3 && night && !v.masksNight
+        ? await Promise.all([loadImage(A.config.assetBase + v.key.split('@')[0] + '/masks_night.png'), loadImage(A.config.assetBase + v.key.split('@')[0] + '/glow_night.png')]) : [null, null];
+      if (v.state === state) return;            // another call got there first
+      const put = (tex, img, r, k) => {
+        const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        if (Math.abs(k - 1) < 1e-3 && img.naturalWidth === w && img.naturalHeight === h) {
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        } else {
+          const c = Compositor.scratch(w, h); const g = c.getContext('2d');
+          g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
+        }
+      };
+      // the previous state's rectangles go back to day
+      if (v.patched) {
+        const { rects, passes } = v.patched, k = kOf(v.patched);
+        passes.forEach(f => {
+          const p = KEY_OF[f], day = v.imgs[p]; if (!day || !v.tex[p]) return;
+          rects.forEach(r => {
+            const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+            const c = Compositor.scratch(w, h); const g = c.getContext('2d');
+            g.clearRect(0, 0, w, h); g.drawImage(day, x, y, w, h, 0, 0, w, h);
+            gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
+          });
+        });
+        v.patched = null;
+      }
+      if (want && patches) {
+        const k = kOf(want);
+        want.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) want.rects.forEach((r, i) => put(v.tex[p], patches[j][i], r, k)); });
+        v.patched = want;
+      }
+      if (masksN) v.masksNight = masksN;
+      if (glowN) v.glowNight = this.texture(glowN);
+      v.masksImg = night && v.masksNight ? v.masksNight : v.masksDay;
+      v.masksData = null;
+      v.glow = night && v.glowNight ? v.glowNight : v.glowDay;
+      v.state = state;
+    }
+    static scratch(w, h) {
+      const c = Compositor._scratch || (Compositor._scratch = document.createElement('canvas'));
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+      return c;
+    }
+
+    /* ---------------------------------------------------------------- swaying garments (scene3) */
+    /* Smooth weights per garment from the id mask (two RGBA textures, quarter size): 1 on the garment, fading out
+       a little beyond its edge, so the plate bends instead of tearing where a garment moves. */
+    buildSway(v, n) {
+      if (!this.gl || !v.idsImg || v.swayA) return;
+      const im = v.idsImg, W = Math.max(64, Math.round(im.naturalWidth / 4)), H = Math.max(36, Math.round(im.naturalHeight / 4));
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, W, H);
+      const src = g.getImageData(0, 0, W, H).data;
+      const out = [new Uint8Array(W * H * 4), new Uint8Array(W * H * 4)];
+      const m = new Float32Array(W * H), t = new Float32Array(W * H);
+      const r = Math.max(2, Math.round(W / 220));             // ~11 plate pixels at 2400 wide
+      const boxH = (a, b, rad) => { for (let y = 0; y < H; y++) { let s = 0; const o = y * W;
+        for (let x = -rad; x <= rad; x++) s += a[o + Math.min(W - 1, Math.max(0, x))];
+        for (let x = 0; x < W; x++) { b[o + x] = s / (2 * rad + 1); s += a[o + Math.min(W - 1, x + rad + 1)] - a[o + Math.max(0, x - rad)]; } } };
+      const boxV = (a, b, rad) => { for (let x = 0; x < W; x++) { let s = 0;
+        for (let y = -rad; y <= rad; y++) s += a[Math.min(H - 1, Math.max(0, y)) * W + x];
+        for (let y = 0; y < H; y++) { b[y * W + x] = s / (2 * rad + 1); s += a[Math.min(H - 1, y + rad + 1) * W + x] - a[Math.max(0, y - rad) * W + x]; } } };
+      for (let k = 0; k < Math.min(n, MAX_SWAY); k++) {
+        const id = (k + 1) * 32;
+        for (let i = 0; i < W * H; i++) m[i] = Math.abs(src[i * 4] - id) < 16 ? 1 : 0;
+        boxH(m, t, r); boxV(t, m, r);                           // dilate a little (values > 0 near the garment) ...
+        for (let i = 0; i < W * H; i++) m[i] = Math.min(1, m[i] * 2);
+        boxH(m, t, r); boxV(t, m, r);                           // ... then soften
+        const o = out[k >> 2], ch = k & 3;
+        for (let i = 0; i < W * H; i++) o[i * 4 + ch] = Math.round(m[i] * 255);
+      }
+      v.swayA = this.dataTexture(W, H, out[0]); v.swayB = this.dataTexture(W, H, out[1]);
+    }
+    /* hooks: per garment [u, v] of its hook in plate uv; angles in radians; ripple in plate pixels */
+    setSway(hooks, angles, ripple) {
+      const a = this.swayHooks; let on = false;
+      for (let i = 0; i < MAX_SWAY; i++) {
+        const h = hooks[i];
+        a[i * 4] = h ? h[0] : -10; a[i * 4 + 1] = h ? h[1] : -10; a[i * 4 + 2] = angles[i] || 0; a[i * 4 + 3] = ripple[i] || 0;
+        if (Math.abs(angles[i] || 0) > 2e-5 || Math.abs(ripple[i] || 0) > 0.02) on = true;
+      }
+      this.swayOn = on;
+    }
+    setGlow(rgb) { this.glow = rgb; }
 
     /* Cover-fit the plate into the canvas; pan (0..1) chooses which part shows when the plate is wider. */
     layout(w, h, dpr) {
@@ -195,6 +388,8 @@
       const pu = u - this.parallax[0] * (d - f), pv = v - this.parallax[1] * (d - f);
       return [(pu - ox) / zx * this.cssW, (pv - oy) / zy * this.cssH];
     }
+    /* CSS pixels -> plate uv (no parallax). */
+    toPlate(x, y) { const [ox, oy, zx, zy] = this.map; return [ox + x / this.cssW * zx, oy + y / this.cssH * zy]; }
     /* Scale from plate fraction to CSS pixels (horizontal). */
     get pxPerPlateX() { return this.cssW / this.map[2]; }
     get pxPerPlateY() { return this.cssH / this.map[3]; }
@@ -206,6 +401,7 @@
       const bind = (unit, tex) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex || this.blank); };
       REQUIRED.forEach((p, i) => bind(i, v.tex[p]));
       bind(7, v.depth); bind(8, v.tex.beauty); bind(9, v.tex.spot); bind(10, v.ids); bind(11, v.win);
+      bind(13, v.glow); bind(14, v.swayA); bind(15, v.swayB);
       // outdoor video: upload the current frame while it is visible
       const vidOk = this.video && this.video.readyState >= 2 && v.win && this.winAmt > 0.001;
       if (vidOk) {
@@ -224,6 +420,11 @@
         gl.uniform3fv(u.uVidGrade, this.videoGrade || [1, 1, 1]);
       }
       gl.uniform1f(u.uHasIds, v.ids ? 1 : 0); gl.uniform1f(u.uHover, this.hover); gl.uniform1f(u.uHoverAmt, this.hoverAmt);
+      const glowOn = !!v.glow && (this.glow[0] + this.glow[1] + this.glow[2]) > 0.002;
+      gl.uniform1f(u.uHasGlow, glowOn ? 1 : 0); gl.uniform3fv(u.uGlowAmt, this.glow);
+      const swayOn = !!v.swayA && this.swayOn;
+      gl.uniform1f(u.uHasSway, swayOn ? 1 : 0);
+      if (swayOn) { gl.uniform4fv(u.uSwayHook, this.swayHooks); gl.uniform1f(u.uTime, this.time); gl.uniform2fv(u.uPlatePx, v.platePx || v.size || [1, 1]); }
       gl.uniform4fv(u.uMap, this.map);
       gl.uniform2fv(u.uParallax, this.parallax);
       gl.uniform1f(u.uFocus, this.focus || 0.6);
@@ -235,7 +436,7 @@
       if (v.mode === 'passes') {
         const W = state.weights;
         gl.uniform3fv(u.wSky, W.sky); gl.uniform3fv(u.wSunLow, W.sunLow); gl.uniform3fv(u.wSunHigh, W.sunHigh);
-        gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, W.ceiling); gl.uniform3fv(u.wStreet, W.street);
+        gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, v.tex.ceiling ? W.ceiling : [0, 0, 0]); gl.uniform3fv(u.wStreet, W.street);
         gl.uniform3fv(u.wSpot, v.tex.spot ? (W.spot || [0, 0, 0]) : [0, 0, 0]);
         PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p] || 1));
         const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)

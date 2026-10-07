@@ -219,7 +219,7 @@
       if (i === this.hover) return;
       const prev = this.hover; this.hover = i;
       const mi = A.config.motion.intensity * A.config.interactionStrength;
-      const sw = A.config.motion.swing;
+      const sw = this.plate && A.config.motion.sway ? A.config.motion.sway : A.config.motion.swing;   // scene3: the rendered jerseys swing
       if (prev >= 0 && this.items[prev]) this.items[prev].kick(sw.leaveKick * mi * (Math.random() > 0.5 ? 1 : -1));
       if (i >= 0 && this.items[i]) this.items[i].kick(-sw.hoverKick * mi * Math.sign(this.pointer.vx || 1));
       this.app.onHover(i, fromKeyboard);
@@ -241,6 +241,8 @@
       if (this.plate) {             // exact garment shape from the rendered id mask
         const id = this.app.garmentAt(x, y);
         this.pointer.inside = id >= 0;
+        const sw = A.config.motion.sway;                          // brushing past a jersey sets it swinging
+        if (id >= 0 && sw && this.items[id]) this.items[id].omega += Math.max(-600, Math.min(600, vx)) * sw.brush * A.config.motion.intensity * A.config.interactionStrength;
         if (this.selected < 0 || this.view === 'room') this.setHover(id);
         return;
       }
@@ -299,10 +301,41 @@
       el.classList.add('is-on');
     }
 
+    /* A push on one jersey (a click, a hover): it swings, its neighbours a little (they touch on the rail). */
+    kickGarment(i, degPerS) {
+      const sw = A.config.motion.sway, g = this.items[i]; if (!g) return;
+      const dir = Math.sign(this.pointer.vx || (Math.random() - 0.5)) || 1, mi = A.config.motion.intensity * A.config.interactionStrength;
+      g.omega += degPerS * dir * mi;
+      [i - 1, i + 1].forEach(j => { if (this.items[j]) this.items[j].omega += degPerS * dir * (sw ? sw.neighbour : 0.3) * mi; });
+    }
+    /* Everything on the rail waves once, left to right (after something went into the bag: there is more). */
+    wave() {
+      this.items.forEach((g, i) => setTimeout(() => this.kickGarment(i, (A.config.motion.sway || {}).hoverKick || 2), 90 * i));
+    }
+    /* scene3 pendulums: angle (rad) and cloth ripple (plate px) per garment for the compositor. Returns true while
+       something swings (beyond the idle breathing). */
+    stepSway(dt, reduced) {
+      const sw = A.config.motion.sway, mi = A.config.motion.intensity * A.config.interactionStrength, n = this.items.length;
+      if (!this.swayAng) { this.swayAng = new Array(n).fill(0); this.swayRip = new Array(n).fill(0); }
+      let moving = false;
+      this.items.forEach((g, i) => {
+        if (reduced) { g.theta = 0; g.omega = 0; g.rip = 0; this.swayAng[i] = 0; this.swayRip[i] = 0; return; }
+        const acc = -sw.stiffness * g.theta - sw.damping * g.omega;
+        g.omega = Math.max(-40, Math.min(40, g.omega + acc * dt)); g.theta += g.omega * dt;
+        if (Math.abs(g.theta) > sw.maxDeg) { g.theta = Math.sign(g.theta) * sw.maxDeg; g.omega *= -0.3; }
+        const idle = sw.idleDeg * mi * Math.sin(this.t * 1.13 + g.phase) * (0.55 + 0.45 * Math.sin(this.t * 0.31 + g.phase * 2.3));
+        const ripT = (i === this.hover ? sw.ripple : 0) + Math.min(sw.ripple * 1.5, Math.abs(g.omega) * 0.5);
+        g.rip = (g.rip || 0) + (ripT * mi - (g.rip || 0)) * Math.min(1, dt * 3);
+        this.swayAng[i] = (g.theta + idle) * Math.PI / 180; this.swayRip[i] = g.rip;
+        if (Math.abs(g.omega) > 0.02 || Math.abs(g.theta) > 0.01 || g.rip > 0.05) moving = true;
+      });
+      return moving;
+    }
+
     /* Physics + DOM transforms. Returns true while anything is still moving. */
     step(dt, reduced) {
       this.t += dt;
-      if (this.plate) { this.positionOverlays(); return false; }
+      if (this.plate) { const m = A.config.scene3 && A.config.motion.sway ? this.stepSway(dt, reduced) : false; this.positionOverlays(); return m; }
       const cfg = A.config, m = cfg.motion, mi = m.intensity * cfg.interactionStrength;
       const k = m.spring.stiffness, c = m.spring.damping;
       const h = this.hover, s = (this.view === 'room') ? -1 : this.selected;

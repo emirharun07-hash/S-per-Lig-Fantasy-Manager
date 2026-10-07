@@ -7,14 +7,21 @@
 
 <div id="azur" class="azur" data-view="room">
   <header class="azur-head">
-    <a class="azur-head__logo" href="#" data-go="room" aria-label="AZUR, zurück ins Zimmer"><img src="assets/brand/azur-logo-paper.webp" alt="AZUR" width="480" height="227"></a>
-    <nav class="azur-head__nav" aria-label="Hauptnavigation">
+    <div class="azur-head__right">
+      <button class="azur-head__bag" type="button" aria-label="Sporttasche (Warenkorb) öffnen" hidden>
+        <svg viewBox="0 0 48 40" aria-hidden="true"><path class="bag-strap" d="M15 14 C15 5 33 5 33 14"/><rect class="bag-body" x="4" y="13" width="40" height="22" rx="10"/><path class="bag-stripe" d="M5 24 H43"/><circle class="bag-ball" cx="35" cy="24" r="5.2"/><path class="bag-ball-lines" d="M35 19.6 l3 2.4 -1.2 3.6 h-3.6 l-1.2-3.6z"/></svg>
+        <span class="azur-head__count">0</span>
+      </button>
+      <button class="azur-head__dots" type="button" aria-label="Menü" aria-expanded="false" aria-controls="azur-menu"><i></i><i></i><i></i></button>
+    </div>
+    <nav class="azur-menu" id="azur-menu" aria-label="Hauptnavigation" hidden>
       <a href="#trikots" data-go="rail">Shop</a>
       <a href="#trikots" data-go="rail">Kollektion</a>
       <a href="#anstoss" data-go="mag">Über uns</a>
-      <button class="azur-head__cart" type="button" aria-label="Warenkorb öffnen">Warenkorb (<span>0</span>)</button>
+      <a href="#" data-go="room">Zimmer</a>
     </nav>
   </header>
+  <a class="azur-ghost" href="#" aria-label="AZUR, zurück ins Zimmer"><img src="assets/brand/azur-logo-paper.webp" alt="AZUR" width="480" height="227"></a>
 
   <main class="azur-stage" aria-label="Das Zimmer">
     <div class="azur-world">
@@ -47,9 +54,9 @@
     <p class="azur-bedlabel azur-maglabel" aria-hidden="true">ANSTOSS lesen</p>
     <span class="azur-magglint" aria-hidden="true"></span>
     <nav class="azur-views" aria-label="Ansicht wählen">
+      <button type="button" data-view="bed">Bett</button>
       <button type="button" data-view="room">Zimmer</button>
       <button type="button" data-view="rail">Ständer</button>
-      <button type="button" data-view="bed">Bett</button>
     </nav>
     <div class="azur-loader" aria-hidden="true"><img class="azur-loader__neon" src="assets/brand/azur-logo-paper.webp" alt=""></div>
     <p class="azur-missing">Die Raumbilder werden gerade gerendert</p>
@@ -87,6 +94,7 @@
 <script src="js/azur-compositor.js"></script>
 <script src="js/azur-rail.js"></script>
 <script src="js/azur-drop.js"></script>
+<script src="js/azur-viewer.js"></script>
 <script src="js/azur-shop.js"></script>
 <script src="js/azur-panel.js"></script>
 <script src="js/azur-mag.js"></script>

@@ -5,6 +5,8 @@ window.AZUR = window.AZUR || {};
 
 AZUR.config = {
   assetBase: 'assets/views/',
+  scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
+  outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
 
   /* Accent systems. A is the chosen one; the others stay switchable in the design panel. */
   palettes: {
@@ -23,10 +25,22 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, masks: false },   // exposure: extra stops on top of the clock
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, ids: false, window: false },   // exposure: extra stops on top of the clock
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },
+  /* Hover outlines (scene3 glow.png) and the white dots that invite a click: where each view can go. */
+  targets: {
+    room: ['bed', 'rail'],
+    rail: ['bed'],
+    bed: ['mag', 'rail'],
+    rail_m: []
+  },
+  outline: { strength: 0.95, ease: 9 },
+
+  /* The room through the day, on the visitor's clock (hours). Night: he is asleep; morning: the duvet thrown back;
+     day: he is out (fewer things on the floor); evening: the school bag is back. */
+  dayStates: [{ from: 6.5, state: 'morning' }, { from: 9, state: 'day' }, { from: 17, state: 'evening' }, { from: 23, state: 'night' }],
   mobileQuery: '(max-width: 760px), (pointer: coarse) and (max-width: 1024px) and (orientation: portrait)',
 
   /* Garments on the rail. The 3D rail fans them 25° toward the window; CSS mirrors that. */
@@ -46,6 +60,8 @@ AZUR.config = {
     hover:  { lift: 0.035, forward: 0.045, turnDeg: -9, tiltDeg: 1.4, bright: 1.07, neighbourPush: 0.16, falloff: 0.45 },
     select: { lift: 0.06, forward: 0.16, turnDeg: -24, push: 0.42, dimRoom: 0.62, blurRoom: 2.5 },
     labelDelay: 90,
+    /* scene3: the jerseys in the render swing on their hooks (degrees, per second); ripple = cloth wave in plate px */
+    sway: { stiffness: 9, damping: 1.5, maxDeg: 2.6, hoverKick: 2.2, leaveKick: 1.0, brush: 0.00025, clickKick: 4.5, idleDeg: 0.22, ripple: 2.4, neighbour: 0.35 },
     pan: { outMs: 520, inMs: 820, zoom: 1.32, blurPx: 14, drift: 0.04 },   // fake camera move between views
     parallaxEase: 0.06        // how fast the room follows the pointer
   },
@@ -65,6 +81,7 @@ AZUR.config = {
     { h: 19.6, sky: [0.62, 0.45, 0.42],    sunLow: [0.85, 0.36, 0.14], sunHigh: 0, neon: 0.75, lamp: 0.25, ceiling: 0, spot: 0.6, street: 0, exposure: 2.85, window: 0.8, garment: [0.78, 0.4, 0.05] },
     { h: 20.6, sky: [0.17, 0.22, 0.42],    sunLow: 0, sunHigh: 0, neon: 1.0, lamp: 0.75, ceiling: 0.0, spot: 0.7, street: 0.15, exposure: 2.95, window: 0.55, garment: [0.48, 0.12, 0.3] },
     { h: 22.3, sky: [0.04, 0.055, 0.11],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.85, ceiling: 0.0, spot: 0.7, street: 0.3, exposure: 3.0, window: 0.25, garment: [0.32, 0.04, 0.36] },
+    { h: 23.0, sky: [0.02, 0.028, 0.06],   sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0, spot: 0.55, street: 0.3, exposure: 3.0, window: 0.18, garment: [0.3, 0.0, 0.4] },   // lights out
     { h: 24.0, sky: [0.012, 0.016, 0.034], sunLow: 0, sunHigh: 0, neon: 1.05, lamp: 0.0,  ceiling: 0.0,  spot: 0.5, street: 0.3,  exposure: 3.0, window: 0.15, garment: [0.28, 0.0, 0.42] }
   ],
   lampTint: [1.0, 0.62, 0.32],        // warm bulb in the desk lamp
@@ -118,7 +135,9 @@ AZUR.config = {
       storyQuote: 'Getragen auf dem Platz und danach.',
       lookKicker: 'Lookbook',
       tocKicker: 'In diesem Heft',
-      toRail: 'Am Ständer ansehen', toShop: 'Im Shop',
+      toRail: 'Am Ständer ansehen', toProduct: 'Ansehen', toShop: 'Im Shop',
+      /* pages: null = the default issue (cover, editorial, photo, all jerseys, drop, back); see azur-mag.js */
+      pages: null,
       dropKicker: 'Vorschau',
       dropHead: 'Nächster Drop',
       dropText: 'Am Ständer hängt noch etwas unter der Hülle. Noch unter Verschluss. Trag dich ein, dann erfährst du es zuerst.',
@@ -127,6 +146,15 @@ AZUR.config = {
       credits: 'Fotos: sasint, Negative Space (CC0)'
     },
     roomHint: 'Klick auf den Ständer oder aufs Bett',
+    goBed: 'Zum Bett', goRail: 'Zum Ständer',
+    menu: 'Menü', menuClose: 'Menü schließen', bag: 'Sporttasche (Warenkorb)',
+    menuLinks: [['Shop', 'rail'], ['Kollektion', 'rail'], ['Über uns', 'mag'], ['Zimmer', 'room']],
+    viewerHint: 'Ziehen zum Drehen · Scrollen zum Zoomen',
+    viewerHintTouch: 'Wischen zum Drehen · Zwei Finger zum Zoomen',
+    shipTo: 'Noch {x} bis zum kostenlosen Versand',
+    shipFree: 'Versand ist kostenlos',
+    keepLooking: 'Weiter umsehen', toCart: 'Zur Tasche',
+    openInShop: 'Im Shop öffnen',
     prototypeNote: 'Prototyp · Warenkorb und Anmeldung sind simuliert'
   }
 };

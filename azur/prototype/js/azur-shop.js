@@ -1,7 +1,8 @@
 /* AZUR — product page over the room and the cart.
-   The product page opens over the room: the room stays visible behind it, the chosen jersey flies from the rail
-   into the page. Prototype: a simulated cart. Shopify (A.config.shopify): the size goes into the real cart
-   (/cart/add.js) and the theme's own cart drawer opens; checkout is Shopify's. */
+   The product view opens over the room right from a click on a jersey: one half the jersey (a 3D model to turn and
+   zoom, the shop photo until it is loaded or without WebGL), the other half to buy. After a size goes into the bag,
+   the page shows how far it is to free shipping and offers to keep looking. Prototype: a simulated cart. Shopify
+   (A.config.shopify): the real cart (/cart/add.js, /cart.js) and the theme's own cart drawer; checkout is Shopify's. */
 (function () {
   const A = window.AZUR = window.AZUR || {};
 
@@ -15,6 +16,8 @@
         <div class="azur-pdp__stage">
           <div class="azur-pdp__light" aria-hidden="true"></div>
           <img class="azur-pdp__img" alt="">
+          <canvas class="azur-pdp__canvas" tabindex="0" aria-label="3D-Ansicht des Trikots: ziehen zum Drehen, scrollen zum Zoomen, Doppelklick setzt zurück"></canvas>
+          <p class="azur-pdp__hint" aria-hidden="true"></p>
         </div>
         <div class="azur-pdp__info">
           <nav class="azur-pdp__crumbs" aria-label="Pfad"><button type="button" data-act="close">${c.room}</button><span aria-hidden="true">/</span><span>Trikots</span></nav>
@@ -28,15 +31,27 @@
           </fieldset>
           <button class="azur-pdp__add" type="button" data-act="add" disabled>${c.chooseSize}</button>
           <p class="azur-pdp__error" role="alert" hidden></p>
+          <div class="azur-pdp__after" role="status" hidden>
+            <p class="azur-pdp__ship"></p>
+            <div class="azur-pdp__bar" aria-hidden="true"><i></i></div>
+            <div class="azur-pdp__acts2">
+              <button type="button" data-act="more">${c.keepLooking}</button>
+              <button type="button" data-act="cart">${c.toCart}</button>
+            </div>
+          </div>
           <ul class="azur-pdp__facts">
             <li>${A.store.shipping}</li>
             <li>${A.store.care}</li>
           </ul>
-          ${this.live ? `<a class="azur-pdp__shop">${c.toProductPage || 'Zur Produktseite'} <span aria-hidden="true">→</span></a>`
-            : '<a class="azur-pdp__shop" target="_blank" rel="noopener">Im Shop öffnen <span aria-hidden="true">↗</span></a>'}
+          ${this.live ? `<a class="azur-pdp__shop" target="_blank" rel="noopener">${c.openInShop || c.toProductPage || 'Im Shop öffnen'} <span aria-hidden="true">↗</span></a>`
+            : `<a class="azur-pdp__shop" target="_blank" rel="noopener">${c.openInShop || 'Im Shop öffnen'} <span aria-hidden="true">↗</span></a>`}
           <button class="azur-pdp__back" type="button" data-act="close"><span aria-hidden="true">←</span> ${c.backToRoom}</button>
         </div>`;
       document.body.appendChild(this.pdp);
+      this.canvas = this.pdp.querySelector('.azur-pdp__canvas');
+      this.viewer = A.Viewer ? new A.Viewer(this.canvas) : null;
+      this.canvas.addEventListener('azur-touched', () => this.pdp.classList.add('is-touched'));
+      this.pdp.querySelector('.azur-pdp__hint').textContent = matchMedia('(pointer: coarse)').matches ? c.viewerHintTouch : c.viewerHint;
       if (this.live) { this.drawer = null; this.bind(); return; }      // the theme's cart drawer takes over
 
       this.drawer = document.createElement('aside');
@@ -59,12 +74,15 @@
         const t = e.target.closest('[data-act]'); if (!t) return;
         if (t.dataset.act === 'close') this.close();
         if (t.dataset.act === 'add') this.add();
+        if (t.dataset.act === 'more') { this.close(); this.app.keepLooking(); }
+        if (t.dataset.act === 'cart') { this.close(); this.toggleCart(true); }
       });
       this.pdp.addEventListener('change', e => {
         if (e.target.name === 'azur-size') {
           this.size = e.target.value;
           const b = this.pdp.querySelector('.azur-pdp__add');
           b.disabled = false; b.textContent = A.config.copy.addToCart; b.classList.remove('is-done');
+          this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
       this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
@@ -89,6 +107,13 @@
       q('.azur-pdp__desc').textContent = product.description;
       q('.azur-pdp__shop').href = product.productUrl;      // Shopify: the real product page
       const img = q('.azur-pdp__img'); img.src = product.image; img.alt = product.name;
+      q('.azur-pdp__after').hidden = true;
+      // the 3D jersey (scene3 models), the photo until then
+      this.pdp.classList.remove('has-model', 'is-touched');
+      if (this.viewer && this.viewer.ok && A.config.scene3) {
+        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.glb');
+        this.viewer.show(url).then(ok => { if (ok && this.product === product && this.pdp.classList.contains('is-on')) this.pdp.classList.add('has-model'); });
+      }
       q('.azur-pdp__sizerow').innerHTML = product.variants.map((v, i) => `
         <label class="azur-size"><input type="radio" name="azur-size" value="${v.id}" ${v.available ? '' : 'disabled'}><span>${v.title}</span></label>`).join('');
       q('.azur-pdp__error').hidden = true;
@@ -116,7 +141,8 @@
 
     close() {
       if (!this.pdp.classList.contains('is-on')) return;
-      this.pdp.classList.remove('is-on');
+      this.pdp.classList.remove('is-on', 'has-model');
+      if (this.viewer) this.viewer.stop();
       document.documentElement.classList.remove('azur-pdp-open');
       this.app.setWorldDim();
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
@@ -132,6 +158,20 @@
       this.save(); this.renderCart();
       const b = this.pdp.querySelector('.azur-pdp__add'); b.textContent = A.config.copy.added + ' ✓'; b.classList.add('is-done');
       this.app.bumpCart();
+      this.showAfter(this.cart.reduce((s, l) => s + l.price * l.qty, 0));
+    }
+
+    /* After the bag: how far to free shipping (A.store.freeShippingFrom, euros), keep looking or go to the bag. */
+    showAfter(total) {
+      const c = A.config.copy, from = Number(A.store && A.store.freeShippingFrom) || 0, box = this.pdp.querySelector('.azur-pdp__after');
+      const ship = box.querySelector('.azur-pdp__ship'), bar = box.querySelector('.azur-pdp__bar');
+      if (from > 0) {
+        const left = Math.max(0, from - total);
+        ship.textContent = left > 0.004 ? c.shipTo.replace('{x}', A.formatPrice(left)) : c.shipFree + ' ✓';
+        bar.hidden = false; bar.style.setProperty('--p', '0');
+        requestAnimationFrame(() => requestAnimationFrame(() => bar.style.setProperty('--p', Math.min(1, total / from).toFixed(3))));
+      } else { ship.textContent = c.added + ' ✓'; bar.hidden = true; }
+      box.hidden = false;
     }
 
     async addLive(v) {
@@ -144,11 +184,11 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.status >= 400) throw new Error(data.description || data.message || 'Das hat nicht geklappt.');
         b.textContent = c.added + ' ✓'; b.classList.add('is-done');
-        setTimeout(() => {                      // the theme drawer shows the cart (it re-renders itself from Liquid)
-          this.close();
-          const opener = document.querySelector('[data-cart-open]');
-          if (opener) opener.click(); else location.href = root + 'cart';
-        }, 650);
+        const cart = await fetch(root + 'cart.js', { headers: { Accept: 'application/json' } }).then(r => r.json()).catch(() => null);
+        if (cart) { this.app.setCartCount(cart.item_count); this.showAfter(cart.total_price / 100); }
+        else this.showAfter(0);
+        this.app.bumpCart();
+        document.dispatchEvent(new CustomEvent('azur:cart-changed', { detail: cart }));   // themes can refresh their own count
       } catch (e) {
         err.textContent = e.message; err.hidden = false;
         b.textContent = c.addToCart;
@@ -171,7 +211,11 @@
     }
 
     toggleCart(on) {
-      if (!this.drawer) { const o = document.querySelector('[data-cart-open]'); if (o && on !== false) o.click(); return; }
+      if (!this.drawer) {           // Shopify: the theme's drawer (its opener, or our bag carries data-cart-open)
+        const o = document.querySelector('[data-cart-open]'); const root = (window.Shopify && Shopify.routes && Shopify.routes.root) || '/';
+        if (on !== false) { if (o) o.click(); else location.href = root + 'cart'; }
+        return;
+      }
       const open = on == null ? !this.drawer.classList.contains('is-on') : on;
       this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open));
       if (open) this.drawer.querySelector('.azur-cart__close').focus({ preventScroll: true });

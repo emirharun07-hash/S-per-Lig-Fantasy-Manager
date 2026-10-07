@@ -1,7 +1,9 @@
 /* AZUR — app: views, camera moves, pointer, phones, window, header, loop.
-   Desktop starts in the room (establishing shot). Clicking a jersey there moves the camera to the rail and opens
-   that jersey in one step. The bed has its own view (easter egg to come). Phones start at the rail and swipe along it.
-   Camera moves are faked from stills for now (zoom, drift, blur); real pre-rendered moves can replace go() later. */
+   Desktop starts in the room (establishing shot). A click on a jersey opens its product view right away (half the
+   page the jersey to turn and zoom, half the page to buy); hovering shows a small label. The bed and the rail light
+   up in white when the pointer is on them and take the camera there; white dots invite the click. The magazine on
+   the duvet opens ANSTOSS. Phones start at the rail and swipe along it. The room follows the visitor's clock:
+   light passes mix by the hour, and the things in the room change with the time of day (scene3). */
 (function () {
   const A = window.AZUR = window.AZUR || {};
   const $ = (s, r = document) => r.querySelector(s);
@@ -22,13 +24,13 @@
       this.root.classList.toggle('is-mobile', this.isMobile);
       this.applyPalette();
 
-      // scene2: the jerseys are real 3D garments inside the renders (owner feedback: they looked pasted in)
-      if (cfg.useScene2 !== false) {
-        const s2 = cfg.scene2Base || 'assets/scene2/views/';
-        const ok = (cfg.inline && cfg.inline[s2 + 'passes.json']) ? true
-          : await fetch(A.url(s2 + 'passes.json'), { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
-        if (ok) { cfg.assetBase = s2; cfg.plateGarments = true; }
-      }
+      // scene3: the room through the day, jerseys on real hangers, hover outlines; scene2: jerseys in the renders
+      const exists = b => (cfg.inline && cfg.inline[b + 'passes.json']) ? Promise.resolve(true)
+        : fetch(A.url(b + 'passes.json'), { cache: 'no-cache' }).then(r => r.ok).catch(() => false);
+      const s3 = cfg.scene3Base || 'assets/scene3/views/', s2 = cfg.scene2Base || 'assets/scene2/views/';
+      if (cfg.useScene3 !== false && await exists(s3)) { cfg.assetBase = s3; cfg.plateGarments = true; cfg.scene3 = true; }
+      else if (cfg.useScene2 !== false && await exists(s2)) { cfg.assetBase = s2; cfg.plateGarments = true; }
+      this.root.classList.toggle('is-scene3', !!cfg.scene3);
       this.plate = !!cfg.plateGarments;
       this.root.classList.toggle('is-plate', this.plate);
       const base = cfg.assetBase;
@@ -36,7 +38,11 @@
         this.plate ? Promise.resolve({}) : getJSON(base + 'sprites.json'), getJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
       this.moveFrames = {};
       this.comp = new A.Compositor(this.canvas);
+      this.comp.viewsData = this.views; this.comp.onChange = () => this.kick();
       this.root.classList.toggle('no-webgl', !this.comp.ok);
+      this.glowAmt = [0, 0, 0]; this.region = null;
+      this.dayState = cfg.scene3 ? this.stateNow() : 'day';
+      this.comp.state = this.dayState; this.root.dataset.state = this.dayState;
       this.rail = new A.Rail(this.layer, A.products, this);
       this.drop = new A.Drop(this.layer, this);
       this.shop = new A.Shop(this);
@@ -64,11 +70,36 @@
       this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient();
       requestAnimationFrame(t => this.frame(t));
       setTimeout(() => this.showHint(), this.reduced ? 200 : 1600);
+      const up = v => v && v.upgrade && v.upgrade();
+      setTimeout(() => up(this.comp.view), 900);                   // published builds start on smaller copies
       // other views load in the background so camera moves never wait (each view is 8 textures: phones load on demand,
       // desktops skip the phone plate)
-      if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => this.loadDepth(k))), 2500);
+      if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => { this.loadDepth(k); setTimeout(() => up(this.comp.cache[k]), 1500); })), 2500);
       setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
+    }
+
+    /* ---------------------------------------------------------------- times of day (scene3) */
+    stateNow() {
+      const o = A.light.overrides, d = new Date();
+      const h = o && o.timeHours != null ? o.timeHours : d.getHours() + d.getMinutes() / 60;
+      const list = A.config.dayStates || []; let st = list.length ? list[list.length - 1].state : 'day';
+      list.forEach(e => { if (h >= e.from) st = e.state; });
+      return st;
+    }
+    /* The room changes while it is open (or the design panel's clock moves): the change crossfades. */
+    async changeState(st) {
+      if (!A.config.scene3 || st === this.dayState || this.stateBusy) return;
+      this.stateBusy = true; this.dayState = st; this.root.dataset.state = st;
+      const fade = !this.reduced && !this.busy && this.comp.ok && this.root.classList.contains('is-ready');
+      if (fade) {
+        this.comp.render(this.light); this.comp.snapshotInto(this.snapCtx);
+        Object.assign(this.snap.style, { transform: '', filter: '', opacity: '1' }); this.snap.hidden = false;
+      }
+      await this.comp.setState(st);
+      this.comp.render(this.light); this.placeChrome(); this.kick();
+      if (fade) { await this.snap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, easing: 'ease-in-out' }).finished.catch(() => { }); this.snap.hidden = true; }
+      this.stateBusy = false;
     }
 
     applyPalette() {
@@ -177,13 +208,16 @@
        Only the sets the current light needs are downloaded. Phones (rail_m) keep the fake move. */
     moveMix() {
       const s = this.light, w = Math.max(0, Math.min(1, (s.night - 0.08) / 0.7));
-      return { night: w, day: w < 0.98, nightOn: w > 0.02 };
+      // scene3: the evening has its own flights (golden hour, the school bag back on the floor)
+      const base = A.config.scene3 && this.dayState === 'evening' ? 'evening' : 'day';
+      return { night: w, day: w < 0.98, nightOn: w > 0.02, base };
     }
+    baseFrames(name, mix) { return this.moveFramesFor(name, mix.base) || (mix.base !== 'day' ? this.moveFramesFor(name, 'day') : null); }
     moveFramesFor(name, variant) {
       const m = this.moves && this.moves[name]; if (!m || !(m.variants || ['day']).includes(variant)) return null;
       const key = name + ':' + variant;
       if (!this.moveFrames[key]) {
-        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = variant === 'night' ? 'n' : 'f';
+        const base = A.config.assetBase.replace(/views\/$/, 'moves/') + name + '/', pre = { night: 'n', evening: 'e' }[variant] || 'f';
         const img = src => { const im = new Image(); im.decoding = 'async'; im.src = src; return im; };
         if (m.atlas) {      // published build (tools/build_artifact.py): frames stacked in a few vertical strips
           const per = m.atlas.per, strips = Array.from({ length: Math.ceil(m.frames / per) }, (_, s) => img(A.url(`${base}${pre}_s${s}.webp`)));
@@ -202,7 +236,7 @@
       const mix = this.moveMix(), base = A.config.assetBase;
       Object.keys(this.moves || {}).forEach(name => {
         if (this.isMobile !== name.startsWith('rail_m-')) return;
-        if (mix.day) this.moveFramesFor(name, 'day'); if (mix.nightOn) this.moveFramesFor(name, 'night');
+        if (mix.day) this.baseFrames(name, mix); if (mix.nightOn) this.moveFramesFor(name, 'night');
         const m = this.moves[name]; [m.from_, m.to].forEach(v => { if (A.sprites && A.sprites[v]) new Image().src = A.url(base + v + '/drop.webp'); });
       });
     }
@@ -210,7 +244,7 @@
       const mix = this.moveMix();
       const ready = name => {
         const need = [];
-        if (mix.day) need.push(this.moveFramesFor(name, 'day'));
+        if (mix.day) need.push(this.baseFrames(name, mix));
         if (mix.nightOn) need.push(this.moveFramesFor(name, 'night'));
         if (mix.night > 0.5 && !need[need.length - 1]) return false;            // a golden-hour flight into a night room would jar
         const sets = need.filter(Boolean);
@@ -222,13 +256,13 @@
     }
     async playMove(mv, to) {
       const mix = this.moveMix(), m = this.moves[mv.name];
-      const day = mix.day && this.moveFramesFor(mv.name, 'day'), night = mix.nightOn && this.moveFramesFor(mv.name, 'night');
+      const day = mix.day && this.baseFrames(mv.name, mix), night = mix.nightOn && this.moveFramesFor(mv.name, 'night');
       const n = m.frames, fps = m.fps || 30;
       const c = this.snap, ctx = this.snapCtx, dpr = Math.min(window.devicePixelRatio || 1, 2);
       const W = this.stage.clientWidth, H = this.stage.clientHeight;
       c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
       // day frames are golden hour: multiply toward the clock (same grade as the beauty fallback)
-      const g = A.Compositor.beautyGrade(this.light), gmax = Math.max(1, g[0], g[1], g[2]);
+      const g = A.config.scene3 ? [1, 1, 1] : A.Compositor.beautyGrade(this.light), gmax = Math.max(1, g[0], g[1], g[2]);   // scene3 frames match their time of day
       const mul = `rgb(${g.map(x => Math.round(Math.min(1, x / gmax) * 255)).join(',')})`;
       const nb = 0.8 + 0.2 * Math.min(1, (this.light.lamp ? (this.light.lamp[0] || this.light.lamp) : 0) / 0.85);
       c.style.filter = gmax > 1 ? `brightness(${(1 + (gmax - 1) * (1 - mix.night)).toFixed(3)})` : '';
@@ -300,11 +334,13 @@
         const on = b.dataset.view === vk || (b.dataset.view === 'rail' && vk === 'rail_m');
         b.setAttribute('aria-current', on ? 'true' : 'false');
       });
-      this.bedSvg.style.display = this.viewKey === 'room' ? '' : 'none';
-      const magOn = this.viewKey === 'bed' && !!this.mag && !!(this.views.bed && this.views.bed.magazine);
+      const s3 = !!A.config.scene3;                  // scene3: outlines and white dots replace the drawn hotspots
+      this.bedSvg.style.display = this.viewKey === 'room' && !s3 ? '' : 'none';
+      const magOn = !s3 && this.viewKey === 'bed' && !!this.mag && !!(this.views.bed && this.views.bed.magazine);
       this.magSvg.style.display = magOn ? '' : 'none'; this.magGlint.classList.toggle('is-on', magOn);
       if (!magOn) this.magLabel.classList.remove('is-on');
       this.tease.classList.toggle('is-on', this.viewKey === 'bed');
+      this.setRegion(null);
     }
 
     /* ---------------------------------------------------------------- selection + products */
@@ -379,6 +415,9 @@
     }
     onGarmentClick(i) {
       if (this.dragMoved) return;
+      const p = A.products[i]; if (!p) return;
+      this.rail.kickGarment(i, A.config.motion.sway.clickKick);
+      if (p.type === 'product' && this.plate) { this.hideHint(); return this.openProduct(i); }   // straight to the product view
       if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
       this.select(i);
     }
@@ -411,16 +450,31 @@
       const p = A.products[i]; if (!p) return;
       this.shop.open(p, this.rail.garmentRect(i));
     }
+    /* "Weiter umsehen" after the bag: back to the rail, where everything waves once. */
+    async keepLooking() {
+      if (this.isMobile) { if (this.viewKey !== 'rail_m') await this.go('rail_m'); }
+      else if (this.viewKey === 'bed') await this.go('room');
+      setTimeout(() => { this.rail.wave(); this.kick(); }, 250);
+    }
     afterProductClose() { const s = this.rail.selected; if (s >= 0) this.rail.items[s].hit.focus({ preventScroll: true }); }
     setWorldDim(d = 1, blur = 0) {
-      if (this.rail.selected >= 0 && d === 1) { d = A.config.motion.select.dimRoom; blur = A.config.motion.select.blurRoom; }
+      // the old layered rail dimmed the room behind a chosen jersey; the rendered room never stays blurred
+      if (!this.plate && this.rail.selected >= 0 && d === 1) { d = A.config.motion.select.dimRoom; blur = A.config.motion.select.blurRoom; }
       this.dimTarget = d;
       this.canvas.style.filter = blur ? `blur(${blur}px)` : '';
       this.fallbackImg.style.filter = this.canvas.style.filter;
       this.kick();
     }
-    setCartCount(n) { if (this.cartBtn) this.cartBtn.querySelector('span').textContent = n; }
-    bumpCart() { if (this.cartBtn) this.cartBtn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 420 }); }
+    /* the sports bag (cart) shows once something is in it */
+    setCartCount(n) {
+      this.cartCount = n;
+      if (this.bagBtn) { this.bagBtn.hidden = !(n > 0); const c = this.bagBtn.querySelector('.azur-head__count'); if (c) c.textContent = n; }
+    }
+    bumpCart() {
+      if (!this.bagBtn) return;
+      this.bagBtn.animate([{ transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-5px) rotate(-8deg)', offset: 0.35 },
+        { transform: 'translateY(0) rotate(4deg)', offset: 0.7 }, { transform: 'none' }], { duration: 620, easing: 'ease-out' });
+    }
 
     /* ---------------------------------------------------------------- depth (same values the shader sees) */
     encDepth(metres) { return lin2srgb(Math.max(0, Math.min(1, (DEPTH.far - metres) / (DEPTH.far - DEPTH.near)))); }
@@ -444,14 +498,42 @@
     /* ---------------------------------------------------------------- chrome: header, view chips, hint, bed, window */
     buildChrome() {
       const c = A.config.copy;
-      const head = $('.azur-head');                    // the prototype's own header; Shopify uses the theme header
-      this.cartBtn = head && head.querySelector('.azur-head__cart');
-      if (this.cartBtn) this.cartBtn.addEventListener('click', () => this.shop.toggleCart());
+      // header over the room: nothing but the sports bag (once something is in it) and three glowing dots for the menu;
+      // the logo only shows, dimmed, behind the product view and the magazine (it takes you back into the room)
+      const head = $('.azur-head');
+      this.bagBtn = head && head.querySelector('.azur-head__bag');
+      if (this.bagBtn && !A.config.shopify) this.bagBtn.addEventListener('click', () => this.shop.toggleCart());   // Shopify: the theme's drawer ([data-cart-open])
+      this.setCartCount(A.store && A.store.cartCount || 0);
+      this.menuBtn = head && head.querySelector('.azur-head__dots'); this.menu = head && head.querySelector('.azur-menu');
+      if (this.menuBtn && this.menu) {
+        this.menuBtn.addEventListener('click', e => { e.stopPropagation(); this.toggleMenu(); });
+        document.addEventListener('click', e => { if (!this.menu.hidden && !e.target.closest('.azur-menu, .azur-head__dots')) this.toggleMenu(false); });
+      }
+      const ghost = $('.azur-ghost');
+      if (ghost) ghost.addEventListener('click', e => {
+        e.preventDefault();
+        if (this.shop.pdp.classList.contains('is-on')) this.shop.close();
+        if (this.mag && this.mag.isOpen) this.mag.close();
+      });
       document.querySelectorAll('.azur-head [data-go], [data-azur-go]').forEach(a => a.addEventListener('click', e => {
         e.preventDefault(); const t = a.dataset.go || a.dataset.azurGo;
+        this.toggleMenu(false);
         if (A.config.shopify) this.root.scrollIntoView({ behavior: this.reduced ? 'auto' : 'smooth' });
         if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail'); else if (t === 'mag') this.openMag(); else this.go(t);
       }));
+      // scene3: white dots on what can be visited from here (bed, rail, magazine); hover lights its outline
+      this.dotBox = document.createElement('div'); this.dotBox.className = 'azur-dots'; this.layer.after(this.dotBox);
+      this.dots = {};
+      [['bed', c.goBed], ['rail', c.goRail], ['mag', c.magSpot]].forEach(([t, label]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'azur-dot azur-dot--' + t; b.dataset.target = t;
+        b.setAttribute('aria-label', label); b.hidden = true;
+        b.addEventListener('click', e => { e.stopPropagation(); this.goTarget(t); });
+        b.addEventListener('pointerenter', () => this.setRegion(t, true)); b.addEventListener('pointerleave', () => this.setRegion(null));
+        b.addEventListener('focus', () => this.setRegion(t, true)); b.addEventListener('blur', () => this.setRegion(null));
+        this.dotBox.appendChild(b); this.dots[t] = b;
+      });
+      this.goLabel = document.createElement('p'); this.goLabel.className = 'azur-bedlabel azur-golabel'; this.goLabel.setAttribute('aria-hidden', 'true');
+      this.dotBox.appendChild(this.goLabel);
       this.chips = $('.azur-views');
       this.chips.addEventListener('click', e => {
         const b = e.target.closest('button[data-view]'); if (!b) return;
@@ -495,7 +577,7 @@
         const vid = document.createElement('video');
         Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'auto' });
         vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
-        const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
+        const ob = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
         [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
           const so = document.createElement('source'); so.src = A.url(ob + f); so.type = t; vid.appendChild(so); });
         Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
@@ -523,6 +605,7 @@
     }
 
     placeChrome() {
+      this.placeDots();
       const comp = this.comp, v = this.views[this.viewKey] || {}, vc = A.config.views[this.viewKey] || {};
       // bed hotspot
       if (this.viewKey === 'room' && vc.bedHotspot) {
@@ -557,6 +640,84 @@
       } else this.windowEl.hidden = true;
     }
     isMobileView() { return this.viewKey === 'rail_m'; }
+
+    /* ---------------------------------------------------------------- scene3: outlines, dots, menu */
+    toggleMenu(on) {
+      if (!this.menu) return;
+      const open = on == null ? this.menu.hidden : on;
+      this.menu.hidden = !open; this.menuBtn.setAttribute('aria-expanded', String(open));
+      this.root.classList.toggle('menu-open', open);
+      if (open) { const f = this.menu.querySelector('a, button'); if (f) f.focus({ preventScroll: true }); }
+    }
+    targets() { return A.config.scene3 ? (A.config.targets[this.viewKey.split('@')[0]] || []) : []; }
+    /* Which outline region (bed, rail, magazine) is at a stage point: masks.png R, G, B (half size). */
+    regionAt(x, y) {
+      const cv = this.comp.view, t = this.targets(); if (!cv || !cv.masksImg || !t.length) return null;
+      const d = this.masksData(cv); if (!d) return null;
+      let [u, w] = this.comp.toPlate(x, y);
+      const dep = this.depthAt(u, w), f = this.comp.focus || 0.6;
+      u += this.parallax[0] * (dep - f); w += this.parallax[1] * (dep - f);
+      const px = Math.floor(u * d.w), py = Math.floor(w * d.h);
+      if (px < 0 || py < 0 || px >= d.w || py >= d.h) return null;
+      const i = (py * d.w + px) * 4, r = d.data[i], g = d.data[i + 1], b = d.data[i + 2];
+      if (b > 127 && t.includes('mag')) return 'mag';
+      if (r > 127 && t.includes('bed')) return 'bed';
+      if (g > 127 && t.includes('rail')) return 'rail';
+      return null;
+    }
+    masksData(cv) {
+      if (cv.masksData) return cv.masksData;
+      const im = cv.masksImg; if (!im || !im.naturalWidth) return null;
+      const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0);
+      const d = { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+      // where each region's dot sits: the bed and the magazine at their middle, the rail near its top (the bar)
+      d.anchors = {};
+      ['bed', 'rail', 'mag'].forEach((t, ch) => {
+        let n = 0, sx = 0, sy = 0, y0 = d.h, y1 = -1;
+        for (let y = 0; y < d.h; y += 2) for (let x = 0; x < d.w; x += 2) if (d.data[(y * d.w + x) * 4 + ch] > 127) { n++; sx += x; sy += y; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        if (n < 12) return;
+        let ax = sx / n, ay = t === 'rail' ? y0 + (y1 - y0) * 0.04 : sy / n;
+        // snap onto the region (a concave shape's middle can fall outside it)
+        let best = null, bd = 1e12;
+        for (let y = 0; y < d.h; y += 2) for (let x = 0; x < d.w; x += 2) if (d.data[(y * d.w + x) * 4 + ch] > 127) {
+          const dd = (x - ax) ** 2 + (y - ay) ** 2; if (dd < bd) { bd = dd; best = [x, y]; } }
+        if (best) d.anchors[t] = [(best[0] + 0.5) / d.w, (best[1] + 0.5) / d.h];
+      });
+      cv.masksData = d; return d;
+    }
+    setRegion(t, fromDot) {
+      if (t === this.region && !fromDot) return;
+      this.region = t;
+      this.stage.classList.toggle('is-going', !!t);
+      const el = this.goLabel; if (!el) return;
+      const c = A.config.copy, dot = t && this.dots[t];
+      if (t && dot && !dot.hidden) {
+        el.textContent = t === 'bed' ? c.goBed : t === 'rail' ? c.goRail : c.magSpot;
+        el.style.left = dot.style.left; el.style.top = (parseFloat(dot.style.top) - 18) + 'px';
+        el.classList.add('is-on');
+      } else el.classList.remove('is-on');
+      this.kick();
+    }
+    goTarget(t) {
+      this.setRegion(null);
+      const dot = this.dots[t], r = dot && dot.getBoundingClientRect(), focus = r && r.width ? [r.left + r.width / 2, r.top + r.height / 2] : null;
+      if (t === 'bed') this.go('bed', { focus });
+      else if (t === 'rail') this.go(this.isMobile ? 'rail_m' : 'rail', { focus });
+      else if (t === 'mag') this.openMag();
+    }
+    placeDots() {
+      if (!this.dots) return;
+      const cv = this.comp.view, t = this.targets(), d = cv && cv.masksImg ? this.masksData(cv) : null;
+      Object.entries(this.dots).forEach(([k, b]) => {
+        const a = d && t.includes(k) && d.anchors[k];
+        b.hidden = !a; if (!a) return;
+        const p = this.comp.toScreen(a[0], a[1], this.depthAt(a[0], a[1]));
+        const W = this.stage.clientWidth, H = this.stage.clientHeight;
+        if (p[0] < 24 || p[1] < 24 || p[0] > W - 24 || p[1] > H - 24) { b.hidden = true; return; }
+        b.style.left = p[0].toFixed(1) + 'px'; b.style.top = p[1].toFixed(1) + 'px';
+      });
+    }
 
     /* phones: the pan value that puts garment i in the middle of the screen, and the garment nearest the middle */
     panSpan() { return this.stage.clientWidth * (1 / this.comp.map[2] - 1) || 1; }
@@ -595,6 +756,7 @@
         if (e.pointerType !== 'touch') {
           this.parallaxTarget = [(x / r.width - 0.5) * 2, (y / r.height - 0.5) * 2];
           this.rail.pointerMove(x, y, vx);
+          if (!e.target.closest('.azur-dot')) this.setRegion(this.rail.hover >= 0 ? null : this.regionAt(x, y));
         }
         if (down && this.viewKey === 'rail_m') {
           const dx = x - down.x;
@@ -607,7 +769,7 @@
           this.kick();
         }
       });
-      st.addEventListener('pointerleave', () => { this.parallaxTarget = [0, 0]; this.rail.pointerLeave(); last = null; });
+      st.addEventListener('pointerleave', () => { this.parallaxTarget = [0, 0]; this.rail.pointerLeave(); this.setRegion(null); last = null; });
       st.addEventListener('pointerdown', e => {
         if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head')) return;
         const r = st.getBoundingClientRect();
@@ -620,12 +782,14 @@
       if (this.isMobile) this.parallaxTarget = [0, 0];
       // click on the empty room deselects
       st.addEventListener('click', e => {
-        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head, .azur-panel')) return;
+        if (e.target.closest('.azur-drop, .azur-info, .azur-views, .azur-head, .azur-panel, .azur-dot')) return;
         if (this.plate) {
           if (this.dragMoved || e.target.closest('.azur-bed')) return;
-          const r = st.getBoundingClientRect(), id = this.garmentAt(e.clientX - r.left, e.clientY - r.top);
+          const r = st.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, id = this.garmentAt(x, y);
           if (id >= 0) return this.onGarmentClick(id);
-          if (this.viewKey.includes('@')) this.select(-1);
+          const reg = this.regionAt(x, y);
+          if (reg) return this.goTarget(reg);
+          if (this.viewKey.includes('@') || this.rail.selected >= 0) this.select(-1);
           return;
         }
         if (e.target.closest('.azur-g, .azur-bed')) return;
@@ -636,6 +800,7 @@
     bindKeys() {
       document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
+          if (this.menu && !this.menu.hidden) { this.toggleMenu(false); return this.menuBtn.focus(); }
           if (this.shop.pdp.classList.contains('is-on')) return this.shop.close();
           if (this.shop.drawer && this.shop.drawer.classList.contains('is-on')) return this.shop.toggleCart(false);
           if (this.drop.card.classList.contains('is-on')) { this.drop.hideCard(); return this.select(-1); }
@@ -673,6 +838,7 @@
       if (t - this.lightAt > 1000 || this.lightDirty) {
         this.lightAt = t; this.lightDirty = false;
         this.light = A.light.current(); this.rail.applyLight(this.light); this.applyAmbient(); this.dirty = true;
+        if (A.config.scene3) { const st = this.stateNow(); if (st !== this.dayState) this.changeState(st); }
       }
       // parallax eases toward the pointer; phones drift very slowly so the room still feels spatial
       const vc = cfg.views[this.viewKey] || {}, k = this.reduced ? 0 : (vc.parallax || 0.01) * cfg.motion.intensity;
@@ -706,7 +872,8 @@
       if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
       if (this.plate) this.stepPlate(dt);
       if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
-      this.rail.step(dt, this.reduced);
+      const swaying = this.rail.step(dt, this.reduced);
+      if (this.plate && A.config.scene3) this.applySway(t, swaying);
       if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
       requestAnimationFrame(tt => this.frame(tt));
     }
@@ -714,6 +881,13 @@
     /* scene2: the hovered garment brightens in the render; the outdoor video runs while it is light outside. */
     stepPlate(dt) {
       const c = this.comp, h = this.rail.hover;
+      // hover outlines fade in and out
+      const S = (A.config.outline || {}).strength || 0.9, ease = Math.min(1, dt * ((A.config.outline || {}).ease || 9));
+      const want = ['bed', 'rail', 'mag'].map(k => this.region === k ? S : 0);
+      let glowCh = false;
+      want.forEach((w, k) => { const n = this.glowAmt[k] + (w - this.glowAmt[k]) * ease;
+        if (Math.abs(n - w) < 2e-3) { if (this.glowAmt[k] !== w) glowCh = true; this.glowAmt[k] = w; } else { this.glowAmt[k] = n; glowCh = true; } });
+      if (glowCh) { c.setGlow(this.glowAmt.slice()); this.dirty = true; }
       if (h >= 0) c.hover = h + 1;
       const target = h >= 0 && !this.viewKey.includes('@') ? 1 : 0;
       const ha = c.hoverAmt + (target - c.hoverAmt) * Math.min(1, dt * 9);
@@ -726,6 +900,23 @@
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames
       } else if (!vid.paused) vid.pause();
+    }
+
+    /* scene3: the rail's pendulums bend the rendered plate (compositor sway). Idle breathing renders at 30 fps,
+       a swinging jersey at full rate; nothing moves behind the product view or the magazine. */
+    applySway(t, swaying) {
+      const cv = this.comp.view; if (!cv || !this.comp.ok) return;
+      if (!cv.swayA && cv.idsImg && !cv.swayTried) {
+        cv.swayTried = true;
+        (window.requestIdleCallback || (f => setTimeout(f, 60)))(() => { this.comp.buildSway(cv, A.products.length); this.kick(); });
+      }
+      if (!cv.swayA) return;
+      const covered = this.shop.pdp.classList.contains('is-on') || (this.mag && this.mag.isOpen) || this.busy;
+      const v = this.viewData(this.viewKey), hooks = (v.slots || []).map(x => x && x.hook);
+      this.comp.setSway(hooks, this.rail.swayAng || [], this.rail.swayRip || []);
+      this.comp.time = t / 1000;
+      const idle = !this.reduced && A.config.motion.sway.idleDeg > 0;
+      if (!covered && (swaying || (idle && t - (this.swayAt || 0) > 33))) { this.swayAt = t; this.comp.render(this.light); }
     }
 
     /* UI follows the room's light: labels switch to night styling after dusk. */
