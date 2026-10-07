@@ -49,7 +49,7 @@
           <h2 class="mp__head">${c.editorialHead}</h2>
           <p class="mp__lead">${c.editorialLead}</p>
           ${c.about.map(t => `<p class="mp__body">${t}</p>`).join('')}
-          <p class="mp__sign">${c.sign}</p>
+          <p class="mp__sign">${c.sign}<span>${c.signNote}</span></p>
           <div class="mp__toc"><p class="mp__kicker">${c.tocKicker}</p><ol>
             ${prods.map((p, k) => `<li><button type="button" data-act="goto" data-p="${3 + k}"><span>${esc(p.name)}</span><span>${4 + k}</span></button></li>`).join('')}
             <li><button type="button" data-act="goto" data-p="${3 + prods.length}"><span>${c.dropHead}</span><span>${4 + prods.length}</span></button></li>
