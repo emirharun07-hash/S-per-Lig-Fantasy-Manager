@@ -509,8 +509,11 @@ def jersey_mesh(name, front_path, back_path, h=JERSEY_H, cell=0.011, depth=0.055
     return o
 
 meta = json.load(open(A + '/jerseys/meta.json'))
-n = len(JERSEYS) + 1
-xs = [RAIL['x0'] + 0.20 + i * (RAIL['x1'] - RAIL['x0'] - 0.40) / (n - 1) for i in range(n)]
+# the jerseys a little closer together, the drop bag with more room at the end of the rail: it is wider and hangs flatter
+# than a jersey and hid half of the Türkei jersey next to it
+x_first, x_bag = RAIL['x0'] + 0.20, RAIL['x1'] - 0.22
+step = (x_bag - 0.42 - x_first) / (len(JERSEYS) - 1)
+xs = [x_first + i * step for i in range(len(JERSEYS))] + [x_bag]
 KNIT = tex_paths('cotton_jersey')['nor_gl']
 for i, k in enumerate(JERSEYS):
     mt = hanger(xs[i], FAN + random.uniform(-0.04, 0.04))
@@ -519,10 +522,11 @@ for i, k in enumerate(JERSEYS):
     jo.matrix_world = mt; hg.matrix_world = mt
 
 # 6th hanger: the covered "Nächster Drop" garment bag
-mt = hanger(xs[-1], FAN * 0.6)
-inner = garment_plane('drop_inner', f'{A}/jerseys/deutschland.png', meta['deutschland']['w'] / meta['deutschland']['h'], mt, tint=(0.32, 0.33, 0.35))
+mt = hanger(xs[-1], FAN * 0.8)
+inner = garment_plane('drop_inner', f'{A}/jerseys/deutschland.png', meta['deutschland']['w'] / meta['deutschland']['h'], mt, h=0.6,
+                      tint=(0.32, 0.33, 0.35))          # the shirt inside stays narrower than the bag (it showed at the sides)
 bpy.ops.mesh.primitive_cube_add(size=1.0)
-bag = bpy.context.object; bag.name = 'drop_bag'; bag.scale = (0.64, 0.075, 0.98); bag.location = (0, 0.0, -0.49); apply_tf(bag)
+bag = bpy.context.object; bag.name = 'drop_bag'; bag.scale = (0.58, 0.075, 0.98); bag.location = (0, 0.0, -0.49); apply_tf(bag)
 bm = bmesh.new(); bm.from_mesh(bag.data)
 bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=10, use_grid_fill=True)
 for v in bm.verts:   # shoulders follow the hanger, the bag bellies out and narrows at the hem

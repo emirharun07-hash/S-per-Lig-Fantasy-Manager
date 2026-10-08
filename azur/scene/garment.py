@@ -12,13 +12,18 @@ Kept light for render time: about 2-3k vertices per panel before subdivision.
 import bpy, bmesh, math, os
 from mathutils import Vector, Matrix
 
+# cloth and hanger settings in one place (tools/jersey lab runs try other values on all jerseys at once)
+TUNE = dict(cell=0.014, shell_depth=0.09, hanger_depth=0.022, hanger_drop=0.045, pressure=0.35, quality=8, frames=48,
+            self_collision=True, collision_quality=3, air_damping=3.0, bending=1.6)
+
 
 def _img(path, cs='sRGB'):
     im = bpy.data.images.load(path, check_existing=True); im.colorspace_settings.name = cs; return im
 
 
-def wood_hanger(name, width=0.43, slope_deg=13.0, thick=0.012, depth=0.034, mat=None):
+def wood_hanger(name, width=0.43, slope_deg=13.0, thick=0.012, depth=None, mat=None):
     """Contoured wooden hanger as a mesh (also the collision body for the cloth). Origin: where the hook enters."""
+    depth = depth or TUNE['hanger_depth']
     bm = bmesh.new()
     half = width / 2; n = 24
     prof = []
@@ -44,11 +49,12 @@ def wood_hanger(name, width=0.43, slope_deg=13.0, thick=0.012, depth=0.034, mat=
     return o
 
 
-def panels(name, front_path, back_path, h=0.74, cell=0.014, depth=0.07, tex_dir=None):
+def panels(name, front_path, back_path, h=0.74, cell=None, depth=None, tex_dir=None):
     """Closed shell from the photo outline. Returns (object, info) with the shoulder line for the hanger."""
     import numpy as np
     from PIL import Image
     from scipy import ndimage
+    cell = cell or TUNE['cell']; depth = depth or TUNE['shell_depth']
     fr = Image.open(front_path).convert('RGBA'); bk = Image.open(back_path).convert('RGBA')
     frc = fr.crop(fr.getchannel('A').getbbox())
     bkc = bk.crop(bk.getchannel('A').getbbox()).transpose(Image.FLIP_LEFT_RIGHT).resize(frc.size, Image.LANCZOS)
@@ -66,6 +72,10 @@ def panels(name, front_path, back_path, h=0.74, cell=0.014, depth=0.07, tex_dir=
     af = np.asarray(frc.getchannel('A').resize((cols, rows), Image.BOX), dtype=np.float32) / 255
     ab = np.asarray(bkc.getchannel('A').resize((cols, rows), Image.BOX), dtype=np.float32) / 255
     cells = ndimage.binary_fill_holes(np.maximum(af, ab) > 0.5)
+    # a notch under the arm only one or two cells wide: the outline relaxation below pulls its two walls into each
+    # other and the shell starts tangled (it crumpled the Deutschland jersey). Close it; the sleeve then meets the
+    # body a little lower, as on a real shirt.
+    cells = cells | ndimage.binary_closing(np.pad(cells, 2), structure=np.ones((1, 3), bool))[2:-2, 2:-2]
     lab, nlab = ndimage.label(cells)                     # keep the garment, drop stray specks
     if nlab > 1: cells = lab == (np.argmax(np.bincount(lab.ravel())[1:]) + 1)
     dist = ndimage.distance_transform_edt(cells) * cell
@@ -135,16 +145,18 @@ def materials(o, name, knit_normal=None):
         o.data.materials.append(m)
 
 
-def drape(o, hanger, frames=48, pressure=0.35, pin=None, scene=None):
+def drape(o, hanger, frames=None, pressure=None, pin=None, scene=None):
     """Hang the shell on the hanger (both in the same local frame, hook point at the origin) and bake the result."""
     sc = scene or bpy.context.scene
+    frames = frames or TUNE['frames']; pressure = TUNE['pressure'] if pressure is None else pressure
     col = hanger.modifiers.new('col', 'COLLISION'); hanger.collision.thickness_outer = 0.004; hanger.collision.cloth_friction = 40
     cl = o.modifiers.new('cloth', 'CLOTH'); cs = cl.settings
-    cs.quality = 8; cs.mass = 0.15; cs.air_damping = 3.0
-    cs.tension_stiffness = 45; cs.compression_stiffness = 45; cs.shear_stiffness = 12; cs.bending_stiffness = 1.6
+    cs.quality = TUNE['quality']; cs.mass = 0.15; cs.air_damping = TUNE['air_damping']
+    cs.tension_stiffness = 45; cs.compression_stiffness = 45; cs.shear_stiffness = 12; cs.bending_stiffness = TUNE['bending']
     if pin: cs.vertex_group_mass = pin; cs.pin_stiffness = 1.0
     cs.use_pressure = pressure > 0; cs.uniform_pressure_force = pressure; cs.pressure_factor = 1.0
-    cc = cl.collision_settings; cc.use_self_collision = True; cc.self_distance_min = 0.004; cc.distance_min = 0.004; cc.collision_quality = 3
+    cc = cl.collision_settings; cc.use_self_collision = TUNE['self_collision']; cc.self_distance_min = 0.004; cc.distance_min = 0.004
+    cc.collision_quality = TUNE['collision_quality']
     pc = cl.point_cache; pc.frame_start = 1; pc.frame_end = frames
     sc.frame_start, sc.frame_end = 1, frames
     for f in range(1, frames + 1): sc.frame_set(f)
@@ -154,8 +166,21 @@ def drape(o, hanger, frames=48, pressure=0.35, pin=None, scene=None):
     sc.frame_set(1)
 
 
-def jersey(name, front_path, back_path, knit_normal=None, hanger_mat=None, h=0.74, frames=48):
-    """Build shell + hanger, drape, return (jersey object, hanger object). Origin = hook point at the top of the collar."""
+# The cloth solver is chaotic: one grid cell more or less can tangle a shell into a ball. Every drape is checked, and a
+# failed one runs again with a slightly different grid or pressure; the first that passes is kept (else the best).
+RETRIES = [dict(), dict(cell=0.0135), dict(cell=0.0145), dict(pressure=0.2), dict(cell=0.013, pressure=0.25), dict(cell=0.015, quality=12)]
+
+
+def drape_check(o, info, h):
+    """A hanging shirt keeps most of its width (the sleeves drop a little), stays thin and keeps its length."""
+    pts = [v.co for v in o.data.vertices]
+    xs = [p.x for p in pts]; ys = [p.y for p in pts]; zs = [p.z for p in pts]
+    wid = (max(xs) - min(xs)) / info['w']; dep = max(ys) - min(ys); low = -min(zs) / h
+    ok = wid > 0.76 and dep < 0.15 and low > 0.95
+    return ok, wid + low - 4 * max(0.0, dep - 0.09), dict(width=round(wid, 2), depth=round(dep, 3), length=round(low, 2))
+
+
+def _drape_once(name, front_path, back_path, hanger_mat, h, frames):
     o, info = panels(name, front_path, back_path, h=h)
     o['front'], o['back'] = info['front'], info['back']
     # hanger inside, its top a little under the collar edge and following the shoulder line
@@ -165,7 +190,7 @@ def jersey(name, front_path, back_path, knit_normal=None, hanger_mat=None, h=0.7
     tip = min(z for _, z in span) if span else collar - 0.05            # the outline top at the hanger tips
     slope = math.degrees(math.atan2(max(0.01, collar - tip), width / 2))
     hg = wood_hanger(name + '_hanger', width=width, slope_deg=min(24.0, max(8.0, slope + 2)), mat=hanger_mat)
-    hg.location = (0, 0, collar - 0.045)
+    hg.location = (0, 0, collar - TUNE['hanger_drop'])
     bpy.context.view_layer.update()
     # the hanger is the collision body in the shell's frame; apply its location into the mesh
     hg.data.transform(Matrix.Translation(hg.location)); hg.location = (0, 0, 0)
@@ -177,6 +202,34 @@ def jersey(name, front_path, back_path, knit_normal=None, hanger_mat=None, h=0.7
     drape(o, hg, frames=frames, pin='collar')
     o.location = (0, 0, 0); hg.location = (0, 0, 0)
     o.vertex_groups.remove(vg)
+    return o, hg, info
+
+
+def _remove(*objs):
+    for x in objs:
+        me = x.data; bpy.data.objects.remove(x, do_unlink=True)
+        if me and me.users == 0: bpy.data.meshes.remove(me)
+
+
+def jersey(name, front_path, back_path, knit_normal=None, hanger_mat=None, h=0.74, frames=None):
+    """Build shell + hanger, drape, return (jersey object, hanger object). Origin = hook point at the top of the collar."""
+    best = None
+    for i, var in enumerate(RETRIES):
+        saved = dict(TUNE); TUNE.update(var)
+        try:
+            o, hg, info = _drape_once(name, front_path, back_path, hanger_mat, h, frames)
+        finally:
+            TUNE.clear(); TUNE.update(saved)
+        ok, score, m = drape_check(o, info, h)
+        print(f'jersey {name}: drape {i + 1} {"ok" if ok else "tangled, again"} {m} {var or ""}', flush=True)
+        if best is None or score > best[0]:
+            if best: _remove(best[1], best[2])
+            best = (score, o, hg)
+        else:
+            _remove(o, hg)
+        if ok: break
+    _, o, hg = best
+    o.name, hg.name = name, name + '_hanger'; o.data.name, hg.data.name = name, name + '_hanger'
     materials(o, name, knit_normal)
     sub = o.modifiers.new('sub', 'SUBSURF'); sub.levels = 1; sub.render_levels = 2
     sol = o.modifiers.new('sol', 'SOLIDIFY'); sol.thickness = 0.0015; sol.offset = 1   # cloth edge thickness at the hem

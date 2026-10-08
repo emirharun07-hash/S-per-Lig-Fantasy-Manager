@@ -115,7 +115,7 @@
       this.el.querySelector('#azp-phase').textContent = `${s.phase} · Sonnenaufgang ${f(sr.sunrise)} · Untergang ${f(sr.sunset)}`;
       const modes = { passes: 'Lichtvarianten (live gemischt)', beauty: 'Vorschaubild (Lichtvarianten rendern noch)', none: 'Bilder fehlen noch' };
       const mv = Object.keys(this.app.moves || {});
-      const moves = mv.length ? `Kamerafahrten: ${mv.map(n => n.replace('-', ' → ') + ' (' + (this.app.moves[n].variants || ['day']).map(v => v === 'day' ? 'Tag' : 'Nacht').join('/') + ')').join(', ')}` : 'Kamerafahrten: noch simuliert (echte Fahrten rendern noch)';
+      const moves = mv.length ? `Kamerafahrten: ${mv.map(n => n.replace('-', ' → ') + ' (' + (this.app.moves[n].variants || ['day']).map(v => ({ day: 'Tag', evening: 'Abend', night: 'Nacht' })[v] || v).join('/') + ')').join(', ')}` : 'Kamerafahrten: noch simuliert (echte Fahrten rendern noch)';
       this.el.querySelector('#azp-info').textContent = `Ansicht: ${this.app.viewKey} · ${modes[this.app.root.dataset.mode] || ''} · ${moves}`;
     }
   }

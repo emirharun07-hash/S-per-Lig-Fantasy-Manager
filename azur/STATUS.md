@@ -125,12 +125,28 @@ Built and pushed:
 - Shopify section updated (not yet pushed to the draft theme): new header, menu (link list), free shipping setting,
   magazine blocks, Files prefix `azr2-`.
 
-Running: nothing since 01:18 local (the PC went to sleep during r3-1, after all day passes and stills). Request r3-4
-waits on the branch: rebuild (pens in the cup instead of floating, hoodie shaped over the chair back, masks without the
-footballs), preview, models, all plates, times of day, moves. Start on the PC: `git pull origin <branch>` then
+Running: nothing since 01:18 local (the PC went to sleep during r3-1, after all day passes and stills). Request r3-5
+waits on the branch (replaces r3-4, which never started): rebuild (cleanly draped jerseys, drop bag with more room, pens
+in the cup instead of floating, hoodie shaped over the chair back, masks without the footballs), preview, models, all
+plates, times of day, moves. Start on the PC: `git pull origin <branch>` then
 `powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 watch`.
 Artifact version 17 (2026-10-08 ~03:20 UTC): round 3 interim with the PC's r3-1 plates (old pens/hoodie, no state
 patches, no moves yet), jersey models exported in the cloud (GLBs base64-wrapped as .glb.json: artifacts do not serve .glb).
+
+Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once clicked I cannot get out or look at others"):
+- 3D viewer froze after the first product view (stop() left a cancelled frame id, kick() then never drew again): every
+  later jersey showed the first one opened. Fixed; canvas cleared before a new model, shared downloads, resize redraw.
+- Drop card (Nächster Drop) did not close with its × or Escape on the rendered rail, and it sat over the jerseys left of
+  the bag. Fixed (closes with its selection; placed right of the bag); hover keeps working while it is open.
+- Product view: visible × button, Escape no longer also flies back to the room, page behind does not scroll; jersey
+  links (#handle, also in-page) open the product view. Regression test: 16 checks (desktop + phone) pass.
+- The Deutschland jersey itself was crumpled (rail plates and 3D model): a one-cell notch under the arm in its pattern
+  got pulled shut by the outline relaxation and tangled the shell. garment.py closes such notches, and since the cloth
+  solver is chaotic (one cell more or less tangled Berlin instead), every drape is now checked (width, depth, length)
+  and re-run with a slightly different grid/pressure until it passes (`garment.RETRIES`, settings in `garment.TUNE`).
+- Rail: jerseys 0.29 m apart, the drop bag at x 2.54 and narrower (0.58 m), turned a bit more: it hid half of Türkei.
+- Artifact version 18 = these web fixes on the interim plates; version 19 adds the re-draped jersey models (cloud export).
+- `node azur/tools/test_room.cjs [publishDir] [shotDir]`: browser regression test of the built page (desktop + phone).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two

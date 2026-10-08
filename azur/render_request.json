@@ -1,6 +1,6 @@
 {
-  "id": "r3-4",
-  "note": "Runde 3 neu: Stifte im Becher statt schwebend, Pulli ueber der Stuhllehne, Umriss-Masken ohne Fussbaelle. Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Kamerafahrten",
+  "id": "r3-5",
+  "note": "Runde 3 neu: Trikots sauber drapiert (Deutschland war zerknittert, jede Simulation wird jetzt geprueft), Drop-Huelle mit mehr Platz (verdeckte die Tuerkei), dazu alles aus r3-4 (Stifte im Becher, Pulli ueber der Stuhllehne, Masken ohne Fussbaelle). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Kamerafahrten",
   "set": "scene3",
   "rebuild": true,
   "jobs": ["preview", "export", "queue", "moves"]
