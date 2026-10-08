@@ -167,6 +167,9 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
 - 13:10 UTC check (PC still silent): responsive sweep over six screen sizes. On 320 px phones the product view ran
   past the screen (title's longest word) and the drop card stuck out 6 px; both fixed, Regie button off the chips
   (artifact v26). Landscape phone, tablets, laptop and wide screens were already fine.
+- 14:10 UTC check (PC still silent): the Shopify build in the theme harness (desktop + phone): axe clean for our
+  markup (the one finding is the harness's stand-in announcement bar), theme header hidden over the room, product
+  view with 3D model and shop link, logo hides again after closing. Nothing to fix.
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
