@@ -145,6 +145,8 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   solver is chaotic (one cell more or less tangled Berlin instead), every drape is now checked (width, depth, length)
   and re-run with a slightly different grid/pressure until it passes (`garment.RETRIES`, settings in `garment.TUNE`).
 - Rail: jerseys 0.29 m apart, the drop bag at x 2.54 and narrower (0.58 m), turned a bit more: it hid half of Türkei.
+  Checked with a cloud preview (960×540, 24 samples): all five jerseys visible, Deutschland clean, all drapes pass on
+  the first try in the rebuilt scene.
 - Artifact version 18 = these web fixes on the interim plates; version 19 adds the re-draped jersey models (cloud export).
 - `node azur/tools/test_room.cjs [publishDir] [shotDir]`: browser regression test of the built page (desktop + phone).
 
