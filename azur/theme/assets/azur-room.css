@@ -45,9 +45,9 @@
 .azur-menu a:hover, .azur-menu a:focus-visible { background: rgb(255 255 255 / .08); color: #fff; }
 /* the logo shows only behind the product view and the magazine, dimmed (a way back into the room) */
 .azur-ghost { position: fixed; z-index: 160; left: clamp(16px, 3vw, 36px); top: calc(16px + env(safe-area-inset-top, 0px)); width: 78px; line-height: 0; opacity: 0; pointer-events: none;
-  transition: opacity .5s ease; filter: drop-shadow(0 1px 8px rgb(0 0 0 / .5)); }
+  visibility: hidden; transition: opacity .5s ease, visibility 0s linear .5s; filter: drop-shadow(0 1px 8px rgb(0 0 0 / .5)); }   /* hidden: no Tab stop */
 .azur-ghost img { width: 100%; height: auto; }
-html.azur-pdp-open .azur-ghost, html.azur-mag-open .azur-ghost { opacity: .36; pointer-events: auto; }
+html.azur-pdp-open .azur-ghost, html.azur-mag-open .azur-ghost { opacity: .36; pointer-events: auto; visibility: visible; transition-delay: 0s; }
 html.azur-pdp-open .azur-ghost:hover, html.azur-mag-open .azur-ghost:hover { opacity: .75; }
 html.azur-pdp-open .azur-head, html.azur-mag-open .azur-head { opacity: 0; pointer-events: none; }
 

@@ -208,6 +208,13 @@ function serve() {
     const stray = await p.evaluate(() => [...document.querySelectorAll('.azur-cart button, .azur-drop input, .azur-drop button, .azur-holo button')]
       .filter(x => !x.closest('[inert]')).map(x => x.className || x.tagName));
     ok('keyboard: closed cart and drop panels take no focus', stray.length === 0, stray);
+    // the dimmed logo: no Tab stop while hidden, and behind the product view it leads back into the room
+    await p.waitForFunction(() => getComputedStyle(document.querySelector('.azur-ghost')).visibility === 'hidden', null, { timeout: 4000 }).catch(() => {});   // after its fade
+    const gh = await p.evaluate(() => getComputedStyle(document.querySelector('.azur-ghost')).visibility);
+    ok('logo: hidden (no Tab stop) while nothing covers the room', gh === 'hidden', { gh });
+    await p.evaluate(() => AZUR.app.openProduct(2)); await p.waitForTimeout(1200);
+    await p.click('.azur-ghost'); await p.waitForTimeout(700);
+    s = await st(p); ok('logo: a click closes the product view', !s.pdp, s);
     await p.close();
   } catch (e) { fails++; logs.push('FAIL exception: ' + e.message.split('\n')[0]); }
   await b.close();

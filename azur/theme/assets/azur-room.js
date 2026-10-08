@@ -2663,6 +2663,10 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         document.addEventListener('click', e => { if (!this.menu.hidden && !e.target.closest('.azur-menu, .azur-head__dots')) this.toggleMenu(false); });
       }
       const ghost = $('.azur-ghost');
+      if (ghost) {   // it shows above the product view and the magazine (appended to <body>): it must live there too
+        const wrap = ghost.parentElement && ghost.parentElement.tagName === 'NAV' ? ghost.parentElement : ghost;
+        if (wrap.parentElement !== document.body) document.body.appendChild(wrap);
+      }
       if (ghost) ghost.addEventListener('click', e => {
         e.preventDefault();
         if (this.shop.pdp.classList.contains('is-on')) this.shop.close();
