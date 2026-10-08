@@ -7949,7 +7949,8 @@
   ],
   "variants": [
    "day",
-   "evening"
+   "evening",
+   "night"
   ]
  }
 }
