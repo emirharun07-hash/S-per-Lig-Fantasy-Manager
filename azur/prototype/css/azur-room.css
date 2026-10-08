@@ -360,17 +360,23 @@ html.azur-pdp-open { overflow: hidden; }
   top: auto !important; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); position: fixed; }
 .is-mobile .azur-info.is-on { translate: -50% 0; }
 .is-mobile .azur-info__name { width: 100%; font-size: 22px; }
-.is-mobile .azur-drop { position: fixed; left: 50% !important; translate: -50% 0; top: auto; bottom: calc(68px + env(safe-area-inset-bottom, 0px)); width: min(92vw, 380px) !important; transform: none !important; }
+.is-mobile .azur-drop { box-sizing: border-box; position: fixed; left: 50% !important; translate: -50% 0; top: auto; bottom: calc(68px + env(safe-area-inset-bottom, 0px)); width: min(92vw, 380px) !important; transform: none !important; }
 .is-mobile .azur-drop.is-on { translate: -50% 0; }
 .is-mobile .azur-hint { white-space: nowrap; font-size: 9.5px; left: 50% !important; transform: none !important; translate: -50% 0; top: auto !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); position: fixed; }
 @media (max-width: 860px) {
-  .azur-pdp { grid-template-columns: 1fr; grid-template-rows: 42vh auto; overflow-y: auto; overscroll-behavior: contain; }
+  .azur-pdp { grid-template-columns: minmax(0, 1fr); grid-template-rows: 42vh auto; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
   .azur-pdp__stage { padding: 70px 10vw 10px; }
   .azur-pdp__img { max-height: 36vh; }
   .azur-pdp__info { translate: 0 100%; padding-top: 28px; box-shadow: 0 -20px 60px rgba(0, 0, 0, .35); overflow: visible; }
   .azur-pdp.is-on .azur-pdp__info { translate: 0 0; }
+  .azur-pdp__title { overflow-wrap: break-word; hyphens: auto; }
   .azur-panel { width: calc(100vw - 28px); max-height: 60vh; }
   .azur-tease { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: calc(100vw - 32px); text-align: center; font-size: 22px; }
+}
+@media (max-width: 420px) {
+  .azur-pdp__title { font-size: clamp(28px, 10.5vw, 44px); }   /* DEUTSCHLAND fits a 320 px screen */
+  .azur-drop__kicker { padding-right: 30px; }                     /* the title stays clear of the × */
+  .azur-regie { top: calc(14px + env(safe-area-inset-top, 0px)); bottom: auto; right: auto; left: 14px; }   /* off the view chips */
 }
 
 /* ------------------------------------------------------------------ ANSTOSS: the magazine on the duvet (bed view easter egg) */
