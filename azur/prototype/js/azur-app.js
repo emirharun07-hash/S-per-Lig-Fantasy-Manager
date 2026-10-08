@@ -594,7 +594,7 @@
       // scene2: real footage of the Bolzplatz across the street plays behind the window glass (the compositor masks it)
       if (this.plate && this.comp.ok) {
         const vid = document.createElement('video');
-        Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'auto' });
+        Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'none' });   // fetched when a window shows it
         vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
         const ob = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
         [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {

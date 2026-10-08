@@ -18,6 +18,8 @@ Env:    AZUR_GPU=1            render on the graphics chip (e.g. on the owner's l
 import bpy, os, sys, json, math, time, subprocess
 import numpy as np
 from mathutils import Vector, Matrix
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import maps                                                         # depth/window maps kept small (maps.py)
 from bpy_extras.object_utils import world_to_camera_view
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -292,6 +294,7 @@ def render_settings(sc, kind):
     cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'; cy.adaptive_threshold = 0.01 if HI else 0.02
     cy.samples = 8 if FAST else {'beauty': 256 if HI else 224, 'pass': 384 if HI else 192, 'depth': 4, 'sprite': 128}[kind]
     r.use_border = False
+    r.dither_intensity = 0.0 if kind == 'depth' else 1.0     # maps (depth, window, ids, masks) without dither noise
     if kind == 'depth': cy.use_denoising = False
     if kind in ('pass', 'depth'):
         sc.view_settings.view_transform = 'Standard'; sc.view_settings.look = 'None'; sc.view_settings.exposure = 0.0
@@ -460,6 +463,7 @@ def job_depth(sc, key):
     sc.view_layers[0].material_override = m
     sc.render.image_settings.color_mode = 'BW'
     secs = render_to(sc, dst); sc.view_layers[0].material_override = None
+    maps.tidy_depth(dst, VIEWS[key]['res'][0])                       # small for the web (maps.py)
     log('depth', key, secs, 's'); return [dst]
 
 
@@ -627,6 +631,7 @@ def job_window(sc, key):
     sc.render.image_settings.color_mode = 'BW'
     secs = render_to(sc, dst)
     sc.world = old_world; sc.view_layers[0].material_override = None
+    maps.tidy_window(dst)
     log('window mask', key, secs, 's'); return [dst]
 
 

@@ -224,7 +224,8 @@
       if (ids && this.gl) v.ids = this.texture(ids, true);
       v.idsImg = ids; v.masksImg = masks; v.masksDay = masks;
       if (glow && this.gl) { v.glow = v.glowDay = this.texture(glow); }
-      if (win && this.gl) { v.win = this.texture(win); v.winBox = Compositor.maskBox(win); }
+      const winBox = win && this.gl ? Compositor.maskBox(win) : null;   // no window in this view (the phone rail): no video
+      if (winBox) { v.win = this.texture(win); v.winBox = winBox; }
       const vd = this.viewsData && this.viewsData[baseKey];
       v.platePx = (vd && vd.res) || v.size;            // full plate size (the textures may be the low-resolution copies)
       if (v.mode === 'none') {
@@ -449,14 +450,14 @@
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
-    /* Bounding box (plate uv) of the white area of a mask image, e.g. the window opening. */
+    /* Bounding box (plate uv) of the white area of a mask image, e.g. the window opening; null when there is none. */
     static maskBox(img) {
       const w = 160, h = Math.max(1, Math.round(160 * img.naturalHeight / img.naturalWidth));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, w, h);
       const d = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
       for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (d[(j * w + i) * 4] > 100) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
-      return x1 < 0 ? [0, 0, 1, 1] : [x0 / w, y0 / h, (x1 + 1) / w, (y1 + 1) / h];
+      return x1 < 0 ? null : [x0 / w, y0 / h, (x1 + 1) / w, (y1 + 1) / h];
     }
 
     /* Without passes the golden-hour beauty plate is graded towards the time of day (approximation). */
