@@ -1096,10 +1096,10 @@ nd.data.materials.append(M['duvet']); tag(nd, 'night')
 tag(bpy.data.objects['duvet'], '!night')
 # the hallway light through the door left ajar (front wall, right of the bed): a warm wedge over the floor and the bed
 # that brings out the sleeper's shape. Night only; rendered in the 'street' pass (render_queue), which is on at night.
-hl = bpy.data.lights.new('L_hall', 'AREA'); hl.shape = 'RECTANGLE'; hl.size = 0.10; hl.size_y = 1.9; hl.energy = 260.0
-hl.spread = math.radians(70); hl.color = (1.0, 0.78, 0.52)
+hl = bpy.data.lights.new('L_hall', 'AREA'); hl.shape = 'RECTANGLE'; hl.size = 0.10; hl.size_y = 1.9; hl.energy = 40.0
+hl.spread = math.radians(32); hl.color = (1.0, 0.78, 0.52)          # a wedge, not a flood (render_queue.HALL_W)
 hall = link(bpy.data.objects.new('L_hall', hl)); hall.location = (1.95, -0.08, 1.0)
-d_ = Vector((-0.55, 1.0, -0.12)).normalized(); up_ = Vector((0, 0, 1))      # shines into the room toward the bed
+d_ = Vector((-1.45, 0.98, -0.45)).normalized(); up_ = Vector((0, 0, 1))     # across the floor onto the bed
 y_ = (up_ - d_ * up_.dot(d_)).normalized(); z_ = -d_; x_ = y_.cross(z_)     # the long side stands up like the door gap
 hall.matrix_world = Matrix.Translation(hall.location) @ Matrix((x_, y_, z_)).transposed().to_4x4()
 tag(hall, 'night')

@@ -23,7 +23,7 @@ def model(aid,res='1k'):
     for rel,inc in g.get('include',{}).items(): get(inc['url'],f"{d}/{rel}")
     return p
 # Everything the scene uses (all CC0, polyhaven.com)
-TEXTURES=['white_plaster_02','laminate_floor_02','oak_veneer_01','cotton_jersey','dirty_carpet','rough_linen']
+TEXTURES=['white_plaster_02','laminate_floor_02','oak_veneer_01','cotton_jersey','dirty_carpet','rough_linen','grass_ground']   # grass: round 4, the lawn outside the window
 HDRIS=['eilenriede_park']
 MODELS=['football','desk_lamp_arm_01','Shelf_01','book_encyclopedia_set_01','alarm_clock_01','boombox','cardboard_box_01',
         'gamepad','throw_pillows_01','binder_notebook','stationery_supplies','modern_ceiling_lamp_01']

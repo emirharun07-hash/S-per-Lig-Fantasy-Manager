@@ -86,6 +86,8 @@ def light_variant(sc, variant):
         nb.inputs['Emission Color'].default_value = (*[g * 1.05 for g in GLOW], 1); nb.inputs['Emission Strength'].default_value = 1.6
         L = bpy.data.objects['L_lamp']; L.hide_render = rq.HI; L.data.energy = 18.0 * 0.85; L.data.color = (1.0, 0.62, 0.32)
         S = bpy.data.objects['L_street']; S.hide_render = False; S.data.energy = 2600.0 * 0.3; S.data.color = (0.95, 0.84, 0.7)
+        H = bpy.data.objects.get('L_hall')        # shown by set_state('night'); same dose as in the street pass
+        if H: H.data.energy = rq.HALL_W * 0.3; H.data.color = (0.95, 0.84, 0.7)
         sc.view_settings.exposure = 3.0
         if 'L_spot' in bpy.data.objects:
             P = bpy.data.objects['L_spot']; P.hide_render = False; P.data.energy = 60.0 * (0.5 if rq.HI else 0.7); P.data.color = (1.0, 0.82, 0.62)

@@ -231,6 +231,7 @@ def state_visible(o, state):
 
 
 STATE_NOW = ['day']
+HALL_W = 40.0        # the hallway light (watts) in the street pass; the browser doses it with the street weight
 
 
 def set_state(state):
@@ -302,7 +303,8 @@ def set_pass(sc, p):
     elif p == 'street':
         bpy.data.objects['L_street'].hide_render = False; bpy.data.objects['L_street'].data.color = (1, 1, 1)
         hall = bpy.data.objects.get('L_hall')     # round 4: the hallway light through the door ajar, at night
-        if hall: hall.hide_render = not state_visible(hall, STATE_NOW[0])
+        if hall:
+            hall.hide_render = not state_visible(hall, STATE_NOW[0]); hall.data.energy = HALL_W; hall.data.color = (1, 1, 1)
     elif p == 'spot':
         bpy.data.objects['L_spot'].hide_render = False; bpy.data.objects['L_spot'].data.color = (1, 1, 1)
 

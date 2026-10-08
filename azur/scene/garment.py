@@ -49,12 +49,12 @@ def wood_hanger(name, width=0.43, slope_deg=13.0, thick=0.012, depth=None, mat=N
     return o
 
 
-def panels(name, front_path, back_path, h=0.74, cell=None, depth=None, tex_dir=None):
-    """Closed shell from the photo outline. Returns (object, info) with the shoulder line for the hanger."""
+def panel_textures(name, front_path, back_path, tex_dir=None):
+    """The photos as the panels see them: cropped to the garment, the back mirrored onto the front's size, transparent
+    pixels filled with the nearest garment colour. Returns the two crops and the saved texture paths."""
     import numpy as np
     from PIL import Image
     from scipy import ndimage
-    cell = cell or TUNE['cell']; depth = depth or TUNE['shell_depth']
     fr = Image.open(front_path).convert('RGBA'); bk = Image.open(back_path).convert('RGBA')
     frc = fr.crop(fr.getchannel('A').getbbox())
     bkc = bk.crop(bk.getchannel('A').getbbox()).transpose(Image.FLIP_LEFT_RIGHT).resize(frc.size, Image.LANCZOS)
@@ -67,6 +67,16 @@ def panels(name, front_path, back_path, h=0.74, cell=None, depth=None, tex_dir=N
         rgb = a[..., :3][idx[0], idx[1]]
         return Image.fromarray(np.dstack([rgb, np.full(rgb.shape[:2], 255, np.uint8)]).astype(np.uint8), 'RGBA')
     bleed(frc).save(fpath); bleed(bkc).save(bpath)
+    return frc, bkc, fpath, bpath
+
+
+def panels(name, front_path, back_path, h=0.74, cell=None, depth=None, tex_dir=None):
+    """Closed shell from the photo outline. Returns (object, info) with the shoulder line for the hanger."""
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+    cell = cell or TUNE['cell']; depth = depth or TUNE['shell_depth']
+    frc, bkc, fpath, bpath = panel_textures(name, front_path, back_path, tex_dir)
     W, H = frc.size; w = h * W / H
     rows, cols = int(round(h / cell)), int(round(w / cell))
     af = np.asarray(frc.getchannel('A').resize((cols, rows), Image.BOX), dtype=np.float32) / 255
@@ -247,7 +257,7 @@ def frozen(name, front_path, back_path, knit_normal=None, hanger_mat=None):
     if o.data.has_custom_normals:                             # the exporter's split normals would keep the seam sharp
         bpy.context.view_layer.objects.active = o; bpy.ops.mesh.customdata_custom_splitnormals_clear()
     for poly in o.data.polygons: poly.use_smooth = True
-    o['front'], o['back'] = front_path, back_path
+    _, _, o['front'], o['back'] = panel_textures(name, front_path, back_path)    # the crops the UVs were made for
     materials(o, name, knit_normal)
     for poly, k in zip(o.data.polygons, faces): poly.material_index = k
     o.name, o.data.name = name, name
