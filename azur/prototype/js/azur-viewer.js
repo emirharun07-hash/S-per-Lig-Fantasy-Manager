@@ -7,7 +7,13 @@
 
   async function readGLB(url) {
     const res = await fetch(url); if (!res.ok) throw new Error('model ' + res.status);
-    const buf = await res.arrayBuffer(), dv = new DataView(buf);
+    let buf;
+    if (/\.json(\?|$)/.test(url)) {                // hosts that do not serve .glb get it base64-wrapped in JSON
+      const b64 = (await res.json()).glb, bin = atob(b64), u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      buf = u8.buffer;
+    } else buf = await res.arrayBuffer();
+    const dv = new DataView(buf);
     if (dv.getUint32(0, true) !== 0x46546C67) throw new Error('not a GLB');
     let off = 12, json = null, bin = null;
     while (off + 8 <= buf.byteLength) {

@@ -111,7 +111,7 @@
       // the 3D jersey (scene3 models), the photo until then
       this.pdp.classList.remove('has-model', 'is-touched');
       if (this.viewer && this.viewer.ok && A.config.scene3) {
-        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.glb');
+        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.' + (A.config.modelExt || 'glb'));
         this.viewer.show(url).then(ok => { if (ok && this.product === product && this.pdp.classList.contains('is-on')) this.pdp.classList.add('has-model'); });
       }
       q('.azur-pdp__sizerow').innerHTML = product.variants.map((v, i) => `

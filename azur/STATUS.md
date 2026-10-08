@@ -125,8 +125,12 @@ Built and pushed:
 - Shopify section updated (not yet pushed to the draft theme): new header, menu (link list), free shipping setting,
   magazine blocks, Files prefix `azr2-`.
 
-Running: the owner's PC renders request r3-1 (old watch loop); r3-3 (preview, models, masks again without the
-footballs, rest of the queue, moves) follows in watch mode v2 after the hand-over.
+Running: nothing since 01:18 local (the PC went to sleep during r3-1, after all day passes and stills). Request r3-4
+waits on the branch: rebuild (pens in the cup instead of floating, hoodie shaped over the chair back, masks without the
+footballs), preview, models, all plates, times of day, moves. Start on the PC: `git pull origin <branch>` then
+`powershell -ExecutionPolicy Bypass -File azur\tools\render_on_windows.ps1 watch`.
+Artifact version 17 (2026-10-08 ~03:20 UTC): round 3 interim with the PC's r3-1 plates (old pens/hoodie, no state
+patches, no moves yet), jersey models exported in the cloud (GLBs base64-wrapped as .glb.json: artifacts do not serve .glb).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two

@@ -7,6 +7,7 @@ AZUR.config = {
   assetBase: 'assets/views/',
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
+  modelExt: 'glb',                       // jersey models for the product view ('glb.json' where .glb is not served)
 
   /* Accent systems. A is the chosen one; the others stay switchable in the design panel. */
   palettes: {
