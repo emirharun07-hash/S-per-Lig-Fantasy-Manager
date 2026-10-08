@@ -70,6 +70,14 @@ if ($Hello) {
   return
 }
 
+# what was rendered while the internet was down (the owner's line is off at night) goes up as soon as it is back:
+# a request that finished offline left its last commits on this PC
+$ahead = git rev-list --count "origin/$Branch..HEAD" 2>$null
+if ($LASTEXITCODE -eq 0 -and $ahead -and [int]$ahead -gt 0) {
+  Write-Host ("[{0}] {1} Commits warten aufs Hochladen" -f (Get-Date -Format "HH:mm"), $ahead)
+  Push-All "AZUR PC: upload what was rendered offline" | Out-Null
+}
+
 if (-not (Test-Path "azur\render_request.json")) { return }
 $last = if (Test-Path $DoneFile) { (Get-Content $DoneFile -Raw).Trim() } else { "" }
 $req = Get-Content "azur\render_request.json" -Raw | ConvertFrom-Json

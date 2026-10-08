@@ -85,7 +85,9 @@ def superseded():
     if not REQ_ID or NO_GIT or time.time() - _sup[0] < 60: return False
     _sup[0] = time.time()
     try:
-        subprocess.run(['git', '-C', REPO, 'fetch', '-q', 'origin', BRANCH], capture_output=True, timeout=90)
+        f = subprocess.run(['git', '-C', REPO, 'fetch', '-q', 'origin', BRANCH], capture_output=True, timeout=90)
+        if f.returncode != 0:                      # offline (the owner's line is down at night): look again in 10 min
+            _sup[0] = time.time() + 540; return False
         r = subprocess.run(['git', '-C', REPO, 'show', f'origin/{BRANCH}:azur/render_request.json'], capture_output=True, text=True, timeout=30)
         rid = json.loads(r.stdout).get('id')
         return bool(rid) and rid != REQ_ID
@@ -120,17 +122,28 @@ def stop_if_superseded():
         log('a newer render request is on the branch: stopping this run'); git_push(force=True); sys.exit(3)
 
 
+OFFLINE_HINTS = ('Could not resolve host', 'unable to access', 'Failed to connect', 'Connection timed out',
+                 'Could not read from remote', 'Network is unreachable', 'timed out')
+
+
 def git_push(force=False):
-    """Push at most every two minutes (a push per output costs more time than a fast GPU needs for the render)."""
+    """Push at most every two minutes (a push per output costs more time than a fast GPU needs for the render).
+    Offline (the owner's internet is off at night) it tries once and goes on rendering: the outputs stay committed and
+    go up with the next push once the line is back (it used to wait about three minutes per output)."""
     if NO_GIT or (not force and time.time() - _last_push[0] < 120): return
-    for attempt in range(6):
+    _last_push[0] = time.time()                    # a failed try also waits two minutes before the next one
+    for attempt in range(3):
         try:
-            subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '--autostash', '-q', 'origin', BRANCH], capture_output=True)
-            subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:' + BRANCH], check=True, capture_output=True)
-            _last_push[0] = time.time(); return
-        except Exception as e:
-            log('git push retry', attempt, e)
-            time.sleep(2 ** attempt * 3)
+            r = subprocess.run(['git', '-C', REPO, 'pull', '--rebase', '--autostash', '-q', 'origin', BRANCH], capture_output=True, text=True, timeout=600)
+            p = subprocess.run(['git', '-C', REPO, 'push', '-q', 'origin', 'HEAD:' + BRANCH], capture_output=True, text=True, timeout=600)
+            if p.returncode == 0: return
+            err = (r.stderr or '') + (p.stderr or '')
+        except subprocess.TimeoutExpired as e:
+            err = 'timed out: ' + str(e)
+        if any(h in err for h in OFFLINE_HINTS):
+            log('offline: the outputs stay committed and go up once the internet is back'); return
+        log('git push retry', attempt, err.strip()[:300])
+        time.sleep(5 * (attempt + 1))
 
 
 def git_save(paths, message):
