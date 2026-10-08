@@ -148,7 +148,10 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   Checked with a cloud preview (960×540, 24 samples): all five jerseys visible, Deutschland clean, all drapes pass on
   the first try in the rebuilt scene.
 - Artifact version 18 = these web fixes on the interim plates; version 19 adds the re-draped jersey models (cloud export).
-- `node azur/tools/test_room.cjs [publishDir] [shotDir]`: browser regression test of the built page (desktop + phone).
+- `node azur/tools/test_room.cjs [publishDir] [shotDir]`: browser regression test of the built page (desktop + phone,
+  product views, 3D models, drop card, links, cart, menu, chips, magazine, times of day; 50 checks).
+- 08:10 UTC check (PC still silent): the add button collapsed to a 2 px line after adding (flex column squeezing) →
+  fixed (artifact v20); the header bag now follows the theme drawer's cart count (artifact v21, theme harness checked).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
