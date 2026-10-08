@@ -3050,7 +3050,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const wa = hasWin ? Math.max(0, Math.min(1, (this.light.window - 0.35) / 0.5)) : 0;
       if (Math.abs(wa - c.winAmt) > 1e-3) { c.winAmt += (wa - c.winAmt) * Math.min(1, dt * 3); this.dirty = true; }
       if (!vid) return;
-      if (c.winAmt > 0.01 && !document.hidden && !(this.mag && this.mag.isOpen)) {   // the room rests while the magazine is open
+      const resting = (this.mag && this.mag.isOpen) || this.shop.pdp.classList.contains('is-on');   // the room rests behind the magazine and the product view
+      if (c.winAmt > 0.01 && !document.hidden && !resting) {
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames
       } else if (!vid.paused) vid.pause();
@@ -3070,7 +3071,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.comp.setSway(hooks, this.rail.swayAng || [], this.rail.swayRip || []);
       this.comp.time = t / 1000;
       const idle = !this.reduced && A.config.motion.sway.idleDeg > 0;
-      if (!covered && (swaying || (idle && t - (this.swayAt || 0) > 33))) { this.swayAt = t; this.comp.render(this.light); }
+      // one render per frame: the frame loop draws once when dirty (drawing here as well doubled the work)
+      if (!covered && (swaying || (idle && t - (this.swayAt || 0) > 33))) { this.swayAt = t; this.dirty = true; }
     }
 
     /* UI follows the room's light: labels switch to night styling after dusk. */
