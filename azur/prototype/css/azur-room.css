@@ -288,6 +288,7 @@ html.azur-pdp-open { overflow: hidden; }
 .azur-pdp__info { position: relative; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); color: var(--char); padding: 104px clamp(24px, 4vw, 64px) 48px; display: flex; flex-direction: column; gap: 14px;
   translate: 100% 0; transition: translate .7s var(--ease); box-shadow: -30px 0 80px rgba(0, 0, 0, .35); }
 .azur-pdp.is-on .azur-pdp__info { translate: 0 0; }
+.azur-pdp__info > * { flex-shrink: 0; }     /* the column scrolls: nothing in it may be squeezed (the add button collapsed) */
 .azur-pdp__crumbs { display: flex; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .azur-pdp__crumbs button { background: none; border: 0; padding: 0; cursor: pointer; text-transform: inherit; letter-spacing: inherit; color: var(--ink); }
 .azur-pdp__title { margin: 6px 0 0; font-family: var(--display); font-variation-settings: "wdth" 62; font-weight: 850; font-size: clamp(40px, 5.2vw, 76px); line-height: .9; text-transform: uppercase; text-wrap: balance; }

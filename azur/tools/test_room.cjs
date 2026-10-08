@@ -116,6 +116,78 @@ function serve() {
     await shot(p, 'phone_pdp.png');
     if (s.pdp) { await p.click('.azur-pdp__x'); await p.waitForTimeout(700); }
     s = await st(p); ok('phone: × closes it', !s.pdp, s);
+    await p.close();
+
+    // cart (prototype cart): size, add, free-shipping hint, keep looking, the bag in the header, removing a line
+    p = await mk({ width: 1440, height: 810 });
+    await p.goto(url); await p.waitForFunction(() => window.AZUR && AZUR.app && AZUR.app.running, null, { timeout: 30000 }); await p.waitForTimeout(2000);
+    await p.evaluate(() => { try { localStorage.removeItem('azur-cart'); } catch (e) { } AZUR.app.shop.cart = []; AZUR.app.shop.renderCart(); });
+    let bag = await p.evaluate(() => !document.querySelector('.azur-head__bag').hidden);
+    ok('cart: the bag is hidden while the cart is empty', !bag, { bag });
+    await p.evaluate(() => AZUR.app.openProduct(0)); await p.waitForTimeout(900);
+    let add = await p.evaluate(() => document.querySelector('.azur-pdp__add').disabled);
+    ok('cart: add button waits for a size', add, { add });
+    await p.click('.azur-size >> nth=1'); await p.click('.azur-pdp__add'); await p.waitForTimeout(700);
+    let c = await p.evaluate(() => ({ lines: AZUR.app.shop.cart.length, after: !document.querySelector('.azur-pdp__after').hidden,
+      ship: document.querySelector('.azur-pdp__ship').textContent, bag: !document.querySelector('.azur-head__bag').hidden,
+      count: document.querySelector('.azur-head__count').textContent }));
+    ok('cart: added, free-shipping hint shown, bag visible with the count', c.lines === 1 && c.after && /€|kostenlos|Versand/i.test(c.ship) && c.bag && c.count === '1', c);
+    await p.waitForTimeout(1300);
+    const lay = await p.evaluate(() => [...document.querySelectorAll('.azur-pdp__info > *:not([hidden])')]
+      .map(e => ({ c: e.className, h: Math.round(e.getBoundingClientRect().height), want: e.scrollHeight })).filter(x => x.h < x.want * 0.8));   // tight display type overflows its box a little on purpose
+    ok('cart: nothing in the product column is squeezed after adding', lay.length === 0, lay);
+    await shot(p, 'pdp_added.png');
+    await p.click('.azur-pdp__after [data-act="more"]'); await p.waitForTimeout(900);
+    s = await st(p); ok('cart: "keep looking" closes the product view', !s.pdp && s.dim === 1, s);
+    await p.click('.azur-head__bag'); await p.waitForTimeout(500);
+    let dr = await p.evaluate(() => AZUR.app.shop.drawer.classList.contains('is-on'));
+    ok('cart: the bag opens the cart', dr, { dr });
+    await p.click('.azur-cart [data-remove="0"]'); await p.waitForTimeout(300);
+    c = await p.evaluate(() => ({ lines: AZUR.app.shop.cart.length, empty: !!document.querySelector('.azur-cart__empty'), bag: !document.querySelector('.azur-head__bag').hidden }));
+    ok('cart: a line can be removed, the empty bag hides', c.lines === 0 && c.empty && !c.bag, c);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+    dr = await p.evaluate(() => AZUR.app.shop.drawer.classList.contains('is-on'));
+    ok('cart: Escape closes the cart', !dr, { dr });
+    // menu behind the three dots
+    await p.click('.azur-head__dots'); await p.waitForTimeout(300);
+    let m = await p.evaluate(() => !document.querySelector('.azur-menu').hidden);
+    ok('menu: the dots open it', m, { m });
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    m = await p.evaluate(() => !document.querySelector('.azur-menu').hidden);
+    ok('menu: Escape closes it', !m, { m });
+    // view chips
+    for (const v of ['bed', 'rail', 'room']) {
+      await p.click(`.azur-views button[data-view="${v}"]`); await p.waitForTimeout(2600);
+      s = await st(p); ok(`chips: ${v}`, s.view === v, s);
+    }
+    // the magazine: opens from the bed, turns, closes with Escape, the room is not dimmed afterwards
+    await p.evaluate(() => AZUR.app.openMag()); await p.waitForTimeout(3500);
+    let mg = await p.evaluate(() => ({ open: AZUR.app.mag && AZUR.app.mag.isOpen, view: AZUR.app.viewKey, n: AZUR.app.mag && AZUR.app.mag.n }));
+    ok('magazine: opens (from the bed)', mg.open && mg.view === 'bed', mg);
+    await p.click('.azur-mag [data-act="next"]'); await p.waitForTimeout(900);
+    mg = await p.evaluate(() => ({ n: AZUR.app.mag.n }));
+    ok('magazine: turns a page', mg.n === 1, mg);
+    await shot(p, 'magazine.png');
+    await p.keyboard.press('Escape'); await p.waitForTimeout(800);
+    mg = await p.evaluate(() => ({ open: AZUR.app.mag.isOpen, view: AZUR.app.viewKey, dim: AZUR.app.dimTarget, cls: document.documentElement.className }));
+    ok('magazine: Escape closes it, stays at the bed, room not dimmed', !mg.open && mg.view === 'bed' && mg.dim === 1 && !/azur-mag-open/.test(mg.cls), mg);
+    // a look page leads to its product view
+    await p.evaluate(() => AZUR.app.openMag()); await p.waitForTimeout(1200);
+    const lookBtn = await p.evaluate(() => { const b = document.querySelector('.azur-mag [data-act="product"]'); return b ? +b.dataset.i : -1; });
+    if (lookBtn >= 0) {
+      await p.evaluate(() => document.querySelector('.azur-mag [data-act="product"]').click()); await p.waitForTimeout(1500);
+      s = await st(p); mg = await p.evaluate(() => AZUR.app.mag.isOpen);
+      ok('magazine: a look page opens that jersey\'s product view', s.pdp && !mg, { s, mg });
+      await p.click('.azur-pdp__x'); await p.waitForTimeout(700);
+      s = await st(p); ok('magazine: after that product view the room is back to normal', !s.pdp && s.dim === 1, s);
+    }
+    // times of day: switching the clock changes the room state without errors
+    for (const h of [7.2, 12.5, 18.5, 23.5]) {
+      await p.evaluate(h => { AZUR.light.overrides.timeHours = h; AZUR.app.lightDirty = true; }, h);
+      await p.waitForFunction(() => !AZUR.app.stateBusy && AZUR.app.dayState === AZUR.app.stateNow(), null, { timeout: 8000 }).catch(() => {});
+      const ds = await p.evaluate(() => ({ state: AZUR.app.dayState, want: AZUR.app.stateNow(), busy: !!AZUR.app.stateBusy, dataset: AZUR.app.root.dataset.state }));
+      ok(`clock ${h}: the room follows (${ds.want})`, !ds.busy && ds.state === ds.want && ds.dataset === ds.want, ds);
+    }
   } catch (e) { fails++; logs.push('FAIL exception: ' + e.message.split('\n')[0]); }
   console.log(logs.join('\n')); console.log(fails ? `${fails} failed` : 'all passed');
   await b.close(); srv.close(); process.exit(fails ? 1 : 0);
