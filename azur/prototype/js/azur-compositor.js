@@ -314,9 +314,11 @@
       }
       if (masksN) v.masksNight = masksN;
       if (glowN) v.glowNight = this.texture(glowN);
-      v.masksImg = night && v.masksNight ? v.masksNight : v.masksDay;
+      // night outlines only when the night picture is really there (its patches loaded), so dots and image agree
+      const nightShown = night && !!v.patched;
+      v.masksImg = nightShown && v.masksNight ? v.masksNight : v.masksDay;
       v.masksData = null;
-      v.glow = night && v.glowNight ? v.glowNight : v.glowDay;
+      v.glow = nightShown && v.glowNight ? v.glowNight : v.glowDay;
       v.state = state;
     }
     static scratch(w, h) {

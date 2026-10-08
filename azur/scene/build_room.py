@@ -771,6 +771,33 @@ def rest_on(root, z):
 rest_on(import_gltf('desk_lamp_arm_01', loc=(0.16, DY1 - 0.16, DZ), rot_z=math.radians(-120))[0], DZ)
 rest_on(import_gltf('binder_notebook', loc=(0.30, DY0 + 0.38, DZ + 0.001), rot_z=math.radians(78))[0], DZ)
 rest_on(import_gltf('stationery_supplies', loc=(0.14, DY0 + 0.14, DZ + 0.074), rot_z=math.radians(80))[0], DZ)
+def wbox(o):
+    bpy.context.view_layer.update()
+    pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    return Vector([min(p[i] for p in pts) for i in range(3)]), Vector([max(p[i] for p in pts) for i in range(3)])
+def world_move(o, M): o.matrix_world = M @ o.matrix_world
+cup = bpy.data.objects.get('stationery_supplies_pencilcup')
+if cup:
+    clo, chi = wbox(cup); cc = (clo + chi) / 2
+    for k, n in enumerate(['stationery_supplies_pen_blue', 'stationery_supplies_pencil_new_a', 'stationery_supplies_pen_fancy']):
+        o = bpy.data.objects.get(n)
+        if not o: continue
+        lo, hi = wbox(o); c = (lo + hi) / 2
+        world_move(o, Matrix.Translation(c) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Translation(-c))   # stand it up
+        lo, hi = wbox(o); c = (lo + hi) / 2; a_ = k * 2.1
+        to = Vector((cc.x + 0.015 * math.cos(a_), cc.y + 0.015 * math.sin(a_), clo.z + 0.006))
+        world_move(o, Matrix.Translation(Vector((to.x - c.x, to.y - c.y, to.z - lo.z))))
+        lean = Vector((math.cos(a_), math.sin(a_), 0)).cross(Vector((0, 0, 1)))                 # lean outward a little
+        world_move(o, Matrix.Translation(to) @ Matrix.Rotation(math.radians(-8), 4, lean) @ Matrix.Translation(-to))
+    for n, (x, y, z, rz) in {'stationery_supplies_pen_red': (0.38, DY0 + 0.10, DZ, 28),
+                             'stationery_supplies_pencil_used': (0.30, DY0 + 0.40, DZ + 0.019, -35),   # on the open notebook
+                             'stationery_supplies_eraser': (0.46, DY0 + 0.15, DZ, 12)}.items():
+        o = bpy.data.objects.get(n)
+        if not o: continue
+        lo, hi = wbox(o); c = (lo + hi) / 2
+        world_move(o, Matrix.Translation(c) @ Matrix.Rotation(math.radians(rz), 4, 'Z') @ Matrix.Translation(-c))
+        lo, hi = wbox(o); c = (lo + hi) / 2
+        world_move(o, Matrix.Translation(Vector((x - c.x, y - c.y, z + 0.0005 - lo.z))))
 # exercise books, stacked a bit crooked
 for i, (c_, rz) in enumerate([((0.15, 0.32, 0.55), 6), ((0.75, 0.2, 0.15), -4), ((0.9, 0.85, 0.25), 11)]):
     bk = box('heft', -0.105, 0.105, -0.148, 0.148, 0, 0.006, flat('heft', c_, rough=0.6), 0.001)
@@ -956,10 +983,41 @@ def cloth_drop(name, size, loc, mat, rot_z=0.0, frames=60, crumple=0.04, seed=1,
     o.data.materials.append(mat)
     return o
 
-# hoodie over the chair back (every state: he wears it outside? no, the grey one stays home)
-chair_parts = [o for o in bpy.data.objects['chair'].children]
-hood = cloth_drop('hoodie', (0.72, 0.44), (0.92, 2.50, 0.98), fabric('hoodie', (0.21, 0.22, 0.24)), rot_z=math.radians(9),
-                  frames=70, crumple=0.03, seed=4, collide=chair_parts)
+# hoodie hung over the chair back (every state): shaped directly (a simulated one slid off or bunched up on the
+# posts): over the back's top edge, both halves hanging down with soft folds, the hem a little away from the wood
+bpy.context.view_layer.update()
+cbp = [bpy.data.objects['cback'].matrix_world @ Vector(c) for c in bpy.data.objects['cback'].bound_box]
+cb_c = sum(cbp, Vector()) / 8; cb_top = max(p.z for p in cbp)
+cyaw = bpy.data.objects['chair'].rotation_euler.z
+across, along = Vector((math.cos(cyaw), math.sin(cyaw), 0)), Vector((-math.sin(cyaw), math.cos(cyaw), 0))
+R, HALF, LEN = 0.024, 0.36, 0.30          # wrap radius over the edge, cloth from the top to each hem, width along the back
+nu, nv = 48, 20
+rh = random.Random(4); ph = [rh.uniform(0, 6.3) for _ in range(4)]
+verts, faces = [], []
+for i in range(nu):
+    u = -HALF + 2 * HALF * i / (nu - 1); sgn = 1 if u >= 0 else -1; s_ = abs(u)
+    for j in range(nv):
+        v = -LEN / 2 + LEN * j / (nv - 1)
+        arc = math.pi * R / 2
+        if s_ <= arc:
+            th = s_ / R; a_ = sgn * R * math.sin(th); z = cb_top - 0.004 + R * math.cos(th)
+        else:
+            d = s_ - arc; k = min(1.0, d / 0.12)
+            fold = 0.011 * math.sin(v * 31 + ph[0] + sgn) * k + 0.006 * math.sin(v * 13 + d * 9 + ph[1]) * k
+            a_ = sgn * (R + 0.004 + 0.05 * (d / 0.33) ** 2 + fold)
+            z = cb_top - 0.004 - d + 0.012 * math.sin(v * 17 + ph[2] + sgn) * (d / 0.33) ** 2   # uneven hem
+        p_ = Vector((cb_c.x, cb_c.y, 0)) + across * a_ + along * v; p_.z = z
+        verts.append(p_)
+for i in range(nu - 1):
+    for j in range(nv - 1):
+        faces.append([i * nv + j, (i + 1) * nv + j, (i + 1) * nv + j + 1, i * nv + j + 1])
+hme = bpy.data.meshes.new('hoodie'); hme.from_pydata([tuple(v) for v in verts], [], faces); hme.update()
+hood = link(bpy.data.objects.new('hoodie', hme))
+sm_ = hood.modifiers.new('smooth', 'SMOOTH'); sm_.factor = 0.4; sm_.iterations = 2
+so_ = hood.modifiers.new('sol', 'SOLIDIFY'); so_.thickness = 0.009; so_.offset = 1
+hood.modifiers.new('sub', 'SUBSURF').levels = 1
+bpy.ops.object.select_all(action='DESELECT'); hood.select_set(True); bpy.context.view_layer.objects.active = hood; bpy.ops.object.shade_smooth()
+hood.data.materials.append(fabric('hoodie', (0.21, 0.22, 0.24)))
 
 # morning: the pyjama shirt dropped by the bed, the phone left on the duvet
 tag(cloth_drop('pyjama', (0.50, 0.44), (1.18, 0.55, 0.12), fabric('pyjama', (0.30, 0.38, 0.50)), rot_z=math.radians(-20), frames=50, seed=7), 'morning')

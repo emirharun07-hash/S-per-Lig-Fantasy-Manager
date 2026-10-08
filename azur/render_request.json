@@ -1,8 +1,7 @@
 {
-  "id": "r3-3",
-  "note": "Runde 3 fortsetzen im neuen Wartemodus: Vorschau, 3D-Modelle, Umriss-Masken neu (ohne Fussbaelle), restliche Bilder, Kamerafahrten",
+  "id": "r3-4",
+  "note": "Runde 3 neu: Stifte im Becher statt schwebend, Pulli ueber der Stuhllehne, Umriss-Masken ohne Fussbaelle. Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Kamerafahrten",
   "set": "scene3",
-  "rebuild": false,
-  "redo": ["views/*/masks*.png", "views/*/glow*.png"],
+  "rebuild": true,
   "jobs": ["preview", "export", "queue", "moves"]
 }
