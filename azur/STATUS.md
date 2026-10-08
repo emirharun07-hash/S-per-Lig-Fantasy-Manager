@@ -160,6 +160,10 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   (5.2 MB for all views); `scene/maps.py` tidies them (0.35 MB), the pipeline renders maps without dither and tidies
   them too. Phones no longer fetch or decode the window video (no window in that view). Data before the first
   picture: desktop 2.84 -> 1.54 MB, phone 3.60 -> 1.72 MB (artifact v24).
+- 12:10 UTC check (PC still silent): accessibility audit (axe-core) of room, product view and magazine: only the
+  dimmed logo outside a landmark → in a nav; it was also an invisible Tab stop (now hidden while unused) and, in the
+  prototype page, sat under the product view so it could not be clicked (moved to <body> by the app). 0 violations
+  now (artifact v25).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
