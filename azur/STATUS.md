@@ -154,6 +154,8 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   fixed (artifact v20); the header bag now follows the theme drawer's cart count (artifact v21, theme harness checked).
 - 09:10 UTC check (PC still silent): keyboard use fixed (focus back to the jersey after the product view, Tab trapped in
   it, hidden cart/drop panels inert); no-WebGL and reduced-motion paths checked; test now 54 checks (artifact v22).
+- 10:10 UTC check (PC still silent): the room was composited twice per frame (sway + frame loop) → once; the room and
+  its window video rest behind the product view (artifact v23). Phone swipe along the rail and the drop card checked.
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
