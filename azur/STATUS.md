@@ -170,6 +170,11 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
 - 14:10 UTC check (PC still silent): the Shopify build in the theme harness (desktop + phone): axe clean for our
   markup (the one finding is the harness's stand-in announcement bar), theme header hidden over the room, product
   view with 3D model and shop link, logo hides again after closing. Nothing to fix.
+- 15:10 UTC check (PC still silent): dry run of the whole r3-5 pipeline in the cloud at tiny size (AZUR_QUEUE_FAST:
+  all four views with passes, masks, ids, window, depth, beauty and the evening/night/morning patches; the camera moves
+  room-rail and room-bed in day/evening/night; all preview shots): no errors. The page tested against that output for
+  the first time with real state patches and moves: patches go in and out with the clock (night masks at night), the
+  moves play both ways by day and by night, no errors. The PC run should go through.
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
