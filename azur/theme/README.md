@@ -1,7 +1,7 @@
 # AZUR theme files (Phase 2)
 
-Files for the Shopify theme **"Azur Zimmer (Entwurf)"** (`gid://shopify/OnlineStoreTheme/208669016403`, a copy of
-the live theme "Azur Drops + Teaser"). Only these files are added or changed in the copy; everything else stays the
+Files for the Shopify theme **"Azur Zimmer Runde 3 (Entwurf)"** (`gid://shopify/OnlineStoreTheme/208772268371`, a copy
+of the live theme "Azur Zimmer (Entwurf)" `208669016403`, which the owner published with round 2 on 2026-10-07). Only these files are added or changed in the copy; everything else stays the
 live theme's.
 
 | File | What |

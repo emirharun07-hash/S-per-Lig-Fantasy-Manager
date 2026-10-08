@@ -68,6 +68,7 @@ Read this first when resuming work. The full creative brief is in `BRIEF.md`.
 
 ## Phase 2: Shopify (started 2026-10-07 evening, owner approved: "Kannst du all das in Shopify reinmachen?")
 
+- (Since 2026-10-07 22:14 UTC this theme is live; round 3 is in "Azur Zimmer Runde 3 (Entwurf)" `208772268371`, see below.)
 - Draft theme **"Azur Zimmer (Entwurf)"** `gid://shopify/OnlineStoreTheme/208669016403` (copy of the live theme
   "Azur Drops + Teaser" `208428204371`, which stays untouched). Preview (logged into the admin, or after the storefront
   password): https://azurclothing.com/?preview_theme_id=208669016403 · editor:
@@ -186,9 +187,27 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   when a view, pass, map or model is missing, so no half-empty page or theme gets published in that window
   (AZUR_ALLOW_PARTIAL=1 builds anyway).
 
-Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
-artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
-batches), themeFilesUpsert into the draft theme 208669016403, test with `tools/theme_harness.py`.
+## Round 3 done (2026-10-08, 22:00-23:00 UTC)
+
+- PC run r3-5 (rebuilt scene, preview, models, all passes and state patches, moves): 20:20-21:59 UTC, complete
+  (`tools/assets_check.py`: complete). Jerseys clean (Deutschland too), Türkei visible beside the drop bag.
+- Web: `go()` no longer drops a view change asked for during a flight (it lands, then takes the latest target); night
+  tease points at the magazine; the product title wraps inside its column while Archivo is still loading.
+  `test_room.cjs`: all passed. **Artifact version 28** (same URL) = final round 3.
+- Shopify: the owner published "Azur Zimmer (Entwurf)" `208669016403` on 2026-10-07 22:14 UTC, so it is the **live
+  theme** now (round 2, `azr1-` files) and stays untouched. Round 3 went into a fresh copy of it:
+  **"Azur Zimmer Runde 3 (Entwurf)" `gid://shopify/OnlineStoreTheme/208772268371`** (unpublished):
+  `sections/azur-room.liquid`, `snippets/azur-room-data.liquid`, `assets/azur-room.js|css` (checksums match the repo;
+  `templates/index.json` and the fonts were already identical). Preview:
+  https://azurclothing.com/?preview_theme_id=208772268371 · editor:
+  https://admin.shopify.com/store/5vpchz-hd/themes/208772268371/editor
+- Files: 200 `azr2-` files in Content > Files, all READY, uploaded as generic files. The CDN re-encodes WebP for the
+  browser (PSNR 47 dB, invisible) and keeps masks pixel-exact and models byte-exact.
+- Theme harness (desktop + phone): room, rail, bed, product views (Deutschland, Türkei, Frankfurt) open and close,
+  no errors (only the harness's own missing favicon). The harness has no Archivo (the live theme self-hosts it), so
+  titles show in a wider fallback there.
+- Publishing "Azur Zimmer Runde 3 (Entwurf)" is the owner's step. The `azr1-` files are still used by the live theme;
+  remove them only after round 3 is live.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
