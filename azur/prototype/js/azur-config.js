@@ -116,6 +116,7 @@ AZUR.config = {
     dropDoneText: 'Wir melden uns, bevor der Drop live geht.',
     dropInvalid: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     bedTease: 'Psst. Blätter mal im Heft auf der Decke.',
+    bedTeaseNight: 'Psst. Das Heft ist vom Bett gerutscht. Blätter mal rein.',   // at night it lies on the floor
     magSpot: 'ANSTOSS lesen',
     mag: {
       label: 'ANSTOSS, Ausgabe 01. Das Heft von AZUR',

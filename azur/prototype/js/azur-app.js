@@ -98,9 +98,15 @@
         Object.assign(this.snap.style, { transform: '', filter: '', opacity: '1' }); this.snap.hidden = false;
       }
       await this.comp.setState(st);
-      this.comp.render(this.light); this.placeChrome(); this.kick();
+      this.comp.render(this.light); this.placeChrome(); this.setTease(); this.kick();
       if (fade) { await this.snap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, easing: 'ease-in-out' }).finished.catch(() => { }); this.snap.hidden = true; }
       this.stateBusy = false;
+    }
+
+    /* The line under the bed view: at night the magazine has slid off the duvet onto the floor. */
+    setTease() {
+      const c = A.config.copy, night = A.config.scene3 && this.dayState === 'night';
+      if (this.tease) this.tease.textContent = night && c.bedTeaseNight ? c.bedTeaseNight : c.bedTease;
     }
 
     applyPalette() {
@@ -145,7 +151,11 @@
 
     /* Fake camera move: the current frame pushes toward the target and blurs, the next view settles in. */
     async go(to, opts = {}) {
-      if (this.busy) return;
+      if (this.busy) {                     // a flight is on: the newest wish waits for it to land (the magazine asked
+        this.nextGo = to; await this.flight;   // for mid-flight, a chip clicked during a move); older wishes are dropped
+        if (this.nextGo !== to) return;
+        this.nextGo = null; return this.go(to, opts);
+      }
       if (to === this.viewKey) { if (opts.select != null) this.select(opts.select); return; }
       const fromBase = this.viewKey.split('@')[0];
       if (this.plate && this.viewKey.includes('@') && to !== fromBase && !to.startsWith(fromBase + '@')) {
@@ -154,6 +164,18 @@
         return this.go(to, opts);
       }
       this.busy = true; this.hideHint();
+      let land; this.flight = new Promise(r => { land = r; });
+      try { await this.fly(to, opts); }
+      finally {                                       // a failed load must never leave the room stuck in flight
+        this.busy = false; land();
+        this.root.classList.remove('is-loading', 'is-flying'); this.layer.classList.remove('is-moving');
+      }
+      if (opts.select != null) setTimeout(() => this.select(opts.select), this.reduced ? 0 : 120);
+      this.kick();
+    }
+
+    /* The camera move itself (go() keeps one at a time). */
+    async fly(to, opts) {
       const m = A.config.motion.pan, from = this.viewKey;
       const back = to === 'room';
       const focus = opts.focus || [this.stage.clientWidth / 2, this.stage.clientHeight / 2];
@@ -198,9 +220,6 @@
         out.cancel(); this.snap.hidden = true;
         this.layer.classList.remove('is-moving');
       }
-      this.busy = false;
-      if (opts.select != null) setTimeout(() => this.select(opts.select), this.reduced ? 0 : 120);
-      this.kick();
     }
 
     /* ---------------------------------------------------------------- pre-rendered camera moves (scene/render_moves.py)
@@ -565,7 +584,7 @@
         this.go(v);
       });
       this.hint = $('.azur-hint'); this.hint.textContent = this.isMobile ? c.hintMobile : c.hintDesktop;
-      this.tease = $('.azur-tease'); this.tease.textContent = c.bedTease;
+      this.tease = $('.azur-tease'); this.setTease();
       // bed hotspot (room view)
       this.bedSvg = $('.azur-bed');
       this.bedPoly = this.bedSvg.querySelector('polygon');
