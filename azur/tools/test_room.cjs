@@ -124,6 +124,10 @@ function serve() {
     await p.evaluate(() => { try { localStorage.removeItem('azur-cart'); } catch (e) { } AZUR.app.shop.cart = []; AZUR.app.shop.renderCart(); });
     let bag = await p.evaluate(() => !document.querySelector('.azur-head__bag').hidden);
     ok('cart: the bag is hidden while the cart is empty', !bag, { bag });
+    // Shopify's theme drawer rewrites [data-cart-count]: the bag shows and hides with that number
+    const follow = await p.evaluate(async () => { const c = document.querySelector('.azur-head__count'), b = document.querySelector('.azur-head__bag'), t = () => new Promise(r => setTimeout(r, 50));
+      c.textContent = '3'; await t(); const on = !b.hidden; c.textContent = '0'; await t(); return { on, off: b.hidden }; });
+    ok('cart: the bag follows the count the theme writes', follow.on && follow.off, follow);
     await p.evaluate(() => AZUR.app.openProduct(0)); await p.waitForTimeout(900);
     let add = await p.evaluate(() => document.querySelector('.azur-pdp__add').disabled);
     ok('cart: add button waits for a size', add, { add });

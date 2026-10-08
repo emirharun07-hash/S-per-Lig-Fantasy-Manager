@@ -2630,6 +2630,17 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.bagBtn = head && head.querySelector('.azur-head__bag');
       if (this.bagBtn && !A.config.shopify) this.bagBtn.addEventListener('click', () => this.shop.toggleCart());   // Shopify: the theme's drawer ([data-cart-open])
       this.setCartCount(A.store && A.store.cartCount || 0);
+      // Shopify: the theme's cart drawer rewrites every [data-cart-count] (the bag's too) when lines change there;
+      // the bag follows that number, and the cart is asked again when the visitor comes back to the tab
+      const cnt = this.bagBtn && this.bagBtn.querySelector('.azur-head__count');
+      if (cnt && 'MutationObserver' in window) new MutationObserver(() => {
+        const n = parseInt(cnt.textContent, 10) || 0; if (n !== this.cartCount) { this.cartCount = n; this.bagBtn.hidden = !(n > 0); }
+      }).observe(cnt, { childList: true, characterData: true, subtree: true });
+      if (A.config.shopify) document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        const root = (window.Shopify && Shopify.routes && Shopify.routes.root) || '/';
+        fetch(root + 'cart.js', { headers: { Accept: 'application/json' } }).then(r => r.json()).then(c => this.setCartCount(c.item_count)).catch(() => { });
+      });
       this.menuBtn = head && head.querySelector('.azur-head__dots'); this.menu = head && head.querySelector('.azur-menu');
       if (this.menuBtn && this.menu) {
         this.menuBtn.addEventListener('click', e => { e.stopPropagation(); this.toggleMenu(); });
