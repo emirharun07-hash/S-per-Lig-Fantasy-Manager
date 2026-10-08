@@ -164,6 +164,9 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   dimmed logo outside a landmark → in a nav; it was also an invisible Tab stop (now hidden while unused) and, in the
   prototype page, sat under the product view so it could not be clicked (moved to <body> by the app). 0 violations
   now (artifact v25).
+- 13:10 UTC check (PC still silent): responsive sweep over six screen sizes. On 320 px phones the product view ran
+  past the screen (title's longest word) and the drop card stuck out 6 px; both fixed, Regie button off the chips
+  (artifact v26). Landscape phone, tablets, laptop and wide screens were already fine.
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
