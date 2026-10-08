@@ -144,6 +144,9 @@ def fetch_fonts():
 
 
 def main():
+    if SET not in ('scene1', 'scene2'):          # never point the theme at renders the PC is still making
+        sys.path.insert(0, HERE); import assets_check
+        assets_check.require_complete(os.path.join(ROOT, 'prototype', 'assets', SET), 'theme')
     os.makedirs(OUT, exist_ok=True)
     build_js(); build_css(); build_data(); fetch_fonts()
     files = build_files()

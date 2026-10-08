@@ -70,6 +70,9 @@ def low_copies(views_rel, width=1200, q=88):
 
 
 def main():
+    if SET not in ('scene1', 'scene2'):          # never package a set the PC is still filling in
+        sys.path.insert(0, HERE); import assets_check
+        assets_check.require_complete(os.path.join(SRC, 'assets', SET), 'artifact')
     if os.path.exists(OUT): shutil.rmtree(OUT)
     os.makedirs(OUT)
     copy('index.html')

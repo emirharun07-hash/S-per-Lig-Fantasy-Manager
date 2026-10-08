@@ -177,6 +177,10 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   moves play both ways by day and by night, no errors. The PC run should go through.
 - 16:10 UTC check (PC still silent): evening flights use their own frames; the clock changing while a flight starts
   (both use the snapshot canvas) ends consistent: right state, right view, snapshot gone, no errors.
+- 17:10 UTC check (PC still silent): while the PC renders a rebuilt set, the branch is half empty for hours.
+  `tools/assets_check.py` now stops build_artifact.py and build_theme.py (exit 2, with the list of what is missing)
+  when a view, pass, map or model is missing, so no half-empty page or theme gets published in that window
+  (AZUR_ALLOW_PARTIAL=1 builds anyway).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
