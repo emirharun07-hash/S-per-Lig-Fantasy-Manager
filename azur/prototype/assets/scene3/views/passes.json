@@ -258,6 +258,28 @@
      2000
     ],
     "complete": true
+   },
+   "night": {
+    "rects": [
+     [
+      0,
+      1740,
+      498,
+      2000
+     ]
+    ],
+    "passes": [
+     "sky",
+     "neon",
+     "lamp",
+     "spot",
+     "street"
+    ],
+    "res": [
+     1800,
+     2000
+    ],
+    "complete": true
    }
   }
  }
