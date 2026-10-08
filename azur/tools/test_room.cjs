@@ -192,7 +192,39 @@ function serve() {
       const ds = await p.evaluate(() => ({ state: AZUR.app.dayState, want: AZUR.app.stateNow(), busy: !!AZUR.app.stateBusy, dataset: AZUR.app.root.dataset.state }));
       ok(`clock ${h}: the room follows (${ds.want})`, !ds.busy && ds.state === ds.want && ds.dataset === ds.want, ds);
     }
+    await p.close();
+
+    // keyboard: Enter on a jersey opens it, Tab stays inside the product view, Escape returns to that jersey
+    p = await mk({ width: 1440, height: 810 });
+    await p.goto(url); await p.waitForFunction(() => window.AZUR && AZUR.app && AZUR.app.running, null, { timeout: 30000 }); await p.waitForTimeout(2000);
+    await p.focus('.azur-g__hit[data-index="3"]'); await p.keyboard.press('Enter'); await p.waitForTimeout(1200);
+    s = await st(p); ok('keyboard: Enter on a jersey opens its product view', s.pdp, s);
+    const out = []; for (let i = 0; i < 14; i++) { await p.keyboard.press('Tab'); out.push(await p.evaluate(() => !!document.activeElement.closest('.azur-pdp'))); }
+    for (let i = 0; i < 6; i++) { await p.keyboard.press('Shift+Tab'); out.push(await p.evaluate(() => !!document.activeElement.closest('.azur-pdp'))); }
+    ok('keyboard: Tab and Shift+Tab stay inside the product view', out.every(Boolean), out);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(700);
+    const fx = await p.evaluate(() => ({ cls: document.activeElement.className, i: document.activeElement.dataset.index }));
+    ok('keyboard: Escape returns focus to that jersey', /azur-g__hit/.test(fx.cls) && fx.i === '3', fx);
+    const stray = await p.evaluate(() => [...document.querySelectorAll('.azur-cart button, .azur-drop input, .azur-drop button, .azur-holo button')]
+      .filter(x => !x.closest('[inert]')).map(x => x.className || x.tagName));
+    ok('keyboard: closed cart and drop panels take no focus', stray.length === 0, stray);
+    await p.close();
   } catch (e) { fails++; logs.push('FAIL exception: ' + e.message.split('\n')[0]); }
+  await b.close();
+
+  // without WebGL: the graded still shows, jerseys can be clicked, the product view shows the photo
+  const b2 = await pw.chromium.launch({ executablePath: exe, args: ['--no-proxy-server', '--disable-webgl', '--disable-webgl2', '--disable-gpu'] });
+  try {
+    const p = await (await b2.newContext({ viewport: { width: 1440, height: 810 } })).newPage();
+    p.on('pageerror', e => { fails++; logs.push(`FAIL page error (no WebGL): ${e.message}`); });
+    await p.goto(url); await p.waitForFunction(() => window.AZUR && AZUR.app && AZUR.app.running, null, { timeout: 30000 }); await p.waitForTimeout(2000);
+    let s = await p.evaluate(() => ({ gl: AZUR.app.comp.ok, fb: !document.querySelector('.azur-fallback').hidden, err: document.documentElement.classList.contains('azur-error') }));
+    ok('no WebGL: the still image shows instead', !s.gl && s.fb && !s.err, s);
+    const pt = await find(p, 3); if (pt) await p.mouse.click(pt[0], pt[1]); await p.waitForTimeout(1200);
+    s = await p.evaluate(() => ({ pdp: AZUR.app.shop.pdp.classList.contains('is-on'), model: AZUR.app.shop.pdp.classList.contains('has-model'), img: document.querySelector('.azur-pdp__img').naturalWidth > 0 }));
+    ok('no WebGL: a click opens the product view with the photo', !!pt && s.pdp && !s.model && s.img, s);
+  } catch (e) { fails++; logs.push('FAIL exception (no WebGL): ' + e.message.split('\n')[0]); }
+  await b2.close();
   console.log(logs.join('\n')); console.log(fails ? `${fails} failed` : 'all passed');
-  await b.close(); srv.close(); process.exit(fails ? 1 : 0);
+  srv.close(); process.exit(fails ? 1 : 0);
 })();

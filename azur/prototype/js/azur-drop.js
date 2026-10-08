@@ -22,6 +22,7 @@
         </form>
         <p class="azur-drop__legal">${c.dropLegal}</p>
         <button class="azur-drop__close" type="button" aria-label="Schließen">×</button>`;
+      this.el.inert = true;                           // closed: its form takes no focus
       root.appendChild(this.el);
       this.card = document.createElement('div');
       this.card.className = 'azur-holo'; this.card.setAttribute('role', 'status');
@@ -36,6 +37,7 @@
           <span class="azur-holo__notch azur-holo__notch--r" aria-hidden="true"></span>
         </div>
         <button class="azur-holo__close" type="button">${c.backToRoom}</button>`;
+      this.card.inert = true;
       document.body.appendChild(this.card);
       this.bind();
     }
@@ -96,10 +98,10 @@
     open() {
       let known = null; try { known = A.config.shopify ? null : localStorage.getItem('azur-drop-signup'); } catch (x) { }
       if (known) this.el.querySelector('input[type=email]').value = known;
-      this.el.classList.add('is-on');
+      this.el.classList.add('is-on'); this.el.inert = false;
       setTimeout(() => { if (!this.app.isMobile) this.el.querySelector('input').focus({ preventScroll: true }); }, 380);
     }
-    close() { this.el.classList.remove('is-on'); }
+    close() { this.el.classList.remove('is-on'); this.el.inert = true; }
 
     position(x, y, p) {
       if (!this.el.classList.contains('is-on')) return;
@@ -117,11 +119,11 @@
     confirm(mail) {
       this.close();
       this.card.querySelector('.azur-holo__mail').textContent = mail || '';
-      this.card.classList.add('is-on');
+      this.card.classList.add('is-on'); this.card.inert = false;
       this.app.setWorldDim(0.45, 6);
       setTimeout(() => this.card.querySelector('.azur-holo__close').focus({ preventScroll: true }), 500);
     }
-    hideCard() { this.card.classList.remove('is-on'); this.app.setWorldDim(); }
+    hideCard() { this.card.classList.remove('is-on'); this.card.inert = true; this.app.setWorldDim(); }
   }
 
   A.Drop = Drop;

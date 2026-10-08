@@ -66,6 +66,7 @@
           <button type="button" class="azur-cart__checkout">${c.checkout}</button>
           <p class="azur-cart__note">${c.prototypeNote}</p>
         </footer>`;
+      this.drawer.inert = true;                       // closed: nothing in it takes focus
       document.body.appendChild(this.drawer);
       this.bind(); this.renderCart();
     }
@@ -86,8 +87,17 @@
           this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
-      // Escape closes the product view only (the room's own Escape would also fly back to the room)
-      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.close(); } });
+      // Escape closes the product view only (the room's own Escape would also fly back to the room); Tab stays inside it
+      this.pdp.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { e.stopPropagation(); this.close(); return; }
+        if (e.key !== 'Tab') return;
+        const f = [...this.pdp.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]')]
+          .filter(x => x.getClientRects().length && !x.closest('[hidden]'));
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      });
       if (!this.drawer) return;
       this.drawer.querySelector('.azur-cart__close').addEventListener('click', () => this.toggleCart(false));
       this.drawer.addEventListener('click', e => {
@@ -101,6 +111,7 @@
 
     open(product, fromRect) {
       if (!product || product.type !== 'product') return;
+      if (!this.pdp.classList.contains('is-on')) this.returnFocus = document.activeElement;   // back there on close
       this.product = product; this.size = null;
       const q = s => this.pdp.querySelector(s);
       q('.azur-pdp__title').textContent = product.name;
@@ -148,7 +159,9 @@
       document.documentElement.classList.remove('azur-pdp-open');
       this.app.setWorldDim();
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
-      this.app.afterProductClose();
+      const back = this.returnFocus; this.returnFocus = null;
+      if (back && back !== document.body && back.isConnected && back.getClientRects().length) back.focus({ preventScroll: true });
+      else this.app.afterProductClose();
     }
 
     add() {
@@ -219,7 +232,7 @@
         return;
       }
       const open = on == null ? !this.drawer.classList.contains('is-on') : on;
-      this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open));
+      this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open)); this.drawer.inert = !open;
       if (open) this.drawer.querySelector('.azur-cart__close').focus({ preventScroll: true });
     }
 

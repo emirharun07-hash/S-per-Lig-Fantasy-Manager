@@ -1243,6 +1243,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         </form>
         <p class="azur-drop__legal">${c.dropLegal}</p>
         <button class="azur-drop__close" type="button" aria-label="Schließen">×</button>`;
+      this.el.inert = true;                           // closed: its form takes no focus
       root.appendChild(this.el);
       this.card = document.createElement('div');
       this.card.className = 'azur-holo'; this.card.setAttribute('role', 'status');
@@ -1257,6 +1258,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           <span class="azur-holo__notch azur-holo__notch--r" aria-hidden="true"></span>
         </div>
         <button class="azur-holo__close" type="button">${c.backToRoom}</button>`;
+      this.card.inert = true;
       document.body.appendChild(this.card);
       this.bind();
     }
@@ -1317,10 +1319,10 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     open() {
       let known = null; try { known = A.config.shopify ? null : localStorage.getItem('azur-drop-signup'); } catch (x) { }
       if (known) this.el.querySelector('input[type=email]').value = known;
-      this.el.classList.add('is-on');
+      this.el.classList.add('is-on'); this.el.inert = false;
       setTimeout(() => { if (!this.app.isMobile) this.el.querySelector('input').focus({ preventScroll: true }); }, 380);
     }
-    close() { this.el.classList.remove('is-on'); }
+    close() { this.el.classList.remove('is-on'); this.el.inert = true; }
 
     position(x, y, p) {
       if (!this.el.classList.contains('is-on')) return;
@@ -1338,11 +1340,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     confirm(mail) {
       this.close();
       this.card.querySelector('.azur-holo__mail').textContent = mail || '';
-      this.card.classList.add('is-on');
+      this.card.classList.add('is-on'); this.card.inert = false;
       this.app.setWorldDim(0.45, 6);
       setTimeout(() => this.card.querySelector('.azur-holo__close').focus({ preventScroll: true }), 500);
     }
-    hideCard() { this.card.classList.remove('is-on'); this.app.setWorldDim(); }
+    hideCard() { this.card.classList.remove('is-on'); this.card.inert = true; this.app.setWorldDim(); }
   }
 
   A.Drop = Drop;
@@ -1672,6 +1674,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           <button type="button" class="azur-cart__checkout">${c.checkout}</button>
           <p class="azur-cart__note">${c.prototypeNote}</p>
         </footer>`;
+      this.drawer.inert = true;                       // closed: nothing in it takes focus
       document.body.appendChild(this.drawer);
       this.bind(); this.renderCart();
     }
@@ -1692,8 +1695,17 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
-      // Escape closes the product view only (the room's own Escape would also fly back to the room)
-      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.close(); } });
+      // Escape closes the product view only (the room's own Escape would also fly back to the room); Tab stays inside it
+      this.pdp.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { e.stopPropagation(); this.close(); return; }
+        if (e.key !== 'Tab') return;
+        const f = [...this.pdp.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]')]
+          .filter(x => x.getClientRects().length && !x.closest('[hidden]'));
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      });
       if (!this.drawer) return;
       this.drawer.querySelector('.azur-cart__close').addEventListener('click', () => this.toggleCart(false));
       this.drawer.addEventListener('click', e => {
@@ -1707,6 +1719,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
 
     open(product, fromRect) {
       if (!product || product.type !== 'product') return;
+      if (!this.pdp.classList.contains('is-on')) this.returnFocus = document.activeElement;   // back there on close
       this.product = product; this.size = null;
       const q = s => this.pdp.querySelector(s);
       q('.azur-pdp__title').textContent = product.name;
@@ -1754,7 +1767,9 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       document.documentElement.classList.remove('azur-pdp-open');
       this.app.setWorldDim();
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
-      this.app.afterProductClose();
+      const back = this.returnFocus; this.returnFocus = null;
+      if (back && back !== document.body && back.isConnected && back.getClientRects().length) back.focus({ preventScroll: true });
+      else this.app.afterProductClose();
     }
 
     add() {
@@ -1825,7 +1840,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         return;
       }
       const open = on == null ? !this.drawer.classList.contains('is-on') : on;
-      this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open));
+      this.drawer.classList.toggle('is-on', open); this.drawer.setAttribute('aria-hidden', String(!open)); this.drawer.inert = !open;
       if (open) this.drawer.querySelector('.azur-cart__close').focus({ preventScroll: true });
     }
 
