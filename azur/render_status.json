@@ -1,0 +1,12 @@
+{
+    "state":  "bereit",
+    "request":  "",
+    "job":  "",
+    "note":  "Warte-Modus laeuft (Version 2)",
+    "watch":  2,
+    "time":  "2026-10-08T20:20:12Z",
+    "device":  "22:19:31 render device HIP: AMD Radeon RX 6750 XT",
+    "log":  [
+
+            ]
+}
