@@ -77,6 +77,7 @@
       if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => { this.loadDepth(k); setTimeout(() => up(this.comp.cache[k]), 1500); })), 2500);
       setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
+      window.addEventListener('hashchange', () => this.handleHash());    // links inside the page (#bett, #anstoss, a jersey)
     }
 
     /* ---------------------------------------------------------------- times of day (scene3) */
@@ -372,6 +373,7 @@
       if (i >= 0 && !(ps && Object.keys(ps).length >= 7)) target = railKey;   // pose not rendered yet: select on the rail as it hangs
       if (this.viewKey === target && (target.includes('@') || this.rail.selected === i)) return;
       this.rail.setSelected(-1); this.rail.setHover(-1); this.root.classList.remove('has-selection');
+      if (i < 0) this.drop.close();                                   // the drop card goes with its selection (no view change here)
       if (i >= 0 && this.viewKey !== railKey) await this.go(railKey);      // another one is out: hang it back first
       if (i >= 0 && railKey === 'rail_m') { const sp = this.panFor(i); if (sp != null) await this.panTo(sp); }   // phones: centre it first
       await this.go(target);
@@ -417,7 +419,13 @@
       if (this.dragMoved) return;
       const p = A.products[i]; if (!p) return;
       this.rail.kickGarment(i, A.config.motion.sway.clickKick);
-      if (p.type === 'product' && this.plate) { this.hideHint(); return this.openProduct(i); }   // straight to the product view
+      if (p.type === 'product' && this.plate) {                    // straight to the product view
+        this.hideHint();
+        if (this.rail.selected >= 0 && !this.viewKey.includes('@')) {   // the drop card was open: it closes behind the product
+          this.rail.setSelected(-1); this.root.classList.remove('has-selection'); this.drop.close();
+        }
+        return this.openProduct(i);
+      }
       if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
       this.select(i);
     }
@@ -814,7 +822,9 @@
       const h = decodeURIComponent(location.hash.slice(1));
       if (!h) return;
       const i = A.products.findIndex(p => p.handle === h);
-      if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
+      // a jersey's link opens its product view, as a click on it does (the rendered rooms); the drop goes to the rail
+      if (i >= 0 && this.plate && A.products[i].type === 'product') this.openProduct(i);
+      else if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
       else if (h === 'bett') this.go('bed');
       else if (h === 'anstoss') this.openMag();
       else if (h === 'azur-drop' && /customer_posted=true/.test(location.search)) this.drop.confirm('');   // back from Shopify's bot check

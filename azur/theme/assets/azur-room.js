@@ -9,6 +9,7 @@ AZUR.config = {
   assetBase: 'assets/views/',
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
+  modelExt: 'glb',                       // jersey models for the product view ('glb.json' where .glb is not served)
 
   /* Accent systems. A is the chosen one; the others stay switchable in the design panel. */
   palettes: {
@@ -606,9 +607,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       }
       if (masksN) v.masksNight = masksN;
       if (glowN) v.glowNight = this.texture(glowN);
-      v.masksImg = night && v.masksNight ? v.masksNight : v.masksDay;
+      // night outlines only when the night picture is really there (its patches loaded), so dots and image agree
+      const nightShown = night && !!v.patched;
+      v.masksImg = nightShown && v.masksNight ? v.masksNight : v.masksDay;
       v.masksData = null;
-      v.glow = night && v.glowNight ? v.glowNight : v.glowDay;
+      v.glow = nightShown && v.glowNight ? v.glowNight : v.glowDay;
       v.state = state;
     }
     static scratch(w, h) {
@@ -1016,7 +1019,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         this.pointer.inside = id >= 0;
         const sw = A.config.motion.sway;                          // brushing past a jersey sets it swinging
         if (id >= 0 && sw && this.items[id]) this.items[id].omega += Math.max(-600, Math.min(600, vx)) * sw.brush * A.config.motion.intensity * A.config.interactionStrength;
-        if (this.selected < 0 || this.view === 'room') this.setHover(id);
+        this.setHover(id);                  // a chosen garment (the drop card) must not stop the others from answering
         return;
       }
       let best = -1, bestDist = 1e9;
@@ -1038,7 +1041,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       });
       if (this.selected < 0 || this.view === 'room') this.setHover(best);
     }
-    pointerLeave() { this.pointer.inside = false; this.pointer.x = -1e4; if (this.selected < 0 || this.view === 'room') this.setHover(-1); }
+    pointerLeave() { this.pointer.inside = false; this.pointer.x = -1e4; if (this.plate || this.selected < 0 || this.view === 'room') this.setHover(-1); }
 
     /* Pan velocity on phones: the whole rail swings against the motion. */
     panImpulse(v) {
@@ -1047,7 +1050,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     }
 
     updateLabel() {
-      const i = this.selected >= 0 && this.view !== 'room' ? -1 : this.hover;
+      const i = this.plate ? (this.hover === this.selected && this.view !== 'room' ? -1 : this.hover)
+        : this.selected >= 0 && this.view !== 'room' ? -1 : this.hover;
       const el = this.label;
       if (i < 0 || !this.items[i] || !this.px || !this.px[i]) { el.classList.remove('is-on'); return; }
       const p = this.items[i].p;
@@ -1289,7 +1293,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       };
       this.card.addEventListener('pointermove', e => tilt(e.clientX, e.clientY));
       this.card.addEventListener('pointerleave', () => { ['--rx', '--ry'].forEach(p => card.style.setProperty(p, '0deg')); });
-      this.card.addEventListener('keydown', e => { if (e.key === 'Escape') { this.hideCard(); this.app.select(-1); } });
+      this.card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.hideCard(); this.app.select(-1); } });
     }
 
     /* Shopify: the same customer form as the theme's snippets/signup-form.liquid (tags newsletter, drops; Shopify sends
@@ -1322,8 +1326,10 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (!this.el.classList.contains('is-on')) return;
       const vw = this.app.stage.clientWidth;
       const w = Math.min(340, vw - 32);
-      let left = x - p.w * 0.5 - w - 24;               // to the left of the bag, the rail continues on the right
-      if (left < 16) left = Math.min(vw - w - 16, x + p.w * 0.5 + 24);
+      // beside the bag where the wall is free (right of it, the end of the rail), never over the other jerseys if it fits
+      let left = x + p.w * 0.5 + 24;
+      if (left + w > vw - 16) left = x - p.w * 0.5 - w - 24;
+      if (left < 16) left = Math.max(16, vw - w - 16);
       if (this.app.isMobile) { this.el.style.transform = ''; return; }
       this.el.style.width = w + 'px';
       this.el.style.transform = `translate3d(${left.toFixed(1)}px, ${Math.max(84, y).toFixed(1)}px, 0)`;
@@ -1352,7 +1358,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
 
   async function readGLB(url) {
     const res = await fetch(url); if (!res.ok) throw new Error('model ' + res.status);
-    const buf = await res.arrayBuffer(), dv = new DataView(buf);
+    let buf;
+    if (/\.json(\?|$)/.test(url)) {                // hosts that do not serve .glb get it base64-wrapped in JSON
+      const b64 = (await res.json()).glb, bin = atob(b64), u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      buf = u8.buffer;
+    } else buf = await res.arrayBuffer();
+    const dv = new DataView(buf);
     if (dv.getUint32(0, true) !== 0x46546C67) throw new Error('not a GLB');
     let off = 12, json = null, bin = null;
     while (off + 8 <= buf.byteLength) {
@@ -1430,17 +1442,21 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
 
     /* Show a product's model (cached per URL). Resolves true when it is on screen, false without a model. */
     async show(url) {
-      this.url = url; this.reset(true);
+      this.url = url; this.parts = []; this.reset(true);
       if (!this.gl) return false;
+      this.clear();                                    // never show the jersey that was open before
       try {
-        const m = this.cache[url] || (this.cache[url] = this.upload(await readGLB(url)));
+        // the promise is cached at once, so a second open while it loads waits for the same download
+        const m = this.cache[url] || (this.cache[url] = readGLB(url).then(g => this.upload(g)));
         const parts = await m;
         if (this.url !== url) return false;            // another jersey was opened meanwhile
         this.parts = parts.list; this.bounds = parts.bounds;
         this.start(); return true;
       } catch (e) { delete this.cache[url]; return false; }
     }
-    stop() { this.running = false; cancelAnimationFrame(this.raf); }
+    /* raf must be cleared too: kick() schedules nothing while it holds an id, and a cancelled frame never clears it */
+    stop() { this.running = false; cancelAnimationFrame(this.raf); this.raf = 0; this.url = null; }
+    clear() { const gl = this.gl; gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
     reset(instant) {
       this.touched = false; this.vyaw = 0; this.t0 = performance.now();
       if (instant) { this.yaw = 0; this.pitch = 0.06; this.zoom = 1; } else { this.resetFrom = [this.yaw, this.pitch, this.zoom]; this.resetT = performance.now(); }
@@ -1527,10 +1543,11 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         }
         this.kick();
       });
-      const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) last = null; else { const p = [...pts.values()][0]; last = { x: p[0], y: p[1], t: performance.now() }; } };
-      c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+      const up = e => { if (!pts.delete(e.pointerId)) return; if (pts.size < 2) pinch = null; if (!pts.size) last = null; else { const p = [...pts.values()][0]; last = { x: p[0], y: p[1], t: performance.now() }; } };
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => c.addEventListener(ev, up));
       c.addEventListener('wheel', e => { e.preventDefault(); this.touch(); this.zoom = this.clampZoom(this.zoom * Math.exp(-e.deltaY * 0.0016)); this.kick(); }, { passive: false });
       c.addEventListener('dblclick', () => this.reset(false));
+      if ('ResizeObserver' in window) new ResizeObserver(() => this.kick()).observe(c);   // a still model redraws at the new size
       c.addEventListener('keydown', e => {
         const k = { ArrowLeft: [-0.25, 0], ArrowRight: [0.25, 0], '+': [0, 1.15], '-': [0, 1 / 1.15], '=': [0, 1.15] }[e.key];
         if (!k) return; e.preventDefault(); this.touch(); this.yaw += k[0]; if (k[1]) this.zoom = this.clampZoom(this.zoom * k[1]); this.kick();
@@ -1602,6 +1619,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       this.pdp = document.createElement('section');
       this.pdp.className = 'azur-pdp'; this.pdp.setAttribute('role', 'dialog'); this.pdp.setAttribute('aria-modal', 'true'); this.pdp.setAttribute('aria-labelledby', 'azur-pdp-title');
       this.pdp.innerHTML = `
+        <button class="azur-pdp__x" type="button" data-act="close" aria-label="${c.backToRoom}"><span aria-hidden="true">×</span></button>
         <div class="azur-pdp__stage">
           <div class="azur-pdp__light" aria-hidden="true"></div>
           <img class="azur-pdp__img" alt="">
@@ -1674,7 +1692,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
-      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
+      // Escape closes the product view only (the room's own Escape would also fly back to the room)
+      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.close(); } });
       if (!this.drawer) return;
       this.drawer.querySelector('.azur-cart__close').addEventListener('click', () => this.toggleCart(false));
       this.drawer.addEventListener('click', e => {
@@ -1700,7 +1719,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       // the 3D jersey (scene3 models), the photo until then
       this.pdp.classList.remove('has-model', 'is-touched');
       if (this.viewer && this.viewer.ok && A.config.scene3) {
-        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.glb');
+        const url = A.url(A.config.assetBase.replace(/views\/$/, 'models/') + product.key + '.' + (A.config.modelExt || 'glb'));
         this.viewer.show(url).then(ok => { if (ok && this.product === product && this.pdp.classList.contains('is-on')) this.pdp.classList.add('has-model'); });
       }
       q('.azur-pdp__sizerow').innerHTML = product.variants.map((v, i) => `
@@ -2176,6 +2195,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (!this.isMobile) setTimeout(() => Object.keys(cfg.views).forEach(k => k !== start && k !== 'rail_m' && this.comp.load(k, this.passes, false).then(() => { this.loadDepth(k); setTimeout(() => up(this.comp.cache[k]), 1500); })), 2500);
       setTimeout(() => this.preloadMoves(), 6000);
       this.handleHash();
+      window.addEventListener('hashchange', () => this.handleHash());    // links inside the page (#bett, #anstoss, a jersey)
     }
 
     /* ---------------------------------------------------------------- times of day (scene3) */
@@ -2471,6 +2491,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (i >= 0 && !(ps && Object.keys(ps).length >= 7)) target = railKey;   // pose not rendered yet: select on the rail as it hangs
       if (this.viewKey === target && (target.includes('@') || this.rail.selected === i)) return;
       this.rail.setSelected(-1); this.rail.setHover(-1); this.root.classList.remove('has-selection');
+      if (i < 0) this.drop.close();                                   // the drop card goes with its selection (no view change here)
       if (i >= 0 && this.viewKey !== railKey) await this.go(railKey);      // another one is out: hang it back first
       if (i >= 0 && railKey === 'rail_m') { const sp = this.panFor(i); if (sp != null) await this.panTo(sp); }   // phones: centre it first
       await this.go(target);
@@ -2516,7 +2537,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (this.dragMoved) return;
       const p = A.products[i]; if (!p) return;
       this.rail.kickGarment(i, A.config.motion.sway.clickKick);
-      if (p.type === 'product' && this.plate) { this.hideHint(); return this.openProduct(i); }   // straight to the product view
+      if (p.type === 'product' && this.plate) {                    // straight to the product view
+        this.hideHint();
+        if (this.rail.selected >= 0 && !this.viewKey.includes('@')) {   // the drop card was open: it closes behind the product
+          this.rail.setSelected(-1); this.root.classList.remove('has-selection'); this.drop.close();
+        }
+        return this.openProduct(i);
+      }
       if (this.viewKey !== 'room' && this.rail.selected === i) return this.select(-1);
       this.select(i);
     }
@@ -2913,7 +2940,9 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const h = decodeURIComponent(location.hash.slice(1));
       if (!h) return;
       const i = A.products.findIndex(p => p.handle === h);
-      if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
+      // a jersey's link opens its product view, as a click on it does (the rendered rooms); the drop goes to the rail
+      if (i >= 0 && this.plate && A.products[i].type === 'product') this.openProduct(i);
+      else if (i >= 0) this.go(this.isMobile ? 'rail_m' : 'rail', { select: i });
       else if (h === 'bett') this.go('bed');
       else if (h === 'anstoss') this.openMag();
       else if (h === 'azur-drop' && /customer_posted=true/.test(location.search)) this.drop.confirm('');   // back from Shopify's bot check

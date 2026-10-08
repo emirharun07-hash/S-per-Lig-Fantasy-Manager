@@ -1,5 +1,9 @@
 [
 {
+"filename": "azr2-views-room-beauty.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/room/beauty.webp"
+},
+{
 "filename": "azr2-views-room-ceiling.webp",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/room/ceiling.webp"
 },
@@ -58,6 +62,10 @@
 {
 "filename": "azr2-views-room-window.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/room/window.png"
+},
+{
+"filename": "azr2-views-rail-beauty.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail/beauty.webp"
 },
 {
 "filename": "azr2-views-rail-ceiling.webp",
@@ -120,6 +128,14 @@
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail/window.png"
 },
 {
+"filename": "azr2-views-rail_m-beauty.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/beauty.webp"
+},
+{
+"filename": "azr2-views-rail_m-ceiling.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/ceiling.webp"
+},
+{
 "filename": "azr2-views-rail_m-depth.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/depth.png"
 },
@@ -136,6 +152,10 @@
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/ids.png"
 },
 {
+"filename": "azr2-views-rail_m-lamp.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/lamp.webp"
+},
+{
 "filename": "azr2-views-rail_m-masks.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/masks.png"
 },
@@ -144,8 +164,40 @@
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/masks_night.png"
 },
 {
+"filename": "azr2-views-rail_m-neon.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/neon.webp"
+},
+{
+"filename": "azr2-views-rail_m-sky.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/sky.webp"
+},
+{
+"filename": "azr2-views-rail_m-spot.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/spot.webp"
+},
+{
+"filename": "azr2-views-rail_m-street.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/street.webp"
+},
+{
+"filename": "azr2-views-rail_m-sun_high.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/sun_high.webp"
+},
+{
+"filename": "azr2-views-rail_m-sun_low.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/sun_low.webp"
+},
+{
 "filename": "azr2-views-rail_m-window.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/rail_m/window.png"
+},
+{
+"filename": "azr2-views-bed-beauty.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/beauty.webp"
+},
+{
+"filename": "azr2-views-bed-ceiling.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/ceiling.webp"
 },
 {
 "filename": "azr2-views-bed-depth.png",
@@ -160,12 +212,60 @@
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/glow_night.png"
 },
 {
+"filename": "azr2-views-bed-lamp.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/lamp.webp"
+},
+{
 "filename": "azr2-views-bed-masks.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/masks.png"
 },
 {
 "filename": "azr2-views-bed-masks_night.png",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/masks_night.png"
+},
+{
+"filename": "azr2-views-bed-neon.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/neon.webp"
+},
+{
+"filename": "azr2-views-bed-sky.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/sky.webp"
+},
+{
+"filename": "azr2-views-bed-spot.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/spot.webp"
+},
+{
+"filename": "azr2-views-bed-street.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/street.webp"
+},
+{
+"filename": "azr2-views-bed-sun_high.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/sun_high.webp"
+},
+{
+"filename": "azr2-views-bed-sun_low.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/views/bed/sun_low.webp"
+},
+{
+"filename": "azr2-models-berlin.glb",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/models/berlin.glb"
+},
+{
+"filename": "azr2-models-brasilien.glb",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/models/brasilien.glb"
+},
+{
+"filename": "azr2-models-deutschland.glb",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/models/deutschland.glb"
+},
+{
+"filename": "azr2-models-frankfurt.glb",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/models/frankfurt.glb"
+},
+{
+"filename": "azr2-models-tuerkei.glb",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/prototype/assets/scene3/models/tuerkei.glb"
 },
 {
 "filename": "azr2-views-room-lo-ceiling.webp",
@@ -230,6 +330,70 @@
 {
 "filename": "azr2-views-rail-lo-sun_low.webp",
 "url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail/lo/sun_low.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-ceiling.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/ceiling.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-lamp.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/lamp.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-neon.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/neon.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-sky.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/sky.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-spot.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/spot.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-street.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/street.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-sun_high.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/sun_high.webp"
+},
+{
+"filename": "azr2-views-rail_m-lo-sun_low.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/rail_m/lo/sun_low.webp"
+},
+{
+"filename": "azr2-views-bed-lo-ceiling.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/ceiling.webp"
+},
+{
+"filename": "azr2-views-bed-lo-lamp.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/lamp.webp"
+},
+{
+"filename": "azr2-views-bed-lo-neon.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/neon.webp"
+},
+{
+"filename": "azr2-views-bed-lo-sky.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/sky.webp"
+},
+{
+"filename": "azr2-views-bed-lo-spot.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/spot.webp"
+},
+{
+"filename": "azr2-views-bed-lo-street.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/street.webp"
+},
+{
+"filename": "azr2-views-bed-lo-sun_high.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/sun_high.webp"
+},
+{
+"filename": "azr2-views-bed-lo-sun_low.webp",
+"url": "https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/claude/shopify-notification-signup-o5avym/azur/theme/files/views/bed/lo/sun_low.webp"
 },
 {
 "filename": "azr2-mag-cover.webp",

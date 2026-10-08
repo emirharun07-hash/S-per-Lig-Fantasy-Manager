@@ -72,7 +72,7 @@
       };
       this.card.addEventListener('pointermove', e => tilt(e.clientX, e.clientY));
       this.card.addEventListener('pointerleave', () => { ['--rx', '--ry'].forEach(p => card.style.setProperty(p, '0deg')); });
-      this.card.addEventListener('keydown', e => { if (e.key === 'Escape') { this.hideCard(); this.app.select(-1); } });
+      this.card.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.hideCard(); this.app.select(-1); } });
     }
 
     /* Shopify: the same customer form as the theme's snippets/signup-form.liquid (tags newsletter, drops; Shopify sends
@@ -105,8 +105,10 @@
       if (!this.el.classList.contains('is-on')) return;
       const vw = this.app.stage.clientWidth;
       const w = Math.min(340, vw - 32);
-      let left = x - p.w * 0.5 - w - 24;               // to the left of the bag, the rail continues on the right
-      if (left < 16) left = Math.min(vw - w - 16, x + p.w * 0.5 + 24);
+      // beside the bag where the wall is free (right of it, the end of the rail), never over the other jerseys if it fits
+      let left = x + p.w * 0.5 + 24;
+      if (left + w > vw - 16) left = x - p.w * 0.5 - w - 24;
+      if (left < 16) left = Math.max(16, vw - w - 16);
       if (this.app.isMobile) { this.el.style.transform = ''; return; }
       this.el.style.width = w + 'px';
       this.el.style.transform = `translate3d(${left.toFixed(1)}px, ${Math.max(84, y).toFixed(1)}px, 0)`;

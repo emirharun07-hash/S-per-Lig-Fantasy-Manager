@@ -253,6 +253,14 @@ html.azur-pdp-open .azur-info, html.azur-pdp-open .azur-regie { opacity: 0 !impo
 /* ------------------------------------------------------------------ product page (more conventional, same world) */
 .azur-pdp { position: fixed; inset: 0; z-index: 110; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); pointer-events: none; visibility: hidden; }
 .azur-pdp.is-on { pointer-events: auto; visibility: visible; }
+/* a plain way out of the product view, readable over the dark stage and the paper page alike */
+.azur-pdp__x { position: absolute; z-index: 5; top: calc(16px + env(safe-area-inset-top, 0px)); right: clamp(14px, 2.4vw, 28px); width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center; padding: 0; cursor: pointer; border: 1px solid rgb(255 255 255 / .22); background: rgb(14 16 18 / .72); color: #f3f1ec;
+  font-size: 26px; line-height: 1; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); opacity: 0; transition: opacity .35s ease .15s, background-color .2s; }
+.azur-pdp.is-on .azur-pdp__x { opacity: 1; }
+.azur-pdp__x:hover, .azur-pdp__x:focus-visible { background: rgb(14 16 18 / .92); }
+.azur-pdp__x span { translate: 0 -1px; }
+html.azur-pdp-open { overflow: hidden; }
 .azur-pdp__stage { position: relative; display: grid; place-items: center; padding: 90px 4vw 40px; overflow: hidden; }
 .azur-pdp__light { position: absolute; inset: 0; background: radial-gradient(55% 60% at 50% 42%, rgb(255 244 224 / .16), transparent 70%); opacity: 0; transition: opacity .8s ease; }
 .azur-pdp.is-on .azur-pdp__light { opacity: 1; }
@@ -277,7 +285,7 @@ html.azur-pdp-open .azur-info, html.azur-pdp-open .azur-regie { opacity: 0 !impo
 .azur-pdp__acts2 button { flex: 1 1 140px; height: 44px; border-radius: 3px; cursor: pointer; border: 1px solid var(--char); background: transparent; color: var(--char);
   font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
 .azur-pdp__acts2 button[data-act="more"] { background: var(--char); color: var(--paper); }
-.azur-pdp__info { position: relative; overflow-y: auto; background: var(--paper); color: var(--char); padding: 104px clamp(24px, 4vw, 64px) 48px; display: flex; flex-direction: column; gap: 14px;
+.azur-pdp__info { position: relative; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); color: var(--char); padding: 104px clamp(24px, 4vw, 64px) 48px; display: flex; flex-direction: column; gap: 14px;
   translate: 100% 0; transition: translate .7s var(--ease); box-shadow: -30px 0 80px rgba(0, 0, 0, .35); }
 .azur-pdp.is-on .azur-pdp__info { translate: 0 0; }
 .azur-pdp__crumbs { display: flex; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
@@ -355,7 +363,7 @@ html.azur-pdp-open .azur-info, html.azur-pdp-open .azur-regie { opacity: 0 !impo
 .is-mobile .azur-drop.is-on { translate: -50% 0; }
 .is-mobile .azur-hint { white-space: nowrap; font-size: 9.5px; left: 50% !important; transform: none !important; translate: -50% 0; top: auto !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); position: fixed; }
 @media (max-width: 860px) {
-  .azur-pdp { grid-template-columns: 1fr; grid-template-rows: 42vh auto; overflow-y: auto; }
+  .azur-pdp { grid-template-columns: 1fr; grid-template-rows: 42vh auto; overflow-y: auto; overscroll-behavior: contain; }
   .azur-pdp__stage { padding: 70px 10vw 10px; }
   .azur-pdp__img { max-height: 36vh; }
   .azur-pdp__info { translate: 0 100%; padding-top: 28px; box-shadow: 0 -20px 60px rgba(0, 0, 0, .35); overflow: visible; }

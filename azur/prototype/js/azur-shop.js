@@ -13,6 +13,7 @@
       this.pdp = document.createElement('section');
       this.pdp.className = 'azur-pdp'; this.pdp.setAttribute('role', 'dialog'); this.pdp.setAttribute('aria-modal', 'true'); this.pdp.setAttribute('aria-labelledby', 'azur-pdp-title');
       this.pdp.innerHTML = `
+        <button class="azur-pdp__x" type="button" data-act="close" aria-label="${c.backToRoom}"><span aria-hidden="true">×</span></button>
         <div class="azur-pdp__stage">
           <div class="azur-pdp__light" aria-hidden="true"></div>
           <img class="azur-pdp__img" alt="">
@@ -85,7 +86,8 @@
           this.pdp.querySelector('.azur-pdp__after').hidden = true;
         }
       });
-      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
+      // Escape closes the product view only (the room's own Escape would also fly back to the room)
+      this.pdp.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); this.close(); } });
       if (!this.drawer) return;
       this.drawer.querySelector('.azur-cart__close').addEventListener('click', () => this.toggleCart(false));
       this.drawer.addEventListener('click', e => {

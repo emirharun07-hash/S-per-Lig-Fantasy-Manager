@@ -243,7 +243,7 @@
         this.pointer.inside = id >= 0;
         const sw = A.config.motion.sway;                          // brushing past a jersey sets it swinging
         if (id >= 0 && sw && this.items[id]) this.items[id].omega += Math.max(-600, Math.min(600, vx)) * sw.brush * A.config.motion.intensity * A.config.interactionStrength;
-        if (this.selected < 0 || this.view === 'room') this.setHover(id);
+        this.setHover(id);                  // a chosen garment (the drop card) must not stop the others from answering
         return;
       }
       let best = -1, bestDist = 1e9;
@@ -265,7 +265,7 @@
       });
       if (this.selected < 0 || this.view === 'room') this.setHover(best);
     }
-    pointerLeave() { this.pointer.inside = false; this.pointer.x = -1e4; if (this.selected < 0 || this.view === 'room') this.setHover(-1); }
+    pointerLeave() { this.pointer.inside = false; this.pointer.x = -1e4; if (this.plate || this.selected < 0 || this.view === 'room') this.setHover(-1); }
 
     /* Pan velocity on phones: the whole rail swings against the motion. */
     panImpulse(v) {
@@ -274,7 +274,8 @@
     }
 
     updateLabel() {
-      const i = this.selected >= 0 && this.view !== 'room' ? -1 : this.hover;
+      const i = this.plate ? (this.hover === this.selected && this.view !== 'room' ? -1 : this.hover)
+        : this.selected >= 0 && this.view !== 'room' ? -1 : this.hover;
       const el = this.label;
       if (i < 0 || !this.items[i] || !this.px || !this.px[i]) { el.classList.remove('is-on'); return; }
       const p = this.items[i].p;

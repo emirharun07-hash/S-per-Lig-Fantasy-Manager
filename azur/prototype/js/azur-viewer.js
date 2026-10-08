@@ -91,17 +91,21 @@
 
     /* Show a product's model (cached per URL). Resolves true when it is on screen, false without a model. */
     async show(url) {
-      this.url = url; this.reset(true);
+      this.url = url; this.parts = []; this.reset(true);
       if (!this.gl) return false;
+      this.clear();                                    // never show the jersey that was open before
       try {
-        const m = this.cache[url] || (this.cache[url] = this.upload(await readGLB(url)));
+        // the promise is cached at once, so a second open while it loads waits for the same download
+        const m = this.cache[url] || (this.cache[url] = readGLB(url).then(g => this.upload(g)));
         const parts = await m;
         if (this.url !== url) return false;            // another jersey was opened meanwhile
         this.parts = parts.list; this.bounds = parts.bounds;
         this.start(); return true;
       } catch (e) { delete this.cache[url]; return false; }
     }
-    stop() { this.running = false; cancelAnimationFrame(this.raf); }
+    /* raf must be cleared too: kick() schedules nothing while it holds an id, and a cancelled frame never clears it */
+    stop() { this.running = false; cancelAnimationFrame(this.raf); this.raf = 0; this.url = null; }
+    clear() { const gl = this.gl; gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); }
     reset(instant) {
       this.touched = false; this.vyaw = 0; this.t0 = performance.now();
       if (instant) { this.yaw = 0; this.pitch = 0.06; this.zoom = 1; } else { this.resetFrom = [this.yaw, this.pitch, this.zoom]; this.resetT = performance.now(); }
@@ -188,10 +192,11 @@
         }
         this.kick();
       });
-      const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) last = null; else { const p = [...pts.values()][0]; last = { x: p[0], y: p[1], t: performance.now() }; } };
-      c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+      const up = e => { if (!pts.delete(e.pointerId)) return; if (pts.size < 2) pinch = null; if (!pts.size) last = null; else { const p = [...pts.values()][0]; last = { x: p[0], y: p[1], t: performance.now() }; } };
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => c.addEventListener(ev, up));
       c.addEventListener('wheel', e => { e.preventDefault(); this.touch(); this.zoom = this.clampZoom(this.zoom * Math.exp(-e.deltaY * 0.0016)); this.kick(); }, { passive: false });
       c.addEventListener('dblclick', () => this.reset(false));
+      if ('ResizeObserver' in window) new ResizeObserver(() => this.kick()).observe(c);   // a still model redraws at the new size
       c.addEventListener('keydown', e => {
         const k = { ArrowLeft: [-0.25, 0], ArrowRight: [0.25, 0], '+': [0, 1.15], '-': [0, 1 / 1.15], '=': [0, 1.15] }[e.key];
         if (!k) return; e.preventDefault(); this.touch(); this.yaw += k[0]; if (k[1]) this.zoom = this.clampZoom(this.zoom * k[1]); this.kick();
