@@ -1,0 +1,42 @@
+{
+ "frankfurt": {
+  "file": "models/frankfurt.glb",
+  "bytes": 280340,
+  "source": "cloth-sim from shop photos",
+  "height": 0.741,
+  "width": 0.579,
+  "room_yaw": 0.4508
+ },
+ "berlin": {
+  "file": "models/berlin.glb",
+  "bytes": 276660,
+  "source": "cloth-sim from shop photos",
+  "height": 0.742,
+  "width": 0.601,
+  "room_yaw": 0.4118
+ },
+ "brasilien": {
+  "file": "models/brasilien.glb",
+  "bytes": 313596,
+  "source": "cloth-sim from shop photos",
+  "height": 0.734,
+  "width": 0.513,
+  "room_yaw": 0.4074
+ },
+ "deutschland": {
+  "file": "models/deutschland.glb",
+  "bytes": 315952,
+  "source": "cloth-sim from shop photos",
+  "height": 0.742,
+  "width": 0.549,
+  "room_yaw": 0.4181
+ },
+ "tuerkei": {
+  "file": "models/tuerkei.glb",
+  "bytes": 280368,
+  "source": "cloth-sim from shop photos",
+  "height": 0.741,
+  "width": 0.557,
+  "room_yaw": 0.4724
+ }
+}
