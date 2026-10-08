@@ -125,6 +125,10 @@ Built and pushed:
 - Shopify section updated (not yet pushed to the draft theme): new header, menu (link list), free shipping setting,
   magazine blocks, Files prefix `azr2-`.
 
+Running (2026-10-08 20:25 UTC): the PC is back in watch mode v2 and works on r3-5 (HIP, RX 6750 XT): preview and
+models done in 4 min (clean drapes, Türkei visible, pens in the cup, hoodie on the chair, states visible), queue
+running. It had not slept overnight: it finished r3-1's states and moves by 05:49 local, but its pushes failed from
+01:19 on; those commits arrived with the watch start (they are replaced by r3-5). Earlier note:
 Running: nothing since 01:18 local (the PC went to sleep during r3-1, after all day passes and stills). Request r3-5
 waits on the branch (replaces r3-4, which never started): rebuild (cleanly draped jerseys, drop bag with more room, pens
 in the cup instead of floating, hoodie shaped over the chair back, masks without the footballs), preview, models, all
