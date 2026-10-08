@@ -211,8 +211,67 @@ def _remove(*objs):
         if me and me.users == 0: bpy.data.meshes.remove(me)
 
 
+# Frozen drapes (round 4): the owner approved the jerseys as they hung in round 3 and wants them unchanged until real
+# scans arrive. frozen/<key>.glb holds that drape (the product-view model the PC exported in r3-5: shell + hanger in
+# the jersey's own space, hook point at the origin). jersey() loads it instead of simulating; AZUR_RESIM=1 simulates.
+FROZEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frozen')
+
+
+def frozen(name, front_path, back_path, knit_normal=None, hanger_mat=None):
+    key = name[len('jersey_'):] if name.startswith('jersey_') else name
+    path = os.path.join(FROZEN, key + '.glb')
+    if os.environ.get('AZUR_RESIM') or not os.path.exists(path): return None
+    before = set(bpy.data.objects); mats0, imgs0 = set(bpy.data.materials), set(bpy.data.images)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == 'MESH']
+    sides = lambda o: {(s.material.name if s.material else '') for s in o.material_slots}
+    o = next(x for x in meshes if any('front' in n or 'back' in n for n in sides(x)))
+    hg = next((x for x in meshes if x is not o and 'hanger' in x.name), None)
+    for x in new:
+        x.parent = None
+    for x in [x for x in new if x not in (o, hg)]:
+        bpy.data.objects.remove(x, do_unlink=True)            # the chrome hook: the room has its own
+    for x in (o, hg):
+        if not x: continue
+        mw = x.matrix_world.copy(); x.matrix_world = Matrix.Identity(4)
+        x.data.transform(mw)                                  # whatever the importer put on the object goes into the mesh
+        x.data.update()
+    # front / back faces from the imported material slots, then the room's own materials (knit normal, sheen)
+    bm = bmesh.new(); bm.from_mesh(o.data)                    # glTF splits vertices at the UV seam: weld the shell again
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5); bm.to_mesh(o.data); bm.free()
+    names = [s.material.name if s.material else '' for s in o.material_slots]
+    side = [0 if 'front' in n else 1 for n in names]
+    faces = [side[p.material_index] if p.material_index < len(side) else 0 for p in o.data.polygons]
+    o.data.materials.clear()                                  # (this resets the faces' material indices)
+    if o.data.has_custom_normals:                             # the exporter's split normals would keep the seam sharp
+        bpy.context.view_layer.objects.active = o; bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    for poly in o.data.polygons: poly.use_smooth = True
+    o['front'], o['back'] = front_path, back_path
+    materials(o, name, knit_normal)
+    for poly, k in zip(o.data.polygons, faces): poly.material_index = k
+    o.name, o.data.name = name, name
+    if hg:
+        hg.name, hg.data.name = name + '_hanger', name + '_hanger'
+        if hanger_mat: hg.data.materials.clear(); hg.data.materials.append(hanger_mat)
+        for poly in hg.data.polygons: poly.use_smooth = True
+    for m in set(bpy.data.materials) - mats0:                 # the model's own (simplified) materials and textures
+        if m.users == 0: bpy.data.materials.remove(m)
+    for im in set(bpy.data.images) - imgs0:
+        if im.users == 0: bpy.data.images.remove(im)
+    for m, side_ in zip(o.data.materials, ('front', 'back')): m.name = name + '_' + side_
+    print(f'jersey {name}: frozen drape from {os.path.basename(path)} ({len(o.data.vertices)} vertices)', flush=True)
+    return o, hg
+
+
 def jersey(name, front_path, back_path, knit_normal=None, hanger_mat=None, h=0.74, frames=None):
     """Build shell + hanger, drape, return (jersey object, hanger object). Origin = hook point at the top of the collar."""
+    got = frozen(name, front_path, back_path, knit_normal, hanger_mat)
+    if got:
+        o, hg = got
+        sub = o.modifiers.new('sub', 'SUBSURF'); sub.levels = 1; sub.render_levels = 2
+        sol = o.modifiers.new('sol', 'SOLIDIFY'); sol.thickness = 0.0015; sol.offset = 1
+        return o, hg
     best = None
     for i, var in enumerate(RETRIES):
         saved = dict(TUNE); TUNE.update(var)

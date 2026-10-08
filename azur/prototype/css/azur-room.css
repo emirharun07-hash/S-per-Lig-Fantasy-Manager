@@ -23,7 +23,7 @@ button { font: inherit; color: inherit; }
 .azur-head { position: absolute; z-index: 80; top: 0; right: 0; padding: calc(12px + env(safe-area-inset-top, 0px)) clamp(12px, 2.6vw, 30px) 12px; pointer-events: none; }
 .azur-head > * { pointer-events: auto; }
 .azur-head__right { display: flex; align-items: center; gap: 10px; }
-.azur-head__dots { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0; background: none; border: 0; border-radius: 50%; cursor: pointer; }
+.azur-head__dots { width: 44px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; background: none; border: 0; border-radius: 50%; cursor: pointer; }
 .azur-head__dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgb(255 255 255 / .85), 0 0 14px rgb(141 235 255 / .45);
   animation: azur-dotglow 3.6s ease-in-out infinite; }
 .azur-head__dots i:nth-child(2) { animation-delay: .3s; } .azur-head__dots i:nth-child(3) { animation-delay: .6s; }

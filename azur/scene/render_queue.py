@@ -230,8 +230,12 @@ def state_visible(o, state):
     return state in tags or (any(t.startswith('!') for t in tags) and '!' + state not in tags)
 
 
+STATE_NOW = ['day']
+
+
 def set_state(state):
     """Show what belongs to one time of day (on top of restore_visibility)."""
+    STATE_NOW[0] = state
     for o in bpy.data.objects:
         if 'azur_state' in o and not SAVED_HIDE.get(o.name): o.hide_render = not state_visible(o, state)
 
@@ -243,6 +247,7 @@ def state_objects(state):
 
 
 def restore_visibility():
+    STATE_NOW[0] = 'day'
     for o in bpy.data.objects:
         if o.name in BASE_HIDE: o.hide_render = BASE_HIDE[o.name]
         o.is_holdout = False
@@ -269,7 +274,7 @@ def lights_off(sc):
     w = sc.world.node_tree.nodes
     w['Background'].inputs['Strength'].default_value = 0.0
     bpy.data.objects['sun'].hide_render = True
-    for n in ('L_lamp', 'L_street', 'L_spot'):
+    for n in ('L_lamp', 'L_street', 'L_spot', 'L_hall'):
         if n in bpy.data.objects: bpy.data.objects[n].hide_render = True
     bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 0.0
     bpy.data.objects['ceiling_light'].data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 0.0
@@ -296,6 +301,8 @@ def set_pass(sc, p):
         bpy.data.objects['ceiling_light'].data.materials[0].node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = 30.0
     elif p == 'street':
         bpy.data.objects['L_street'].hide_render = False; bpy.data.objects['L_street'].data.color = (1, 1, 1)
+        hall = bpy.data.objects.get('L_hall')     # round 4: the hallway light through the door ajar, at night
+        if hall: hall.hide_render = not state_visible(hall, STATE_NOW[0])
     elif p == 'spot':
         bpy.data.objects['L_spot'].hide_render = False; bpy.data.objects['L_spot'].data.color = (1, 1, 1)
 
