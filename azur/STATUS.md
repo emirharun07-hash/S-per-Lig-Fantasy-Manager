@@ -149,9 +149,11 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   the first try in the rebuilt scene.
 - Artifact version 18 = these web fixes on the interim plates; version 19 adds the re-draped jersey models (cloud export).
 - `node azur/tools/test_room.cjs [publishDir] [shotDir]`: browser regression test of the built page (desktop + phone,
-  product views, 3D models, drop card, links, cart, menu, chips, magazine, times of day; 50 checks).
+  product views, 3D models, drop card, links, cart, menu, chips, magazine, times of day, keyboard, no WebGL).
 - 08:10 UTC check (PC still silent): the add button collapsed to a 2 px line after adding (flex column squeezing) →
   fixed (artifact v20); the header bag now follows the theme drawer's cart count (artifact v21, theme harness checked).
+- 09:10 UTC check (PC still silent): keyboard use fixed (focus back to the jersey after the product view, Tab trapped in
+  it, hidden cart/drop panels inert); no-WebGL and reduced-motion paths checked; test now 54 checks (artifact v22).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
