@@ -156,6 +156,10 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   it, hidden cart/drop panels inert); no-WebGL and reduced-motion paths checked; test now 54 checks (artifact v22).
 - 10:10 UTC check (PC still silent): the room was composited twice per frame (sway + frame loop) → once; the room and
   its window video rest behind the product view (artifact v23). Phone swipe along the rail and the drop card checked.
+- 11:10 UTC check (PC still silent): depth and window maps carried Blender's dither noise and did not compress
+  (5.2 MB for all views); `scene/maps.py` tidies them (0.35 MB), the pipeline renders maps without dither and tidies
+  them too. Phones no longer fetch or decode the window video (no window in that view). Data before the first
+  picture: desktop 2.84 -> 1.54 MB, phone 3.60 -> 1.72 MB (artifact v24).
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
