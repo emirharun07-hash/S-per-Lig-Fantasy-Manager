@@ -175,6 +175,8 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
   room-rail and room-bed in day/evening/night; all preview shots): no errors. The page tested against that output for
   the first time with real state patches and moves: patches go in and out with the clock (night masks at night), the
   moves play both ways by day and by night, no errors. The PC run should go through.
+- 16:10 UTC check (PC still silent): evening flights use their own frames; the clock changing while a flight starts
+  (both use the snapshot canvas) ends consistent: right state, right view, snapshot gone, no errors.
 
 Next: when the PC is done: check previews and plates, `AZUR_SET=scene3 python3 azur/tools/build_artifact.py`, publish the
 artifact (same URL), `python3 azur/tools/build_theme.py`, commit `azur/theme`, fileCreate the `azr2-` files (two
