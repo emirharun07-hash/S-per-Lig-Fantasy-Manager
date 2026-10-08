@@ -1,10 +1,10 @@
 {
-    "state":  "arbeitet",
+    "state":  "fertig",
     "request":  "r3-5",
-    "job":  "moves",
-    "note":  "moves fertig nach 42.1 min",
+    "job":  "",
+    "note":  "Runde 3 neu: Trikots sauber drapiert (Deutschland war zerknittert, jede Simulation wird jetzt geprueft), Drop-Huelle mit mehr Platz (verdeckte die Tuerkei), dazu alles aus r3-4 (Stifte im Becher, Pulli ueber der Stuhllehne, Masken ohne Fussbaelle). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Kamerafahrten",
     "watch":  2,
-    "time":  "2026-10-08T21:59:32Z",
+    "time":  "2026-10-08T21:59:34Z",
     "device":  "23:17:25 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
