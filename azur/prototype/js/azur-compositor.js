@@ -117,11 +117,15 @@
   }
   void main() {
     vec2 uv = uMap.xy + vUv * uMap.zw;
+    // the mixed plate is mipmapped: shown smaller than the plate (a 1080p screen) it is filtered instead of skipping
+    // pixels. The level comes from the plain plate-to-screen scale (parallax and sway jump at edges: no blurry seams),
+    // a little toward the sharper level (x0.7, about -0.5 levels).
+    vec2 gx = dFdx(uv) * 0.7, gy = dFdy(uv) * 0.7;
     float d = uHasDepth > 0.5 ? texture(tDepth, uv).r : uFocus;
     uv += uParallax * (d - uFocus);
     vec2 guv = uv;
     if (uHasSway > 0.5) uv -= sway(uv);
-    vec3 c = uMode < 0.5 ? texture(tLit, uv).rgb : texture(tBeauty, uv).rgb * uGrade;
+    vec3 c = uMode < 0.5 ? textureGrad(tLit, uv, gx, gy).rgb : texture(tBeauty, uv).rgb * uGrade;
     if (uHasWin > 0.5 && uWinAmt > 0.001) {              // the street outside, seen through the glass
       float m = texture(tWin, uv).r * uWinAmt;
       vec2 wv = (uv - uWinBox.xy) / max(uWinBox.zw - uWinBox.xy, vec2(1e-4));
@@ -493,6 +497,7 @@
         if (this.lit) gl.deleteTexture(this.lit);
         this.lit = this.texture(null); gl.bindTexture(gl.TEXTURE_2D, this.lit);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); this.litW = w; this.litH = h;
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.lit, 0);
@@ -511,6 +516,7 @@
       gl.uniform1f(u.uExposure, exp); gl.uniform1f(u.uContrast, state.contrast || 1); gl.uniform1f(u.uSat, state.saturation || 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(this.drawP.p);
+      gl.bindTexture(gl.TEXTURE_2D, this.lit); gl.generateMipmap(gl.TEXTURE_2D);    // smaller screens: filtered levels
       this.litKey = key;
     }
 
