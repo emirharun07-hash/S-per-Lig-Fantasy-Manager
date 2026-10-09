@@ -1,14 +1,14 @@
 {
-    "state":  "arbeitet",
+    "state":  "abgeloest",
     "request":  "r4-3",
-    "job":  "queue",
-    "note":  "Runde 4 Qualitaet: Zimmer, Staender und Bett in 3200x1800 statt 2400x1350 (scharf auf grossen und Retina-Bildschirmen), helle Licht-Ebenen (Sonne, Neon, Lampe, Spot, Strasse) auf einer Log-Kurve gespeichert (keine Koernung, kein Pixelrauschen in Sonne und Neonroehren). Neu: alle Licht-Ebenen, Masken, Tageszeiten, Glow. Kamerafahrten und Fenster-Clips bleiben.",
+    "job":  "",
+    "note":  "neuer Auftrag auf dem Branch, dieser wurde bei queue beendet",
     "watch":  3,
-    "time":  "2026-10-09T11:24:37Z",
-    "device":  "12:01:34 render device HIP: AMD Radeon RX 6750 XT",
+    "time":  "2026-10-09T11:38:00Z",
+    "device":  "13:24:43 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
-                    "value":  "12:42:57 move room-bed night 21 13.3 s",
+                    "value":  "13:25:20 depth room 6.4 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -136,10 +136,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  355
+                    "ReadCount":  25
                 },
                 {
-                    "value":  "41:38.734  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n022.png\u0027",
+                    "value":  "00:45.875  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\rail\\masks_tmp.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -267,10 +267,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  356
+                    "ReadCount":  26
                 },
                 {
-                    "value":  "12:43:11 move room-bed night 22 13.4 s",
+                    "value":  "13:25:27 masks rail day 6.1 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -398,10 +398,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  357
+                    "ReadCount":  27
                 },
                 {
-                    "value":  "41:52.859  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n023.png\u0027",
+                    "value":  "00:53.203  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\rail\\masks_night_tmp.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -529,10 +529,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  358
+                    "ReadCount":  28
                 },
                 {
-                    "value":  "12:43:25 move room-bed night 23 13.3 s",
+                    "value":  "13:25:34 masks rail night 6.3 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -660,10 +660,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  359
+                    "ReadCount":  29
                 },
                 {
-                    "value":  "42:06.609  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n024.png\u0027",
+                    "value":  "00:59.390  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\rail\\ids_tmp.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -791,10 +791,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  360
+                    "ReadCount":  30
                 },
                 {
-                    "value":  "12:43:39 move room-bed night 24 13.3 s",
+                    "value":  "13:25:40 ids rail 5.1 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -922,10 +922,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  361
+                    "ReadCount":  31
                 },
                 {
-                    "value":  "42:20.094  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n025.png\u0027",
+                    "value":  "01:04.125  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\rail\\window.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1053,10 +1053,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  362
+                    "ReadCount":  32
                 },
                 {
-                    "value":  "12:43:52 move room-bed night 25 13.2 s",
+                    "value":  "13:25:44 window mask rail 4.4 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1184,10 +1184,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  363
+                    "ReadCount":  33
                 },
                 {
-                    "value":  "42:33.609  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n026.png\u0027",
+                    "value":  "01:11.203  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\rail\\depth.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1315,10 +1315,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  364
+                    "ReadCount":  34
                 },
                 {
-                    "value":  "12:44:06 move room-bed night 26 13.3 s",
+                    "value":  "13:25:51 depth rail 6.3 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1446,10 +1446,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  365
+                    "ReadCount":  35
                 },
                 {
-                    "value":  "42:47.141  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n027.png\u0027",
+                    "value":  "01:17.625  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\bed\\masks_tmp.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1577,10 +1577,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  366
+                    "ReadCount":  36
                 },
                 {
-                    "value":  "12:44:20 move room-bed night 27 13.3 s",
+                    "value":  "13:25:59 masks bed day 6.1 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1708,10 +1708,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  367
+                    "ReadCount":  37
                 },
                 {
-                    "value":  "43:01.375  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n028.png\u0027",
+                    "value":  "01:25.656  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\bed\\masks_night_tmp.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1839,10 +1839,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  368
+                    "ReadCount":  38
                 },
                 {
-                    "value":  "12:44:34 move room-bed night 28 13.4 s",
+                    "value":  "13:26:07 masks bed night 6.3 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1970,10 +1970,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  369
+                    "ReadCount":  39
                 },
                 {
-                    "value":  "43:14.906  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n029.png\u0027",
+                    "value":  "01:33.765  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\bed\\depth.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2101,10 +2101,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  370
+                    "ReadCount":  40
                 },
                 {
-                    "value":  "12:44:47 move room-bed night 29 13.3 s",
+                    "value":  "13:26:14 depth bed 6.4 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2232,10 +2232,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  371
+                    "ReadCount":  41
                 },
                 {
-                    "value":  "43:31.844  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n030.png\u0027",
+                    "value":  "03:16.406  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\sky.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2363,10 +2363,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  372
+                    "ReadCount":  42
                 },
                 {
-                    "value":  "12:45:04 move room-bed night 30 13.3 s",
+                    "value":  "13:27:58 pass room sky 102.3 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2494,10 +2494,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  373
+                    "ReadCount":  43
                 },
                 {
-                    "value":  "43:45.406  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n031.png\u0027",
+                    "value":  "05:23.359  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\sun_low.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2625,10 +2625,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  374
+                    "ReadCount":  44
                 },
                 {
-                    "value":  "12:45:18 move room-bed night 31 13.3 s",
+                    "value":  "13:30:05 pass room sun_low 121.3 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2756,10 +2756,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  375
+                    "ReadCount":  45
                 },
                 {
-                    "value":  "43:58.953  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n032.png\u0027",
+                    "value":  "06:56.000  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\sun_high.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2887,10 +2887,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  376
+                    "ReadCount":  46
                 },
                 {
-                    "value":  "12:45:32 move room-bed night 32 13.3 s",
+                    "value":  "13:31:38 pass room sun_high 87.0 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3018,10 +3018,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  377
+                    "ReadCount":  47
                 },
                 {
-                    "value":  "44:13.078  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n033.png\u0027",
+                    "value":  "09:41.781  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\neon.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3149,10 +3149,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  378
+                    "ReadCount":  48
                 },
                 {
-                    "value":  "12:45:45 move room-bed night 33 13.3 s",
+                    "value":  "13:34:23 pass room neon 163.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3280,10 +3280,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  379
+                    "ReadCount":  49
                 },
                 {
-                    "value":  "44:26.641  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n034.png\u0027",
+                    "value":  "10:41.344  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\lamp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3411,10 +3411,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  380
+                    "ReadCount":  50
                 },
                 {
-                    "value":  "12:45:59 move room-bed night 34 13.3 s",
+                    "value":  "13:35:23 pass room lamp 54.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3542,10 +3542,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  381
+                    "ReadCount":  51
                 },
                 {
-                    "value":  "44:40.203  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-bed\\n035.png\u0027",
+                    "value":  "13:11.906  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\views\\room\\ceiling.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3673,10 +3673,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  382
+                    "ReadCount":  52
                 },
                 {
-                    "value":  "12:46:12 move room-bed night 35 13.3 s",
+                    "value":  "13:37:54 pass room ceiling 148.8 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3804,10 +3804,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  383
+                    "ReadCount":  53
                 },
                 {
-                    "value":  "12:46:16 moves finished",
+                    "value":  "13:37:58 a newer render request is on the branch: stopping this run",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3935,7 +3935,7 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  384
+                    "ReadCount":  54
                 }
             ]
 }
