@@ -274,10 +274,11 @@
       if (!this.gl || v.mode !== 'passes') return;
       if (v.evicted) this.restore(v);
       this.recent = this.recent.filter(x => x !== v); this.recent.push(v);
-      const keep = A.config.gpuViews || 2;
-      for (const old of this.recent.slice(0, Math.max(0, this.recent.length - keep))) {
-        if (old === this.view) continue;
-        this.evict(old); this.recent = this.recent.filter(x => x !== old);
+      let over = this.recent.length - (A.config.gpuViews || 2);
+      for (const old of this.recent.slice()) {                // least recently used first, never the one on screen
+        if (over <= 0) break;
+        if (old === this.view || old === v) continue;
+        this.evict(old); this.recent = this.recent.filter(x => x !== old); over--;
       }
     }
     evict(v) {

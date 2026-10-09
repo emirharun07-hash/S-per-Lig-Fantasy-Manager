@@ -8,6 +8,8 @@ AZUR.config = {
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
   neonGlow: 1.4,            // round 4: strength of the sign's soft glow (neon_glow.webp, added with the neon light)
+  realMoves: false,         // round 4 changed the room (bag, chair, night light); the rendered flights still show round 3
+                            // until the PC renders them again: until then the views blend into each other
   gpuViews: 2,              // views that keep their light passes on the GPU (the others upload again when needed)
   modelExt: 'glb',                       // jersey models for the product view ('glb.json' where .glb is not served)
 

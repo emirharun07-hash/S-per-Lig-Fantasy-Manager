@@ -255,6 +255,7 @@
       return this.moveFrames[key];
     }
     preloadMoves() {
+      if (A.config.realMoves === false) return;
       const mix = this.moveMix(), base = A.config.assetBase;
       Object.keys(this.moves || {}).forEach(name => {
         if (this.isMobile !== name.startsWith('rail_m-')) return;
@@ -263,6 +264,7 @@
       });
     }
     findMove(from, to) {
+      if (A.config.realMoves === false) return null;             // the flights show an older room: blend instead
       const mix = this.moveMix();
       const ready = name => {
         const need = [];

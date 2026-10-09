@@ -27,7 +27,8 @@ from bpy_extras.object_utils import world_to_camera_view
 R4 = os.path.join(rq.ROOT, '.cache', 'r4')
 ORIG = os.path.join(R4, 'orig')
 OLD_BLEND = os.path.join(rq.ROOT, '.cache', 'azur_room_scene3_r3cloud.blend')
-SAMPLES = int(os.environ.get('AZUR_R4_SAMPLES', 256))
+SAMPLES = int(os.environ.get('AZUR_R4_SAMPLES', 128))      # with the denoiser; 4 cores, a night to finish
+SKIP_PASSES = ('ceiling',)       # azur-config.js daylight: the ceiling light is never on (its weight is 0 at every hour)
 VIEWS = [v for v in ('room', 'bed', 'rail', 'rail_m') if not os.environ.get('AZUR_R4_ONLY') or v in os.environ['AZUR_R4_ONLY'].split(',')]
 FROZEN = ('jersey_', 'hook', 'hanger', 'hall_light_area', 'sleeper_', 'L_')
 DONE_PATH = os.path.join(R4, 'done.json')
@@ -158,7 +159,7 @@ def px_box(box, rx, ry):
 def step_day(sc, meta):
     regions = json.load(open(os.path.join(R4, 'regions.json')))['regions']
     for key in VIEWS:
-        for p in rq.PASSES:
+        for p in [x for x in rq.PASSES if x not in SKIP_PASSES]:
             dst = os.path.join(rq.OUT, key, p + '.webp')
             if not os.path.exists(dst) or not regions.get(key): continue
             for i, box in enumerate(regions[key]):
