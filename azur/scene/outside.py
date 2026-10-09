@@ -104,12 +104,12 @@ def rq_tex(key):
 
 def build_boy():
     """About 1.45 m: an eleven-year-old in a sky-blue shirt, black shorts, white socks. Returns the joints to animate."""
-    skin = mat('boy_skin', (0.62, 0.42, 0.31), rough=0.55, sss=0.2)
-    shirt = mat('boy_shirt', (0.10, 0.45, 0.80), rough=0.75, sheen=0.4)
+    skin = mat('boy_skin', (0.46, 0.29, 0.20), rough=0.55, sss=0.2)
+    shirt = mat('boy_shirt', (0.04, 0.24, 0.56), rough=0.8)
     shorts = mat('boy_shorts', (0.03, 0.03, 0.035), rough=0.8, sheen=0.3)
-    socks = mat('boy_socks', (0.85, 0.85, 0.82), rough=0.85, sheen=0.4)
+    socks = mat('boy_socks', (0.72, 0.72, 0.70), rough=0.85)
     shoe = mat('boy_shoes', (0.05, 0.05, 0.05), rough=0.5)
-    hair = mat('boy_hair', (0.09, 0.055, 0.03), rough=0.6, sheen=0.5)
+    hair = mat('boy_hair', (0.05, 0.03, 0.018), rough=0.55)
     J = {}
     root = joint('boy', None, (PATH_X, Y0, GROUND_Z)); J['root'] = root
     pelvis = joint('boy_pelvis', root, (0, 0, 0.74)); J['pelvis'] = pelvis
@@ -208,7 +208,8 @@ def setup(sc):
     rq.render_settings(sc, 'beauty'); rq.lights_off(sc)
     # the day look (azur-config.js daylight around noon), like render_moves.light_variant('day')
     sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 2.2; rq.world_tint(sc, (1.0, 1.0, 1.0))
-    s = bpy.data.objects['sun']; s.hide_render = False; s.data.energy = 3.0 * 0.75; s.data.color = (1.0, 0.96, 0.88)
+    s = bpy.data.objects['sun']; s.hide_render = False; s.data.color = (1.0, 0.96, 0.88)
+    s.data.energy = 3.0 * 0.75 * float(os.environ.get('AZUR_OUT_SUN', 0.3))   # the park HDRI is overcast: a soft sun only
     s.rotation_euler = Vector(rq.SUN['sun_high']).normalized().to_track_quat('-Z', 'Y').to_euler()
     sc.view_settings.exposure = float(os.environ.get('AZUR_OUT_EXPOSURE', 0.4))   # outdoors in daylight, not the dim room
     sc.render.use_motion_blur = True; sc.render.motion_blur_shutter = 0.5
@@ -248,7 +249,7 @@ def main():
         box = window_box(key)
         if not box: continue
         rq.set_view(sc, key); plan(key)
-        sc.render.resolution_percentage = 25 if test else 50
+        sc.render.resolution_percentage = int(os.environ.get('AZUR_OUT_PCT', 25 if test else 50))
         r = sc.render; r.use_border = True; r.use_crop_to_border = True
         r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
         fdir = os.path.join(rq.ROOT, '.cache', 'r4', 'outside', key); os.makedirs(fdir, exist_ok=True)
@@ -270,7 +271,8 @@ def main():
             else:
                 tmp = png.replace('.png', '_rgba.png')
                 sc.render.filepath = tmp; bpy.ops.render.render(write_still=True)
-                over(tmp, bg, png); os.remove(tmp)
+                over(tmp, bg, png)
+                if not os.environ.get('AZUR_OUT_KEEP'): os.remove(tmp)
             rq.log('outside', key, i, round(time.time() - t0), 's')
         if test: continue
         enc(fdir, key)
