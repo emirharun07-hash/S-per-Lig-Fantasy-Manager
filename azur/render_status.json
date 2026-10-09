@@ -2,13 +2,13 @@
     "state":  "arbeitet",
     "request":  "r4-1",
     "job":  "queue",
-    "note":  "Runde 4: Zimmer mit Tageszeiten (Tasche weg am Tag, Schlafanzug auf dem Boden, Junge schlaeft nachts, Flurlicht), Stuhl nicht mehr im Tisch, Logo mit 1024 Samples und Glow, Junge mit Ball vor dem Fenster (Clip), Trikots unveraendert (eingefroren). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Glow, Fenster-Clips, Kamerafahrten",
+    "note":  "queue fertig nach 88.9 min",
     "watch":  3,
-    "time":  "2026-10-09T07:28:20Z",
-    "device":  "09:28:10 render device HIP: AMD Radeon RX 6750 XT",
+    "time":  "2026-10-09T08:57:20Z",
+    "device":  "09:28:25 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
-                    "value":  "09:28:11 | INFO: Primitives created: 1",
+                    "value":  "01:15:23.141  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\night_neon_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -136,10 +136,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  25
+                    "ReadCount":  171
                 },
                 {
-                    "value":  "09:28:11 | INFO: Finished glTF 2.0 export in 0.16108489036560059 s",
+                    "value":  "01:16:19.032  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\night_spot_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -267,10 +267,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  26
+                    "ReadCount":  172
                 },
                 {
-                    "value":  "09:28:11 model berlin 269 KB",
+                    "value":  "01:18:14.078  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\night_street_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -398,10 +398,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  28
+                    "ReadCount":  173
                 },
                 {
-                    "value":  "09:28:11 | INFO: Starting glTF 2.0 export",
+                    "value":  "10:46:41 state rail night 1 patches, 100% of the picture (region 100%), changed per pass {\u0027sky\u0027: 0.044, \u0027neon\u0027: 0.006, \u0027spot\u0027: 0.016, \u0027street\u0027: 0.872} 347 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -529,10 +529,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  29
+                    "ReadCount":  174
                 },
                 {
-                    "value":  "09:28:11 | INFO: Extracting primitive: Mesh",
+                    "value":  "01:18:29.969  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\morning_sky_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -660,10 +660,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  30
+                    "ReadCount":  175
                 },
                 {
-                    "value":  "09:28:11 | INFO: Primitives created: 1",
+                    "value":  "01:18:37.844  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\morning_sun_high_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -791,10 +791,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  31
+                    "ReadCount":  176
                 },
                 {
-                    "value":  "09:28:11 | INFO: Extracting primitive: jersey_brasilien",
+                    "value":  "01:18:50.391  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\morning_neon_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -922,10 +922,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  32
+                    "ReadCount":  177
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 2",
+                    "value":  "01:18:57.813  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\morning_spot_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1053,10 +1053,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  33
+                    "ReadCount":  178
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: jersey_brasilien_hanger",
+                    "value":  "01:19:07.703  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\morning_street_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1184,10 +1184,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  34
+                    "ReadCount":  179
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 1",
+                    "value":  "10:47:31 state rail morning 5 patches, 3% of the picture (region 5%), changed per pass {\u0027sky\u0027: 0.001, \u0027sun_high\u0027: 0.003, \u0027neon\u0027: 0.0, \u0027spot\u0027: 0.0, \u0027street\u0027: 0.0} 44 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1315,10 +1315,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  35
+                    "ReadCount":  180
                 },
                 {
-                    "value":  "09:28:12 | INFO: Finished glTF 2.0 export in 0.24364519119262695 s",
+                    "value":  "01:19:28.500  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_sky_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1446,10 +1446,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  36
+                    "ReadCount":  181
                 },
                 {
-                    "value":  "09:28:12 model brasilien 305 KB",
+                    "value":  "01:19:47.766  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_sun_low_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1577,10 +1577,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  38
+                    "ReadCount":  182
                 },
                 {
-                    "value":  "09:28:12 | INFO: Starting glTF 2.0 export",
+                    "value":  "01:20:04.219  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_sun_high_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1708,10 +1708,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  39
+                    "ReadCount":  183
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: Mesh",
+                    "value":  "01:20:30.328  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_neon_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1839,10 +1839,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  40
+                    "ReadCount":  184
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 1",
+                    "value":  "01:20:41.860  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_lamp_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1970,10 +1970,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  41
+                    "ReadCount":  185
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: jersey_deutschland",
+                    "value":  "01:20:54.344  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_spot_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2101,10 +2101,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  42
+                    "ReadCount":  186
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 2",
+                    "value":  "01:21:15.844  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\evening_street_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2232,10 +2232,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  43
+                    "ReadCount":  187
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: jersey_deutschland_hanger",
+                    "value":  "10:49:40 state rail_m evening 1 patches, 18% of the picture (region 18%), changed per pass {\u0027sky\u0027: 0.011, \u0027sun_low\u0027: 0.009, \u0027sun_high\u0027: 0.138, \u0027neon\u0027: 0.009, \u0027lamp\u0027: 0.052, \u0027spot\u0027: 0.009, \u0027street\u0027: 0.031} 123 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2363,10 +2363,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  44
+                    "ReadCount":  188
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 1",
+                    "value":  "01:22:36.141  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\night_sky_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2494,10 +2494,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  45
+                    "ReadCount":  189
                 },
                 {
-                    "value":  "09:28:12 | INFO: Finished glTF 2.0 export in 0.2596015930175781 s",
+                    "value":  "01:24:37.078  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\night_neon_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2625,10 +2625,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  46
+                    "ReadCount":  190
                 },
                 {
-                    "value":  "09:28:12 model deutschland 308 KB",
+                    "value":  "01:25:29.485  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\night_spot_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2756,10 +2756,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  48
+                    "ReadCount":  191
                 },
                 {
-                    "value":  "09:28:12 | INFO: Starting glTF 2.0 export",
+                    "value":  "01:27:32.016  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\night_street_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2887,10 +2887,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  49
+                    "ReadCount":  192
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: Mesh",
+                    "value":  "10:55:59 state rail_m night 1 patches, 100% of the picture (region 100%), changed per pass {\u0027sky\u0027: 0.154, \u0027neon\u0027: 0.011, \u0027spot\u0027: 0.017, \u0027street\u0027: 0.859} 369 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3018,10 +3018,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  50
+                    "ReadCount":  193
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 1",
+                    "value":  "01:27:53.750  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\morning_sky_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3149,10 +3149,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  51
+                    "ReadCount":  194
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: jersey_tuerkei",
+                    "value":  "01:28:06.016  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\morning_sun_high_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3280,10 +3280,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  52
+                    "ReadCount":  195
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 2",
+                    "value":  "01:28:25.813  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\morning_neon_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3411,10 +3411,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  53
+                    "ReadCount":  196
                 },
                 {
-                    "value":  "09:28:12 | INFO: Extracting primitive: jersey_tuerkei_hanger",
+                    "value":  "01:28:35.813  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\morning_spot_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3542,10 +3542,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  54
+                    "ReadCount":  197
                 },
                 {
-                    "value":  "09:28:12 | INFO: Primitives created: 1",
+                    "value":  "01:28:52.453  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail_m\\morning_street_tmp.exr\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3673,10 +3673,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  55
+                    "ReadCount":  198
                 },
                 {
-                    "value":  "09:28:12 | INFO: Finished glTF 2.0 export in 0.27675485610961914 s",
+                    "value":  "10:57:16 state rail_m morning 1 patches, 12% of the picture (region 12%), changed per pass {\u0027sky\u0027: 0.01, \u0027sun_high\u0027: 0.037, \u0027neon\u0027: 0.009, \u0027spot\u0027: 0.009, \u0027street\u0027: 0.018} 70 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3804,10 +3804,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  56
+                    "ReadCount":  199
                 },
                 {
-                    "value":  "09:28:12 model tuerkei 273 KB",
+                    "value":  "10:57:19 queue finished",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3935,7 +3935,7 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  58
+                    "ReadCount":  200
                 }
             ]
 }
