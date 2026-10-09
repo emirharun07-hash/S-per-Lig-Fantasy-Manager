@@ -1,10 +1,10 @@
 {
-    "state":  "fertig",
-    "request":  "r4-4",
-    "job":  "",
-    "note":  "Runde 4 Qualitaet (ersetzt r4-3): wie r4-3, die Log-Kurve fuer helle Licht-Ebenen mit feineren Stufen im dunklen Raum (Neon nachts). Bereits in 3200 gerenderte Ebenen werden nur neu kodiert, nicht neu gerendert.",
+    "state":  "arbeitet",
+    "request":  "r5-1",
+    "job":  "preview:full,room_day",
+    "note":  "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
     "watch":  3,
-    "time":  "2026-10-09T13:27:03Z",
+    "time":  "2026-10-09T21:25:46Z",
     "device":  "13:40:12 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
