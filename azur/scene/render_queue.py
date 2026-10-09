@@ -35,15 +35,15 @@ NO_GIT = bool(os.environ.get('AZUR_QUEUE_NO_GIT'))
 ONLY = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 
 # ------------------------------------------------------------------ views (camera presets the prototype moves between)
-HI = SET not in ('scene1', 'scene2')      # scene3: sharper plates (2400 wide: no upscaling on large and HiDPI screens)
+HI = SET not in ('scene1', 'scene2')      # scene3: sharper plates (3200 wide since round 4: large and HiDPI screens)
 RX = 0.24 if HI else 0.0                  # scene3 moved the rail 0.24 m right (it stood in the desk)
 VIEWS = {
     # establishing shot: high in the front-left corner, the whole room
-    'room':   dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19, res=(2400, 1350) if HI else (1600, 900)),
+    'room':   dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19, res=(3200, 1800) if HI else (1600, 900)),
     # the rail: centred, closer and a little higher than the first stills
-    'rail':   dict(loc=(1.72 + RX, 0.70, 1.40), target=(1.85 + RX, 3.60, 1.18), lens=24, res=(2400, 1350) if HI else (1600, 900)),
+    'rail':   dict(loc=(1.72 + RX, 0.70, 1.40), target=(1.85 + RX, 3.60, 1.18), lens=24, res=(3200, 1800) if HI else (1600, 900)),
     # the bed (easter egg, content decided later)
-    'bed':    dict(loc=(1.55, 0.35, 1.35), target=(0.45, 1.50, 0.48), lens=26, res=(2400, 1350) if HI else (1600, 900)),
+    'bed':    dict(loc=(1.55, 0.35, 1.35), target=(0.45, 1.50, 0.48), lens=26, res=(3200, 1800) if HI else (1600, 900)),
     # phones start at the rail; the plate is wider than a phone so the visitor can swipe along it
     'rail_m': dict(loc=(1.55 + RX, 1.15, 1.30), target=(1.55 + RX, 3.40, 1.12), lens=20, res=(1800, 2000) if HI else (1440, 1600), fit='VERTICAL', sensor=24),
 }
@@ -359,8 +359,11 @@ def to_webp(src_png, dst, q=86):
 EXR = os.path.join(ROOT, '.cache', 'exr', SET)     # scene3 keeps the linear day passes to find what a state changes
 if FAST: EXR = os.path.join(OUT, 'exr')
 ENC_REF = 1.5 if HI else 0.5     # where the 97th percentile lands before the curve: scene3 spends more codes on the dark
-SUN_TOP = 3.0    # sun passes: where the brightest patch (99.9th percentile) may land at most. Above about 6 the curve is
-                 # so flat that one code of WebP noise is a big step in light: the sunlit floor showed coloured dots (r4-1)
+LOG_K = 2000.0   # the passes with bright sources are stored on a log curve (passes.json: negative scale): the same fine
+                 # step from the shade of a lit jersey up to the sun patch on the rug or the neon tube. On the Reinhard
+                 # curve those sat at its flat top (r4-1: one code of WebP noise was a big step in light, coloured dots,
+                 # a flat grainy sign) or, scaled down, in its bottom codes (r4-2: coloured grain on the lit jerseys).
+LOG_PASSES = ('sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street', 'ceiling')   # the sky stays on Reinhard
 
 
 def read_exr(exr):
@@ -371,21 +374,25 @@ def read_exr(exr):
 
 
 def pass_scale(rgb, p=''):
+    """Encoding scale for passes.json. LOG_PASSES: negative, the log curve (the brightest 0.01 % at the top)."""
+    if p in LOG_PASSES: return -1.0 / max(float(np.percentile(rgb.max(-1), 99.99)), 1e-6)
     lum = rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-    scale = ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
-    if p in SUN: scale = min(scale, SUN_TOP / max(float(np.percentile(lum, 99.9)), 1e-6))
-    return scale
+    return ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
 
 
-def encode_rgb(rgb, scale):
-    """Linear light -> 8-bit codes with a Reinhard curve; the browser undoes it: lin = (y / (1 - y)) / scale, y = enc^2.2."""
+def encode_rgb(rgb, scale, p=''):
+    """Linear light -> 8-bit codes. Reinhard curve, undone in the browser as lin = (y / (1 - y)) / scale, y = enc^2.2;
+    a negative scale means the log curve: lin = (exp(enc * ln(1 + LOG_K)) - 1) / (LOG_K * -scale)."""
+    if scale < 0:
+        x = np.clip(rgb * -scale, 0, None)
+        return np.clip(np.log1p(LOG_K * x) / np.log1p(LOG_K) * 255 + 0.5, 0, 255).astype(np.uint8)
     x = np.clip(rgb * scale, 0, None)
     return np.clip(np.power(x / (1.0 + x), 1 / 2.2) * 255 + 0.5, 0, 255).astype(np.uint8)
 
 
 def pass_quality(p):
     if not HI: return 90
-    return 97 if p == 'neon' else 94           # the sign is the brand: least compression where it glows
+    return 97 if p in ('neon', 'sun_low', 'sun_high') else 95    # the sign is the brand; the sun passes carry the most range
 
 
 def save_webp(codes, dst, q):

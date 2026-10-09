@@ -50,11 +50,13 @@ def pack_moves(set_dir):
     json.dump(out, open(dst, 'w'))
 
 
-def low_copies(views_rel, width=1200, q=88):
-    """Half-size copies of the light passes (the first thing a visitor downloads) and the "_lo" flag in passes.json."""
+def low_copies(views_rel, width=1200, q=88, md_width=2400, md_q=94):
+    """Smaller copies of the light passes: half size (lo/, the first thing a visitor downloads, "_lo" in passes.json)
+    and, for plates wider than 2400 (round 4: 3200), 2400 wide (md/, "_md": the views that have them) for screens that
+    do not show more plate pixels than that; the full plates only go to large and HiDPI screens."""
     vdir = os.path.join(OUT, views_rel); mpath = os.path.join(vdir, 'passes.json')
     if not os.path.exists(mpath): return 0
-    meta = json.load(open(mpath)); n = 0
+    meta = json.load(open(mpath)); n = 0; md = []
     for key in os.listdir(vdir):
         d = os.path.join(vdir, key)
         if not os.path.isdir(d) or '@' in key: continue
@@ -62,10 +64,14 @@ def low_copies(views_rel, width=1200, q=88):
             f = os.path.join(d, p + '.webp')
             if not os.path.exists(f): continue
             im = Image.open(f)
-            if im.width <= width: continue
-            lo = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
-            os.makedirs(os.path.join(d, 'lo'), exist_ok=True); lo.save(os.path.join(d, 'lo', p + '.webp'), quality=q, method=6); n += 1
-    if n: meta['_lo'] = True; json.dump(meta, open(mpath, 'w'))
+            for sub, w, qq in (('lo', width, q), ('md', md_width, md_q)):
+                if im.width <= w: continue
+                c = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
+                os.makedirs(os.path.join(d, sub), exist_ok=True); c.save(os.path.join(d, sub, p + '.webp'), quality=qq, method=6); n += 1
+                if sub == 'md' and key not in md: md.append(key)
+    if n: meta['_lo'] = True
+    if md: meta['_md'] = sorted(md)
+    if n: json.dump(meta, open(mpath, 'w'))
     return n
 
 

@@ -1,8 +1,8 @@
 {
-  "id": "r4-2",
-  "note": "Runde 4 Korrektur: Flurlicht nachts viel schwaecher (die Bettdecke war weiss ueberstrahlt), Sonnenflecken ohne bunte Pixel (Sonnen-Ebenen mit mehr Spielraum kodiert). Neu: Sonnen-Ebenen, alle Tageszeiten-Ausschnitte, Nacht-Kamerafahrten; danach die restlichen Kamerafahrten",
+  "id": "r4-3",
+  "note": "Runde 4 Qualitaet: Zimmer, Staender und Bett in 3200x1800 statt 2400x1350 (scharf auf grossen und Retina-Bildschirmen), helle Licht-Ebenen (Sonne, Neon, Lampe, Spot, Strasse) auf einer Log-Kurve gespeichert (keine Koernung, kein Pixelrauschen in Sonne und Neonroehren). Neu: alle Licht-Ebenen, Masken, Tageszeiten, Glow. Kamerafahrten und Fenster-Clips bleiben.",
   "set": "scene3",
   "rebuild": false,
-  "redo": ["views/*/sun_low.webp", "views/*/sun_high.webp", "views/*/morning/*", "views/*/evening/*", "views/*/night/*", "moves/*/n*.webp"],
-  "jobs": ["queue", "moves"]
+  "redo": ["views/*/*.webp", "views/room/*.png", "views/rail/*.png", "views/bed/*.png", "views/*/morning/*", "views/*/evening/*", "views/*/night/*"],
+  "jobs": ["queue", "glow"]
 }
