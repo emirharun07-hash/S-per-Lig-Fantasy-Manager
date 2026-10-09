@@ -240,8 +240,12 @@ on every device without losing quality.
   and plays it every 25-70 s in daylight; a synthesized kick sound (Web Audio) at the kick, and now and then one out
   of sight. Speaker button in the header (`.azur-head__sound`, remembered).
 - Menu dots stacked vertically. Shopify Files prefix `azr3-` (round 4).
-- Not redone: the camera moves (room-rail, room-bed) still show round 3's bag and chair for the second of the flight;
-  the PC can render them again in about 20 minutes on another day.
+- 2026-10-09 07:23 UTC the owner asked to finish on the PC: the cloud patch run stopped (bed night, rail and rail_m
+  times of day were still open) and the PC renders round 4 in full (request `r4-1`: rebuild, preview, export, queue,
+  glow, outside, moves). `render_step.ps1` (watch v3) knows the jobs `glow` and `outside`; on the PC the neon pass gets
+  1024 samples (`render_queue.NEON_SAMPLES`), night patches cover the whole picture (the hallway light), the night has
+  no lamp patch (off from 23:00), the outside clip 128 samples. The camera flights are on again (`config.realMoves`).
+  `cloud_patch.py`, `despeckle.py` stay for a cloud-only round.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
