@@ -37,6 +37,7 @@
       [this.views, this.passes, A.sprites, this.moves] = await Promise.all([getJSON(base + 'views.json'), getJSON(base + 'passes.json'),
         this.plate ? Promise.resolve({}) : getJSON(base + 'sprites.json'), getJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
       this.moveFrames = {};
+      this.outside = this.plate ? await getJSON(base.replace(/views\/$/, 'outside/') + 'outside.json') : {};   // round 4: the boy outside
       this.comp = new A.Compositor(this.canvas);
       this.comp.viewsData = this.views; this.comp.onChange = () => this.kick();
       this.root.classList.toggle('no-webgl', !this.comp.ok);
@@ -130,6 +131,7 @@
     async enterView(key) {
       const prevBase = (this.viewKey || '').split('@')[0];
       this.viewKey = key;
+      this.useClip(key);
       const v = this.viewData(key);
       const mode = await this.comp.load(key, this.passes);
       if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
@@ -614,22 +616,113 @@
       };
       ['pointerenter', 'focus'].forEach(ev => ma.addEventListener(ev, () => showMag(true)));
       ['pointerleave', 'blur'].forEach(ev => ma.addEventListener(ev, () => showMag(false)));
-      // scene2: real footage of the Bolzplatz across the street plays behind the window glass (the compositor masks it)
+      // behind the window glass (the compositor masks it in). Round 4: for each window a clip rendered from that camera, a
+      // boy running past on the lawn with his ball (outside/<view>.mp4); it rests on its first frame (nobody there) and
+      // plays now and then. Older sets: real footage of the Bolzplatz across the street on a loop.
       if (this.plate && this.comp.ok) {
-        const vid = document.createElement('video');
-        Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'none' });   // fetched when a window shows it
-        vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
-        const ob = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
-        [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
-          const so = document.createElement('source'); so.src = A.url(ob + f); so.type = t; vid.appendChild(so); });
-        Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
-        this.root.appendChild(vid); this.comp.video = vid; this.video = vid;
+        const mk = (files, loop) => {
+          const vid = document.createElement('video');
+          Object.assign(vid, { muted: true, loop, playsInline: true, preload: 'none' });   // fetched when a window shows it
+          vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
+          files.forEach(([f, t]) => { const so = document.createElement('source'); so.src = A.url(f); so.type = t; vid.appendChild(so); });
+          Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
+          this.root.appendChild(vid); return vid;
+        };
+        const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
+        this.clips = {};
+        Object.entries(this.outside || {}).forEach(([k, c]) => {
+          if (!c || !c.box) return;
+          const vid = this.clips[k] = mk([[ob + k + '.webm', 'video/webm'], [ob + k + '.mp4', 'video/mp4']], false);
+          vid.addEventListener('ended', () => this.clipEnded(vid));
+        });
+        if (Object.keys(this.clips).length) { this.useClip(this.viewKey || 'room'); this.scheduleClip(6000 + Math.random() * 6000); }
+        else {
+          const ob2 = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
+          this.comp.video = this.video = mk([[ob2 + 'bolzplatz.webm', 'video/webm'], [ob2 + 'bolzplatz.mp4', 'video/mp4']], true);
+        }
       }
+      this.initSound();
       // the neighbour's kid crosses the park outside the window now and then
       this.windowEl = $('.azur-window');
       this.kidTrack = $('.azur-kid-track');
       this.kidTrack.addEventListener('animationend', e => { if (e.target === this.kidTrack) this.kidTrack.classList.remove('is-run', 'is-back'); });
       this.scheduleKid(5000 + Math.random() * 5000);
+    }
+    /* ---------------------------------------------------------------- outside the window (round 4) */
+    useClip(key) {        // the clip made for this view's window (none for the phones' rail and the bed)
+      if (!this.clips) return;
+      const k = (key || '').split('@')[0], vid = this.clips[k] || null, c = this.outside && this.outside[k];
+      if (this.video && this.video !== vid && !this.video.loop && !this.video.paused) { this.video.pause(); this.video.currentTime = 0; }
+      this.video = vid; this.comp.video = vid; this.comp.clipBox = vid ? c.box : null; this.comp.videoUp = false;
+      if (vid && vid.preload !== 'auto') { vid.preload = 'auto'; vid.load(); }
+    }
+    scheduleClip(ms) {
+      clearTimeout(this.clipTimer);
+      this.clipTimer = setTimeout(() => this.playClip(), ms);
+    }
+    playClip() {
+      const vid = this.video, c = this.comp;
+      const quiet = !vid || vid.loop || this.reduced || document.hidden || this.offscreen || this.busy || c.winAmt < 0.5
+        || (this.mag && this.mag.isOpen) || this.shop.pdp.classList.contains('is-on');
+      if (quiet) { this.scheduleClip(9000 + Math.random() * 6000); return; }      // not now: look again soon
+      vid.currentTime = 0;
+      vid.play().then(() => {
+        const k = Object.keys(this.clips).find(x => this.clips[x] === vid), kick = this.outside[k] && this.outside[k].kick;
+        if (kick != null) setTimeout(() => { if (!vid.paused) this.kickSound(1); }, Math.max(0, kick - vid.currentTime) * 1000);
+      }).catch(() => this.scheduleClip(20000));
+      this.kick();
+    }
+    clipEnded(vid) {      // back on the empty lawn until the next time
+      vid.pause(); vid.currentTime = 0; this.comp.videoUp = false; this.kick();
+      this.scheduleClip(25000 + Math.random() * 45000);
+    }
+
+    /* Sound (round 4): a ball kicked outside, quiet and muffled by the window. Browsers allow sound only after the
+       visitor's first click, tap or key; the speaker in the header switches it off (remembered). Now and then, while it
+       is light outside, someone kicks a ball out of sight too. */
+    initSound() {
+      try { this.soundOn = localStorage.getItem('azur-sound') !== 'off'; } catch (e) { this.soundOn = true; }
+      const btn = $('.azur-head__sound');
+      const sync = () => { if (!btn) return; btn.setAttribute('aria-pressed', String(this.soundOn)); btn.setAttribute('aria-label', this.soundOn ? 'Ton aus' : 'Ton an'); };
+      if (btn) {
+        btn.hidden = false; sync();
+        btn.addEventListener('click', e => {
+          e.stopPropagation(); this.soundOn = !this.soundOn; sync(); this.unlockAudio();
+          try { localStorage.setItem('azur-sound', this.soundOn ? 'on' : 'off'); } catch (err) { }
+          if (this.soundOn) this.kickSound(0.6);
+        });
+      }
+      const unlock = () => this.unlockAudio();
+      ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, unlock, { once: true, passive: true }));
+      const far = () => {
+        this.farTimer = setTimeout(far, 45000 + Math.random() * 75000);
+        if (!document.hidden && !this.offscreen && this.light && this.light.window > 0.6 && !(this.video && !this.video.paused)) this.kickSound(0.45);
+      };
+      this.farTimer = setTimeout(far, 30000 + Math.random() * 40000);
+    }
+    unlockAudio() {
+      if (!this.soundOn) return;
+      try {
+        this.audio = this.audio || new (window.AudioContext || window.webkitAudioContext)();
+        if (this.audio.state === 'suspended') this.audio.resume();
+      } catch (e) { }
+    }
+    kickSound(vol) {
+      const ac = this.audio; if (!this.soundOn || !ac || ac.state !== 'running') return;
+      const t = ac.currentTime + 0.01, out = ac.createGain(); out.gain.value = 0.2 * vol;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;      // through the window
+      out.connect(lp); lp.connect(ac.destination);
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine';           // the thump of the ball
+      o.frequency.setValueAtTime(165, t); o.frequency.exponentialRampToValueAtTime(52, t + 0.13);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.22);
+      const len = Math.floor(ac.sampleRate * 0.05), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);  // the slap of the boot
+      const n = ac.createBufferSource(); n.buffer = buf;
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.9;
+      const ng = ac.createGain(); ng.gain.value = 0.7; n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
+      const dl = ac.createDelay(); dl.delayTime.value = 0.11; const eg = ac.createGain(); eg.gain.value = 0.16;   // off the house fronts
+      lp.connect(dl); dl.connect(eg); eg.connect(ac.destination);
     }
     scheduleKid(ms) {
       clearTimeout(this.kidTimer);
@@ -915,10 +1008,13 @@
       const dT = this.dimTarget == null ? 1 : this.dimTarget;
       if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
       if (this.plate) this.stepPlate(dt);
-      if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
+      // phones drift all the time: 30 pictures a second are plenty for that slow sway (and kinder to the battery)
+      const drift = pmove && (!this.isMobile || t - (this.driftAt || 0) > 31);
+      if (drift) this.driftAt = t;
+      if (drift || this.dirty) { this.rail.place(); this.placeChrome(); }
       const swaying = this.rail.step(dt, this.reduced);
       if (this.plate && A.config.scene3) this.applySway(t, swaying);
-      if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
+      if (this.dirty || drift) { this.comp.render(this.light); this.dirty = false; }
       requestAnimationFrame(tt => this.frame(tt));
     }
 
@@ -941,6 +1037,10 @@
       if (Math.abs(wa - c.winAmt) > 1e-3) { c.winAmt += (wa - c.winAmt) * Math.min(1, dt * 3); this.dirty = true; }
       if (!vid) return;
       const resting = (this.mag && this.mag.isOpen) || this.shop.pdp.classList.contains('is-on');   // the room rests behind the magazine and the product view
+      if (!vid.loop) {                                          // round 4: the boy's clip plays when scheduled (playClip)
+        if (!vid.paused) { if (resting || document.hidden || c.winAmt < 0.05) this.clipEnded(vid); else this.dirty = true; }
+        return;
+      }
       if (c.winAmt > 0.01 && !document.hidden && !resting) {
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames

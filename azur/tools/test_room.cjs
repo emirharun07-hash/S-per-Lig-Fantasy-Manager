@@ -159,6 +159,14 @@ function serve() {
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     m = await p.evaluate(() => !document.querySelector('.azur-menu').hidden);
     ok('menu: Escape closes it', !m, { m });
+    const dots = await p.evaluate(() => { const r = [...document.querySelectorAll('.azur-head__dots i')].map(i => i.getBoundingClientRect()); return { dx: Math.abs(r[2].x - r[0].x), dy: r[2].y - r[0].y }; });
+    ok('menu: the three dots stand on top of each other', dots.dx < 1 && dots.dy > 6, dots);
+    // round 4: sound switch (remembered) and the boy's clip behind the room's window
+    const snd = await p.evaluate(() => { const b = document.querySelector('.azur-head__sound'); const was = b.getAttribute('aria-pressed'); b.click();
+      const now = b.getAttribute('aria-pressed'); b.click(); return { shown: !b.hidden, was, now, back: b.getAttribute('aria-pressed'), app: AZUR.app.soundOn }; });
+    ok('sound: the speaker button switches the sound off and on', snd.shown && snd.was === 'true' && snd.now === 'false' && snd.back === 'true' && snd.app, snd);
+    const clip = await p.evaluate(() => { const a = AZUR.app; return { clips: Object.keys(a.clips || {}), box: !!a.comp.clipBox, loop: a.video ? a.video.loop : null }; });
+    if (clip.clips.length) ok('outside: the room view uses its own clip (not a loop)', clip.box && clip.loop === false, clip);
     // view chips
     for (const v of ['bed', 'rail', 'room']) {
       await p.click(`.azur-views button[data-view="${v}"]`); await p.waitForTimeout(2600);

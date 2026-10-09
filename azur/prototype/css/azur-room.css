@@ -24,6 +24,12 @@ button { font: inherit; color: inherit; }
 .azur-head > * { pointer-events: auto; }
 .azur-head__right { display: flex; align-items: center; gap: 10px; }
 .azur-head__dots { width: 44px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; background: none; border: 0; border-radius: 50%; cursor: pointer; }
+.azur-head__sound { width: 40px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0; background: none; border: 0; cursor: pointer; }
+.azur-head__sound svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px rgb(255 255 255 / .55)) drop-shadow(0 0 10px rgb(141 235 255 / .35)); opacity: .9; }
+.azur-head__sound .spk { fill: #fff; }
+.azur-head__sound[aria-pressed="false"] .wave, .azur-head__sound[aria-pressed="true"] .mute { display: none; }
+.azur-head__sound[aria-pressed="false"] svg { opacity: .6; }
 .azur-head__dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgb(255 255 255 / .85), 0 0 14px rgb(141 235 255 / .45);
   animation: azur-dotglow 3.6s ease-in-out infinite; }
 .azur-head__dots i:nth-child(2) { animation-delay: .3s; } .azur-head__dots i:nth-child(3) { animation-delay: .6s; }

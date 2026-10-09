@@ -7,11 +7,11 @@
   der Theme-Header erscheint, sobald das Zimmer weggescrollt ist.
 
   Code: azur/prototype (Quelle) -> azur/tools/build_theme.py -> assets/azur-room.js, assets/azur-room.css,
-  snippets/azur-room-data.liquid. Die Renderbilder liegen unter Inhalte > Dateien (Namen azr2-…).
+  snippets/azur-room-data.liquid. Die Renderbilder liegen unter Inhalte > Dateien (Namen azr3-…).
   Die Trikots sind in die Bilder hineingerendert: die Produktfelder nur ändern, wenn sich ein Handle ändert.
 {%- endcomment -%}
 {%- liquid
-  assign files_base = 'azr2-probe.webp' | file_url | split: 'azr2-probe.webp' | first
+  assign files_base = 'azr3-probe.webp' | file_url | split: 'azr3-probe.webp' | first
   assign keys = 'frankfurt,berlin,brasilien,deutschland,tuerkei' | split: ','
   assign shipping = 'Versand in Deutschland'
   if settings.shipping_cost != blank
@@ -41,6 +41,7 @@
         <svg viewBox="0 0 48 40" aria-hidden="true"><path class="bag-strap" d="M15 14 C15 5 33 5 33 14"/><rect class="bag-body" x="4" y="13" width="40" height="22" rx="10"/><path class="bag-stripe" d="M5 24 H43"/><circle class="bag-ball" cx="35" cy="24" r="5.2"/><path class="bag-ball-lines" d="M35 19.6 l3 2.4 -1.2 3.6 h-3.6 l-1.2-3.6z"/></svg>
         <span class="azur-head__count" data-cart-count>{{ cart.item_count }}</span>
       </button>
+      <button class="azur-head__sound" type="button" aria-pressed="true" aria-label="Ton aus" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5h3.6L12 6v12l-4.4-3.5H4z"/><path class="wave" d="M15.5 9.6a3.4 3.4 0 0 1 0 4.8M18 7.2a6.8 6.8 0 0 1 0 9.6"/><path class="mute" d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
       <button class="azur-head__dots" type="button" aria-label="Menü" aria-expanded="false" aria-controls="azur-menu-{{ section.id }}"><i></i><i></i><i></i></button>
     </div>
     <nav class="azur-menu" id="azur-menu-{{ section.id }}" aria-label="Hauptnavigation" hidden>
@@ -95,7 +96,7 @@
       var m = p.match(/^assets\/brand\/(.+)$/);
       if (m) return brand[m[1]] || p;
       m = p.match(/^assets\/(?:scene\d\/)?(.+)$/);
-      return m ? files + 'azr2-' + m[1].replace(/@/g, '-at-').replace(/\//g, '-') : p;
+      return m ? files + 'azr3-' + m[1].replace(/@/g, '-at-').replace(/\//g, '-') : p;
     };
     A.formatPrice = function (v) { return v == null ? '' : v.toFixed(2).replace('.', ',') + ' €'; };
     A.store = {

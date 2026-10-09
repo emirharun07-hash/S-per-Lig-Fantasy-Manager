@@ -209,6 +209,40 @@ Bug round (2026-10-08 morning, owner: "the Deutschland jersey is buggy, once cli
 - Publishing "Azur Zimmer Runde 3 (Entwurf)" is the owner's step. The `azr1-` files are still used by the live theme;
   remove them only after round 3 is live.
 
+## Round 4 (owner feedback 2026-10-09 ~01:00 local, worked through the night in the cloud: the PC is off)
+
+Owner's list: a boy (max two) running past the window now and then instead of a whole team, a kick sound once in a
+while, natural perspective; the kid in bed readable (not his head); the room follows the clock (sports bag gone in
+the day, pyjama on the floor); jerseys unchanged until 3D scans arrive; logic errors (chair in the desk); keep the
+school backpack; the LED logo grainy with an odd glow (shape is fine); the three dots stacked vertically; lighter
+on every device without losing quality.
+
+- Jerseys frozen: `scene/frozen/<key>.glb` (the PC's r3-5 drapes) load instead of a new cloth simulation
+  (`garment.frozen`, AZUR_RESIM=1 simulates again); textures are the panel crops the UVs were made for.
+- Room through the day (`build_room.py` tags): day = he is out (no sports bag, boots or backpack; the pyjama still on
+  the floor); morning = bag, boots, backpack, phone on the duvet; evening/night = back (books and pencil case out).
+  Night: a readable sleeper under a softer duvet pulled over his head, a warm hallway light through the door ajar
+  (`L_hall`, rendered in the street pass, night only, `render_queue.HALL_W`).
+- Scene check: `scene/check_scene.py` lists objects that stick into each other. Fixed: chair in the desk legs, boots
+  in the duvet on the floor, ball and backpack in the scarf, books under the chair, sock in the foot board.
+- Cloud patch (`scene/cloud_patch.py`): compares the round 3 scene (`.cache/azur_room_scene3_r3cloud.blend`) with the
+  new one, renders only the changed regions of the day passes and merges them (feathered, same encoding), renders
+  the sign again with 1024 samples (the grain), the time-of-day patches against the new day plates, masks and depth.
+  Originals are backed up in `.cache/r4/orig`, progress in `.cache/r4/done.json` and `patch.log` (resumable).
+- Neon glow: `scene/glow.py` makes a smooth bloom from the neon pass (`<view>/neon_glow.webp`, quarter size); the
+  compositor adds it with the neon light (`config.neonGlow` gain).
+- Compositor (performance): the passes are mixed and tone-mapped into one texture only when the light changes; each
+  frame reads that texture (was 8 passes + AgX per pixel per frame). Off-screen views give their pass textures back
+  to the GPU (`config.gpuViews`, 2). The outdoor clip uploads a frame only when it advances.
+- Outside (`scene/outside.py`): a lawn and hedge below the window (park HDRI behind), a boy built from soft shapes
+  with a procedural run cycle and a ball he dribbles and kicks, rendered through each window (room, rail) as a short
+  clip (`assets/scene3/outside/<view>.mp4|webm`, `outside.json`). The page rests on the first frame (nobody there)
+  and plays it every 25-70 s in daylight; a synthesized kick sound (Web Audio) at the kick, and now and then one out
+  of sight. Speaker button in the header (`.azur-head__sound`, remembered).
+- Menu dots stacked vertically. Shopify Files prefix `azr3-` (round 4).
+- Not redone: the camera moves (room-rail, room-bed) still show round 3's bag and chair for the second of the flight;
+  the PC can render them again in about 20 minutes on another day.
+
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
 - Preview render 960×540: about 1.5 min (incl. cloth simulation)

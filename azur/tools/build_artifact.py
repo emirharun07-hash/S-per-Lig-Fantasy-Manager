@@ -76,7 +76,7 @@ def main():
     if os.path.exists(OUT): shutil.rmtree(OUT)
     os.makedirs(OUT)
     copy('index.html')
-    for d in ('js', 'css', 'assets/products', 'assets/brand', 'assets/mag', f'assets/{SET}/views', f'assets/{SET}/models', 'assets/scene2/outside'):
+    for d in ('js', 'css', 'assets/products', 'assets/brand', 'assets/mag', f'assets/{SET}/views', f'assets/{SET}/models', f'assets/{SET}/outside', 'assets/scene2/outside'):
         for dp, _, fs in os.walk(os.path.join(SRC, d)):
             for f in fs:
                 if f.endswith(('.png', '.webp', '.jpg', '.json', '.js', '.css', '.mp4', '.webm', '.glb')):

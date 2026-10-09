@@ -514,9 +514,9 @@
       gl.uniform1f(u.uHasWin, vidOk ? 1 : 0); gl.uniform1f(u.uWinAmt, this.winAmt);
       if (vidOk) {
         const b = v.winBox, vw = vid.videoWidth, vh = vid.videoHeight;
-        gl.uniform4fv(u.uWinBox, b);
-        if (this.videoMap) gl.uniform4fv(u.uVidMap, this.videoMap(v.key, b));   // a clip made for this window
-        else {   // cover the window box with the clip (box measured in plate pixels)
+        if (this.clipBox) { gl.uniform4fv(u.uWinBox, this.clipBox); gl.uniform4fv(u.uVidMap, [0, 0, 1, 1]); }   // rendered for this window
+        else {   // footage: cover the window box with it (box measured in plate pixels)
+          gl.uniform4fv(u.uWinBox, b);
           const ba = ((b[2] - b[0]) * v.size[0]) / ((b[3] - b[1]) * v.size[1]), va = vw / vh;
           let mw = 1, mh = 1; if (ba > va) mh = va / ba; else mw = ba / va;
           gl.uniform4fv(u.uVidMap, [(1 - mw) / 2, (1 - mh) * 0.35, mw, mh]);
