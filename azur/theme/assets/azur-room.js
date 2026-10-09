@@ -9,6 +9,10 @@ AZUR.config = {
   assetBase: 'assets/views/',
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
+  neonGlow: 1.4,            // round 4: strength of the sign's soft glow (neon_glow.webp, added with the neon light)
+  realMoves: false,         // round 4 changed the room (bag, chair, night light); the rendered flights still show round 3
+                            // until the PC renders them again: until then the views blend into each other
+  gpuViews: 2,              // views that keep their light passes on the GPU (the others upload again when needed)
   modelExt: 'glb',                       // jersey models for the product view ('glb.json' where .glb is not served)
 
   /* Accent systems. A is the chosen one; the others stay switchable in the design panel. */
@@ -302,7 +306,12 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
      plate around each hook, driven by the rail's pendulums (setSway)
    - hover outlines: glow.png holds the bed, the rail and the magazine as white glows (R, G, B), faded in by setGlow
    - times of day: morning, evening and night are rectangles rendered over the day passes (passes.json 'states');
-     setState copies them into the day textures (and puts the day pixels back when the state ends) */
+     setState copies them into the day textures (and puts the day pixels back when the state ends)
+
+   Round 4 (lighter): the passes are mixed and tone-mapped into one texture only when the light changes (a few times a
+   minute as the clock moves), not every frame; each frame then reads that one texture, shifted by parallax and sway.
+   The sign's glow (neon_glow.webp, a smooth bloom made offline from the neon pass) is added in that mix. Views that
+   are not on screen give their pass textures back to the GPU and upload them again when they are needed. */
 (function () {
   const A = window.AZUR = window.AZUR || {};
   const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street', 'spot'];
@@ -315,28 +324,22 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   in vec2 aPos; out vec2 vUv;
   void main() { vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5); gl_Position = vec4(aPos, 0.0, 1.0); }`;
 
-  const FRAG = `#version 300 es
-  precision highp float;
-  in vec2 vUv; out vec4 outColor;
-  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tDepth, tBeauty, tSpot, tIds, tWin, tVideo, tGlow, tSwayA, tSwayB;
-  uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
-  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot;
-  uniform float uHover, uHoverAmt, uHasIds;              // garment under the pointer (slot + 1), fades in
-  uniform float uWinAmt, uHasWin;                        // outdoor video behind the window glass
-  uniform vec4 uWinBox, uVidMap; uniform vec3 uVidGrade;
-  uniform vec4 uMap;          // plate uv = uMap.xy + vUv * uMap.zw
-  uniform vec2 uParallax;     // uv shift at depth 0 relative to the focus plane
-  uniform float uFocus, uExposure, uMode, uDim, uContrast, uSat, uHasDepth;
-  uniform vec3 uGrade;        // beauty mode only: rough time-of-day grade
-  uniform vec3 uGlowAmt; uniform float uHasGlow;         // hover outlines: bed, rail, magazine
-  uniform float uHasSway, uTime; uniform vec2 uPlatePx;
-  uniform vec4 uSwayHook[${MAX_SWAY}];                   // per garment: hook (plate uv), swing angle (rad), ripple (px)
-
+  const COMMON = `
   vec3 dec(sampler2D t, vec2 uv, float s) {
     vec3 e = texture(t, uv).rgb;
     vec3 y = min(pow(e, vec3(2.2)), vec3(0.995));
     return (y / (1.0 - y)) / s;
-  }
+  }`;
+
+  // the light mix: all passes -> one tone-mapped picture (rendered into a texture when the light changes)
+  const MIX_FRAG = `#version 300 es
+  precision highp float;
+  in vec2 vUv; out vec4 outColor;
+  uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tSpot, tNeonGlow;
+  uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
+  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot, sNeonGlow, uGlowGain;
+  uniform float uExposure, uContrast, uSat;
+  ${COMMON}
   // AgX (approximation by B. Wrensch), close to Blender's AgX view transform
   vec3 agxCurve(vec3 x) {
     vec3 x2 = x * x; vec3 x4 = x2 * x2;
@@ -360,6 +363,30 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     v = l + (1.08 * uSat) * (v - l);
     return mi * v;
   }
+  void main() {
+    vec2 uv = vec2(vUv.x, 1.0 - vUv.y);                   // framebuffer rows run bottom-up: store the plate top-down
+    vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
+             + dec(tNeon, uv, sNeon) * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
+             + dec(tStreet, uv, sStreet) * wStreet + dec(tSpot, uv, sSpot) * wSpot;
+    if (uGlowGain > 0.0) lin += dec(tNeonGlow, uv, sNeonGlow) * wNeon * uGlowGain;   // the sign's soft glow
+    outColor = vec4(clamp(agx(lin * exp2(uExposure)), 0.0, 1.0), 1.0);
+  }`;
+
+  // every frame: the mixed picture, shifted by parallax and sway, plus hover, window and outlines
+  const FRAG = `#version 300 es
+  precision highp float;
+  in vec2 vUv; out vec4 outColor;
+  uniform sampler2D tLit, tDepth, tBeauty, tIds, tWin, tVideo, tGlow, tSwayA, tSwayB;
+  uniform float uHover, uHoverAmt, uHasIds;              // garment under the pointer (slot + 1), fades in
+  uniform float uWinAmt, uHasWin;                        // outdoor clip behind the window glass
+  uniform vec4 uWinBox, uVidMap; uniform vec3 uVidGrade;
+  uniform vec4 uMap;          // plate uv = uMap.xy + vUv * uMap.zw
+  uniform vec2 uParallax;     // uv shift at depth 0 relative to the focus plane
+  uniform float uFocus, uMode, uDim, uHasDepth;
+  uniform vec3 uGrade;        // beauty mode only: rough time-of-day grade
+  uniform vec3 uGlowAmt; uniform float uHasGlow;         // hover outlines: bed, rail, magazine
+  uniform float uHasSway, uTime; uniform vec2 uPlatePx;
+  uniform vec4 uSwayHook[${MAX_SWAY}];                   // per garment: hook (plate uv), swing angle (rad), ripple (px)
   // where the plate moves under a swinging garment (rotation about its hook, a ripple running down the cloth)
   vec2 sway(vec2 uv) {
     vec4 wa = texture(tSwayA, uv); vec4 wb = texture(tSwayB, uv);
@@ -385,16 +412,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     uv += uParallax * (d - uFocus);
     vec2 guv = uv;
     if (uHasSway > 0.5) uv -= sway(uv);
-    vec3 c;
-    if (uMode < 0.5) {
-      vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
-               + dec(tNeon, uv, sNeon) * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
-               + dec(tStreet, uv, sStreet) * wStreet + dec(tSpot, uv, sSpot) * wSpot;
-      c = agx(lin * exp2(uExposure));
-    } else {
-      c = texture(tBeauty, uv).rgb * uGrade;
-    }
-    if (uHasWin > 0.5 && uWinAmt > 0.001) {              // the Bolzplatz across the street, seen through the glass
+    vec3 c = uMode < 0.5 ? texture(tLit, uv).rgb : texture(tBeauty, uv).rgb * uGrade;
+    if (uHasWin > 0.5 && uWinAmt > 0.001) {              // the street outside, seen through the glass
       float m = texture(tWin, uv).r * uWinAmt;
       vec2 wv = (uv - uWinBox.xy) / max(uWinBox.zw - uWinBox.xy, vec2(1e-4));
       vec3 vid = texture(tVideo, uVidMap.xy + clamp(wv, 0.0, 1.0) * uVidMap.zw).rgb * uVidGrade;
@@ -440,25 +459,32 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const gl = this.gl;
       const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
         if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
-      const p = gl.createProgram();
-      gl.attachShader(p, sh(gl.VERTEX_SHADER, VERT)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FRAG));
-      gl.bindAttribLocation(p, 0, 'aPos'); gl.linkProgram(p);
-      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-      this.prog = p; gl.useProgram(p);
+      const program = (frag, units, names) => {
+        const p = gl.createProgram();
+        gl.attachShader(p, sh(gl.VERTEX_SHADER, VERT)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, frag));
+        gl.bindAttribLocation(p, 0, 'aPos'); gl.linkProgram(p);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+        const u = {}; gl.useProgram(p);
+        for (const n of units.concat(names)) u[n] = gl.getUniformLocation(p, n);
+        units.forEach((n, i) => gl.uniform1i(u[n], i));
+        return { p, u, units };
+      };
+      this.mixP = program(MIX_FRAG, ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tSpot', 'tNeonGlow'],
+        ['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
+         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot', 'sNeonGlow', 'uGlowGain',
+         'uExposure', 'uContrast', 'uSat']);
+      this.drawP = program(FRAG, ['tLit', 'tDepth', 'tBeauty', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'],
+        ['uMap', 'uParallax', 'uFocus', 'uMode', 'uDim', 'uHasDepth', 'uGrade',
+         'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade',
+         'uGlowAmt', 'uHasGlow', 'uHasSway', 'uTime', 'uPlatePx', 'uSwayHook']);
+      this.prog = this.drawP.p; this.u = this.drawP.u;
       const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-      this.u = {};
-      this.units = ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tDepth', 'tBeauty', 'tSpot', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'];
-      const names = this.units.concat(['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
-        'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot',
-        'uMap', 'uParallax', 'uFocus', 'uExposure', 'uMode', 'uDim', 'uContrast', 'uSat', 'uHasDepth', 'uGrade',
-        'uHover', 'uHoverAmt', 'uHasIds', 'uWinAmt', 'uHasWin', 'uWinBox', 'uVidMap', 'uVidGrade',
-        'uGlowAmt', 'uHasGlow', 'uHasSway', 'uTime', 'uPlatePx', 'uSwayHook']);
-      for (const n of names) this.u[n] = gl.getUniformLocation(p, n);
-      this.units.forEach((n, i) => gl.uniform1i(this.u[n], i));
       this.blank = this.texture(null);
+      this.lit = null; this.litKey = ''; this.fbo = gl.createFramebuffer();
       this.hover = 0; this.hoverAmt = 0; this.winAmt = 0; this.video = null; this.videoTex = null;
+      this.recent = [];                                   // views whose passes are on the GPU, most recent last
     }
 
     texture(img, nearest) {
@@ -486,6 +512,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (this.cache[key]) {
         if (activate) { this.view = this.cache[key]; this.mode = this.view.mode; }
         await this.cache[key].ready;
+        this.touch(this.cache[key]);                   // its passes back on the GPU if they were given back
         return this.cache[key].mode;
       }
       const v = { key, mode: 'none', tex: {}, scales: {}, size: null, beautyImg: null, imgs: {}, state: 'day', meta };
@@ -511,8 +538,12 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         if (imgs.every(Boolean)) {
           list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; v.imgs[p] = imgs[i]; });
           v.size = [imgs[0].naturalWidth, imgs[0].naturalHeight]; v.mode = 'passes';
-          v.texW = imgs[0].naturalWidth;
+          v.texW = imgs[0].naturalWidth; v.texH = imgs[0].naturalHeight; v.version = 1;
           if (lo) v.upgrade = () => this.upgrade(v, list, base);
+          if (scales.neon_glow) {                      // the sign's soft glow (small, smooth: no low copy)
+            const g = await loadImage(base + 'neon_glow.webp');
+            if (g) { v.tex.neonGlow = this.texture(g); v.scales.neonGlow = scales.neon_glow; }
+          }
         }
       }
       if (ids && this.gl) v.ids = this.texture(ids, true);
@@ -531,7 +562,47 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (activate) { this.view = v; this.mode = v.mode; }
       done();
       if (this.state !== 'day') await this.applyState(v, this.state);
+      this.touch(v);
       return v.mode;
+    }
+
+    /* GPU memory: only the views used last keep their pass textures (A.config.gpuViews, 2); the others give them back
+       and upload them again from their images (and their time-of-day patches) when they are needed. */
+    touch(v) {
+      if (!this.gl || v.mode !== 'passes') return;
+      if (v.evicted) this.restore(v);
+      this.recent = this.recent.filter(x => x !== v); this.recent.push(v);
+      let over = this.recent.length - (A.config.gpuViews || 2);
+      for (const old of this.recent.slice()) {                // least recently used first, never the one on screen
+        if (over <= 0) break;
+        if (old === this.view || old === v) continue;
+        this.evict(old); this.recent = this.recent.filter(x => x !== old); over--;
+      }
+    }
+    evict(v) {
+      const gl = this.gl;
+      PASSES.forEach(p => { if (v.tex[p]) { gl.deleteTexture(v.tex[p]); v.tex[p] = null; } });
+      v.evicted = true;
+    }
+    restore(v) {
+      PASSES.forEach(p => { if (v.imgs[p]) v.tex[p] = this.texture(v.imgs[p]); });
+      if (v.patched && v.patchImgs) {
+        const k = v.texW / ((v.patched.res && v.patched.res[0]) || v.platePx[0]);
+        v.patched.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) v.patched.rects.forEach((r, i) => this.putPatch(v.tex[p], v.patchImgs[j][i], r, k)); });
+      }
+      v.evicted = false; v.version = (v.version || 0) + 1;
+    }
+    putPatch(tex, img, r, k) {
+      const gl = this.gl;
+      const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      if (Math.abs(k - 1) < 1e-3 && img.naturalWidth === w && img.naturalHeight === h) {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      } else {
+        const c = Compositor.scratch(w, h); const g = c.getContext('2d');
+        g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
+      }
     }
 
     /* Swap a view's low-resolution passes for the full ones (idle time after the first frames). */
@@ -541,9 +612,12 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (!imgs.every(Boolean)) return;
       const gl = this.gl;
       v.chain = (v.chain || Promise.resolve()).then(async () => {
-        list.forEach((p, i) => { gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgs[i]); v.imgs[p] = imgs[i]; });
-        v.texW = imgs[0].naturalWidth;
-        const st = v.state; v.state = 'day'; v.patched = null;      // the full plates carry no patches yet
+        list.forEach((p, i) => {
+          if (v.tex[p]) { gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgs[i]); }
+          v.imgs[p] = imgs[i];
+        });
+        v.texW = imgs[0].naturalWidth; v.texH = imgs[0].naturalHeight; v.version = (v.version || 0) + 1;
+        const st = v.state; v.state = 'day'; v.patched = null; v.patchImgs = null;   // the full plates carry no patches yet
         if (st !== 'day') await this.applyStateNow(v, st);
       });
       await v.chain;
@@ -577,17 +651,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const [masksN, glowN] = A.config.scene3 && night && !v.masksNight
         ? await Promise.all([loadImage(A.config.assetBase + v.key.split('@')[0] + '/masks_night.png'), loadImage(A.config.assetBase + v.key.split('@')[0] + '/glow_night.png')]) : [null, null];
       if (v.state === state) return;            // another call got there first
-      const put = (tex, img, r, k) => {
-        const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        if (Math.abs(k - 1) < 1e-3 && img.naturalWidth === w && img.naturalHeight === h) {
-          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        } else {
-          const c = Compositor.scratch(w, h); const g = c.getContext('2d');
-          g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
-          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
-        }
-      };
+      const put = (tex, img, r, k) => this.putPatch(tex, img, r, k);
       // the previous state's rectangles go back to day
       if (v.patched) {
         const { rects, passes } = v.patched, k = kOf(v.patched);
@@ -600,13 +664,14 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
             gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
           });
         });
-        v.patched = null;
+        v.patched = null; v.patchImgs = null;
       }
       if (want && patches) {
         const k = kOf(want);
         want.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) want.rects.forEach((r, i) => put(v.tex[p], patches[j][i], r, k)); });
-        v.patched = want;
+        v.patched = want; v.patchImgs = patches;
       }
+      v.version = (v.version || 0) + 1;
       if (masksN) v.masksNight = masksN;
       if (glowN) v.glowNight = this.texture(glowN);
       // night outlines only when the night picture is really there (its patches loaded), so dots and image agree
@@ -691,29 +756,70 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     get pxPerPlateX() { return this.cssW / this.map[2]; }
     get pxPerPlateY() { return this.cssH / this.map[3]; }
 
+    /* The passes -> one tone-mapped texture (plate size), again only when the light, the state or the textures changed:
+       the clock moves the light slowly, so this runs a few times a minute instead of every frame. */
+    mix(state) {
+      const gl = this.gl, v = this.view, W = state.weights;
+      const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
+      const exp = state.exposure + (vc.exposure || 0);
+      const q = x => Math.round(x * 400) / 400;
+      const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow,
+        ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
+      if (key === this.litKey && this.lit) return;
+      const w = v.texW, h = v.texH || v.size[1];
+      if (!this.lit || this.litW !== w || this.litH !== h) {
+        if (this.lit) gl.deleteTexture(this.lit);
+        this.lit = this.texture(null); gl.bindTexture(gl.TEXTURE_2D, this.lit);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); this.litW = w; this.litH = h;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.lit, 0);
+      gl.viewport(0, 0, w, h);
+      const P = this.mixP, u = P.u; gl.useProgram(P.p);
+      PASSES.forEach((p, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, v.tex[p] || this.blank); });
+      gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, v.tex.neonGlow || this.blank);
+      const cap = p => p[0].toUpperCase() + p.slice(1);
+      PASSES.forEach(p => {
+        const on = v.tex[p] && (p !== 'spot' || W.spot);
+        gl.uniform3fv(u['w' + cap(p)], on ? W[p] : [0, 0, 0]); gl.uniform1f(u['s' + cap(p)], v.scales[p] || 1);
+      });
+      gl.uniform1f(u.sNeonGlow, v.scales.neonGlow || 1);
+      gl.uniform1f(u.uGlowGain, v.tex.neonGlow ? (A.config.neonGlow == null ? 1 : A.config.neonGlow) : 0);
+      gl.uniform1f(u.uExposure, exp); gl.uniform1f(u.uContrast, state.contrast || 1); gl.uniform1f(u.uSat, state.saturation || 1);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(this.drawP.p);
+      this.litKey = key;
+    }
+
     render(state) {
       const gl = this.gl; if (!gl || !this.view) return;
       const v = this.view, u = this.u;
+      if (v.mode === 'passes') { if (v.evicted) this.restore(v); this.mix(state); }
+      gl.useProgram(this.drawP.p);
       gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       const bind = (unit, tex) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex || this.blank); };
-      REQUIRED.forEach((p, i) => bind(i, v.tex[p]));
-      bind(7, v.depth); bind(8, v.tex.beauty); bind(9, v.tex.spot); bind(10, v.ids); bind(11, v.win);
-      bind(13, v.glow); bind(14, v.swayA); bind(15, v.swayB);
-      // outdoor video: upload the current frame while it is visible
-      const vidOk = this.video && this.video.readyState >= 2 && v.win && this.winAmt > 0.001;
+      bind(0, v.mode === 'passes' ? this.lit : null); bind(1, v.depth); bind(2, v.tex.beauty); bind(3, v.ids); bind(4, v.win);
+      bind(6, v.glow); bind(7, v.swayA); bind(8, v.swayB);
+      // outdoor clip: upload the current frame while it plays (a paused clip keeps its last upload)
+      const vid = this.video, vidOk = vid && vid.readyState >= 2 && v.win && this.winAmt > 0.001;
       if (vidOk) {
         if (!this.videoTex) this.videoTex = this.texture(null);
-        gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
-        try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video); } catch (e) { }
-      } else bind(12, null);
+        gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
+        const t = vid.currentTime;
+        if (t !== this.videoAt || !this.videoUp) {
+          try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vid); this.videoAt = t; this.videoUp = true; } catch (e) { }
+        }
+      } else bind(5, null);
       gl.uniform1f(u.uHasWin, vidOk ? 1 : 0); gl.uniform1f(u.uWinAmt, this.winAmt);
       if (vidOk) {
-        const b = v.winBox, vw = this.video.videoWidth, vh = this.video.videoHeight;
-        gl.uniform4fv(u.uWinBox, b);
-        // cover the window box with the video (box measured in plate pixels)
-        const ba = ((b[2] - b[0]) * v.size[0]) / ((b[3] - b[1]) * v.size[1]), va = vw / vh;
-        let mw = 1, mh = 1; if (ba > va) mh = va / ba; else mw = ba / va;
-        gl.uniform4fv(u.uVidMap, [(1 - mw) / 2, (1 - mh) * 0.35, mw, mh]);
+        const b = v.winBox, vw = vid.videoWidth, vh = vid.videoHeight;
+        if (this.clipBox) { gl.uniform4fv(u.uWinBox, this.clipBox); gl.uniform4fv(u.uVidMap, [0, 0, 1, 1]); }   // rendered for this window
+        else {   // footage: cover the window box with it (box measured in plate pixels)
+          gl.uniform4fv(u.uWinBox, b);
+          const ba = ((b[2] - b[0]) * v.size[0]) / ((b[3] - b[1]) * v.size[1]), va = vw / vh;
+          let mw = 1, mh = 1; if (ba > va) mh = va / ba; else mw = ba / va;
+          gl.uniform4fv(u.uVidMap, [(1 - mw) / 2, (1 - mh) * 0.35, mw, mh]);
+        }
         gl.uniform3fv(u.uVidGrade, this.videoGrade || [1, 1, 1]);
       }
       gl.uniform1f(u.uHasIds, v.ids ? 1 : 0); gl.uniform1f(u.uHover, this.hover); gl.uniform1f(u.uHoverAmt, this.hoverAmt);
@@ -727,20 +833,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       gl.uniform1f(u.uFocus, this.focus || 0.6);
       gl.uniform1f(u.uHasDepth, v.depth ? 1 : 0);
       gl.uniform1f(u.uDim, this.dim);
-      gl.uniform1f(u.uContrast, state.contrast || 1);
-      gl.uniform1f(u.uSat, state.saturation || 1);
       gl.uniform1f(u.uMode, v.mode === 'passes' ? 0 : 1);
-      if (v.mode === 'passes') {
-        const W = state.weights;
-        gl.uniform3fv(u.wSky, W.sky); gl.uniform3fv(u.wSunLow, W.sunLow); gl.uniform3fv(u.wSunHigh, W.sunHigh);
-        gl.uniform3fv(u.wNeon, W.neon); gl.uniform3fv(u.wLamp, W.lamp); gl.uniform3fv(u.wCeiling, v.tex.ceiling ? W.ceiling : [0, 0, 0]); gl.uniform3fv(u.wStreet, W.street);
-        gl.uniform3fv(u.wSpot, v.tex.spot ? (W.spot || [0, 0, 0]) : [0, 0, 0]);
-        PASSES.forEach(p => gl.uniform1f(u['s' + p[0].toUpperCase() + p.slice(1)], v.scales[p] || 1));
-        const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
-        gl.uniform1f(u.uExposure, state.exposure + (vc.exposure || 0));
-      } else {
-        gl.uniform3fv(u.uGrade, Compositor.beautyGrade(state));
-      }
+      if (v.mode !== 'passes') gl.uniform3fv(u.uGrade, Compositor.beautyGrade(state));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
@@ -2172,6 +2266,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       [this.views, this.passes, A.sprites, this.moves] = await Promise.all([getJSON(base + 'views.json'), getJSON(base + 'passes.json'),
         this.plate ? Promise.resolve({}) : getJSON(base + 'sprites.json'), getJSON(base.replace(/views\/$/, 'moves/') + 'moves.json')]);
       this.moveFrames = {};
+      this.outside = this.plate ? await getJSON(base.replace(/views\/$/, 'outside/') + 'outside.json') : {};   // round 4: the boy outside
       this.comp = new A.Compositor(this.canvas);
       this.comp.viewsData = this.views; this.comp.onChange = () => this.kick();
       this.root.classList.toggle('no-webgl', !this.comp.ok);
@@ -2191,7 +2286,9 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       window.addEventListener('resize', () => this.resize());
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => {
         this.offscreen = !en.isIntersecting;
-        if (this.video && this.offscreen && !this.video.paused) this.video.pause();
+        if (this.video && this.offscreen && !this.video.paused) {
+          if (this.video.loop) this.video.pause(); else this.clipEnded(this.video);   // never leave the boy frozen mid-run
+        }
         if (!this.offscreen) this.kick();
       }).observe(this.root);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.kick(); });
@@ -2265,6 +2362,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     async enterView(key) {
       const prevBase = (this.viewKey || '').split('@')[0];
       this.viewKey = key;
+      this.useClip(key);
       const v = this.viewData(key);
       const mode = await this.comp.load(key, this.passes);
       if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
@@ -2388,6 +2486,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       return this.moveFrames[key];
     }
     preloadMoves() {
+      if (A.config.realMoves === false) return;
       const mix = this.moveMix(), base = A.config.assetBase;
       Object.keys(this.moves || {}).forEach(name => {
         if (this.isMobile !== name.startsWith('rail_m-')) return;
@@ -2396,6 +2495,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       });
     }
     findMove(from, to) {
+      if (A.config.realMoves === false) return null;             // the flights show an older room: blend instead
       const mix = this.moveMix();
       const ready = name => {
         const need = [];
@@ -2749,22 +2849,113 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       };
       ['pointerenter', 'focus'].forEach(ev => ma.addEventListener(ev, () => showMag(true)));
       ['pointerleave', 'blur'].forEach(ev => ma.addEventListener(ev, () => showMag(false)));
-      // scene2: real footage of the Bolzplatz across the street plays behind the window glass (the compositor masks it)
+      // behind the window glass (the compositor masks it in). Round 4: for each window a clip rendered from that camera, a
+      // boy running past on the lawn with his ball (outside/<view>.mp4); it rests on its first frame (nobody there) and
+      // plays now and then. Older sets: real footage of the Bolzplatz across the street on a loop.
       if (this.plate && this.comp.ok) {
-        const vid = document.createElement('video');
-        Object.assign(vid, { muted: true, loop: true, playsInline: true, preload: 'none' });   // fetched when a window shows it
-        vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
-        const ob = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
-        [['bolzplatz.webm', 'video/webm'], ['bolzplatz.mp4', 'video/mp4']].forEach(([f, t]) => {
-          const so = document.createElement('source'); so.src = A.url(ob + f); so.type = t; vid.appendChild(so); });
-        Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
-        this.root.appendChild(vid); this.comp.video = vid; this.video = vid;
+        const mk = (files, loop) => {
+          const vid = document.createElement('video');
+          Object.assign(vid, { muted: true, loop, playsInline: true, preload: 'none' });   // fetched when a window shows it
+          vid.setAttribute('muted', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('aria-hidden', 'true');
+          files.forEach(([f, t]) => { const so = document.createElement('source'); so.src = A.url(f); so.type = t; vid.appendChild(so); });
+          Object.assign(vid.style, { position: 'absolute', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none', left: '0', top: '0' });
+          this.root.appendChild(vid); return vid;
+        };
+        const ob = A.config.assetBase.replace(/views\/$/, 'outside/');
+        this.clips = {};
+        Object.entries(this.outside || {}).forEach(([k, c]) => {
+          if (!c || !c.box) return;
+          const vid = this.clips[k] = mk([[ob + k + '.webm', 'video/webm'], [ob + k + '.mp4', 'video/mp4']], false);
+          vid.addEventListener('ended', () => this.clipEnded(vid));
+        });
+        if (Object.keys(this.clips).length) { this.useClip(this.viewKey || 'room'); this.scheduleClip(6000 + Math.random() * 6000); }
+        else {
+          const ob2 = A.config.outsideBase || 'assets/scene2/outside/';      // the same footage for every scene set
+          this.comp.video = this.video = mk([[ob2 + 'bolzplatz.webm', 'video/webm'], [ob2 + 'bolzplatz.mp4', 'video/mp4']], true);
+        }
       }
+      this.initSound();
       // the neighbour's kid crosses the park outside the window now and then
       this.windowEl = $('.azur-window');
       this.kidTrack = $('.azur-kid-track');
       this.kidTrack.addEventListener('animationend', e => { if (e.target === this.kidTrack) this.kidTrack.classList.remove('is-run', 'is-back'); });
       this.scheduleKid(5000 + Math.random() * 5000);
+    }
+    /* ---------------------------------------------------------------- outside the window (round 4) */
+    useClip(key) {        // the clip made for this view's window (none for the phones' rail and the bed)
+      if (!this.clips) return;
+      const k = (key || '').split('@')[0], vid = this.clips[k] || null, c = this.outside && this.outside[k];
+      if (this.video && this.video !== vid && !this.video.loop && !this.video.paused) { this.video.pause(); this.video.currentTime = 0; }
+      this.video = vid; this.comp.video = vid; this.comp.clipBox = vid ? c.box : null; this.comp.videoUp = false;
+      if (vid && vid.preload !== 'auto') { vid.preload = 'auto'; vid.load(); }
+    }
+    scheduleClip(ms) {
+      clearTimeout(this.clipTimer);
+      this.clipTimer = setTimeout(() => this.playClip(), ms);
+    }
+    playClip() {
+      const vid = this.video, c = this.comp;
+      const quiet = !vid || vid.loop || this.reduced || document.hidden || this.offscreen || this.busy || c.winAmt < 0.5
+        || (this.mag && this.mag.isOpen) || this.shop.pdp.classList.contains('is-on');
+      if (quiet) { this.scheduleClip(9000 + Math.random() * 6000); return; }      // not now: look again soon
+      vid.currentTime = 0;
+      vid.play().then(() => {
+        const k = Object.keys(this.clips).find(x => this.clips[x] === vid), kick = this.outside[k] && this.outside[k].kick;
+        if (kick != null) setTimeout(() => { if (!vid.paused) this.kickSound(1); }, Math.max(0, kick - vid.currentTime) * 1000);
+      }).catch(() => this.scheduleClip(20000));
+      this.kick();
+    }
+    clipEnded(vid) {      // back on the empty lawn until the next time
+      vid.pause(); vid.currentTime = 0; this.comp.videoUp = false; this.kick();
+      this.scheduleClip(25000 + Math.random() * 45000);
+    }
+
+    /* Sound (round 4): a ball kicked outside, quiet and muffled by the window. Browsers allow sound only after the
+       visitor's first click, tap or key; the speaker in the header switches it off (remembered). Now and then, while it
+       is light outside, someone kicks a ball out of sight too. */
+    initSound() {
+      try { this.soundOn = localStorage.getItem('azur-sound') !== 'off'; } catch (e) { this.soundOn = true; }
+      const btn = $('.azur-head__sound');
+      const sync = () => { if (!btn) return; btn.setAttribute('aria-pressed', String(this.soundOn)); btn.setAttribute('aria-label', this.soundOn ? 'Ton aus' : 'Ton an'); };
+      if (btn) {
+        btn.hidden = false; sync();
+        btn.addEventListener('click', e => {
+          e.stopPropagation(); this.soundOn = !this.soundOn; sync(); this.unlockAudio();
+          try { localStorage.setItem('azur-sound', this.soundOn ? 'on' : 'off'); } catch (err) { }
+          if (this.soundOn) this.kickSound(0.6);
+        });
+      }
+      const unlock = () => this.unlockAudio();
+      ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, unlock, { once: true, passive: true }));
+      const far = () => {
+        this.farTimer = setTimeout(far, 45000 + Math.random() * 75000);
+        if (!document.hidden && !this.offscreen && this.light && this.light.window > 0.6 && !(this.video && !this.video.paused)) this.kickSound(0.45);
+      };
+      this.farTimer = setTimeout(far, 30000 + Math.random() * 40000);
+    }
+    unlockAudio() {
+      if (!this.soundOn) return;
+      try {
+        this.audio = this.audio || new (window.AudioContext || window.webkitAudioContext)();
+        if (this.audio.state === 'suspended') this.audio.resume();
+      } catch (e) { }
+    }
+    kickSound(vol) {
+      const ac = this.audio; if (!this.soundOn || !ac || ac.state !== 'running' || document.hidden) return;
+      const t = ac.currentTime + 0.01, out = ac.createGain(); out.gain.value = 0.2 * vol;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;      // through the window
+      out.connect(lp); lp.connect(ac.destination);
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine';           // the thump of the ball
+      o.frequency.setValueAtTime(165, t); o.frequency.exponentialRampToValueAtTime(52, t + 0.13);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.22);
+      const len = Math.floor(ac.sampleRate * 0.05), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);  // the slap of the boot
+      const n = ac.createBufferSource(); n.buffer = buf;
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.9;
+      const ng = ac.createGain(); ng.gain.value = 0.7; n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t);
+      const dl = ac.createDelay(); dl.delayTime.value = 0.11; const eg = ac.createGain(); eg.gain.value = 0.16;   // off the house fronts
+      lp.connect(dl); dl.connect(eg); eg.connect(ac.destination);
     }
     scheduleKid(ms) {
       clearTimeout(this.kidTimer);
@@ -3050,10 +3241,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const dT = this.dimTarget == null ? 1 : this.dimTarget;
       if (Math.abs(this.comp.dim - dT) > 0.002) { this.comp.dim += (dT - this.comp.dim) * Math.min(1, dt * 6); this.dirty = true; }
       if (this.plate) this.stepPlate(dt);
-      if (pmove || this.dirty) { this.rail.place(); this.placeChrome(); }
+      // phones drift all the time: 30 pictures a second are plenty for that slow sway (and kinder to the battery)
+      const drift = pmove && (!this.isMobile || t - (this.driftAt || 0) > 31);
+      if (drift) this.driftAt = t;
+      if (drift || this.dirty) { this.rail.place(); this.placeChrome(); }
       const swaying = this.rail.step(dt, this.reduced);
       if (this.plate && A.config.scene3) this.applySway(t, swaying);
-      if (this.dirty || pmove) { this.comp.render(this.light); this.dirty = false; }
+      if (this.dirty || drift) { this.comp.render(this.light); this.dirty = false; }
       requestAnimationFrame(tt => this.frame(tt));
     }
 
@@ -3076,6 +3270,10 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       if (Math.abs(wa - c.winAmt) > 1e-3) { c.winAmt += (wa - c.winAmt) * Math.min(1, dt * 3); this.dirty = true; }
       if (!vid) return;
       const resting = (this.mag && this.mag.isOpen) || this.shop.pdp.classList.contains('is-on');   // the room rests behind the magazine and the product view
+      if (!vid.loop) {                                          // round 4: the boy's clip plays when scheduled (playClip)
+        if (!vid.paused) { if (resting || document.hidden || c.winAmt < 0.05) this.clipEnded(vid); else this.dirty = true; }
+        return;
+      }
       if (c.winAmt > 0.01 && !document.hidden && !resting) {
         if (vid.paused && !this.reduced) vid.play().catch(() => { });
         if (!vid.paused) this.dirty = true;                     // new video frames
