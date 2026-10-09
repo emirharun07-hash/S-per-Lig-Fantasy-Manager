@@ -463,7 +463,8 @@
     mix(state) {
       const gl = this.gl, v = this.view, W = state.weights;
       const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
-      const exp = state.exposure + (vc.exposure || 0);
+      const night = A.app && A.app.dayState === 'night' && vc.exposureNight != null;   // his room at night: the hallway light
+      const exp = state.exposure + (night ? vc.exposureNight : (vc.exposure || 0));
       const q = x => Math.round(x * 400) / 400;
       const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow,
         ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
