@@ -277,6 +277,29 @@ on every device without losing quality.
   `gid://shopify/OnlineStoreTheme/208843571539` (assets/azur-room.js upserted, checksum matches); publishing it is
   the owner's step.
 
+## Round 5: render quality (owner 2026-10-09 evening: "fine small, bad on my 1920x1080 monitor")
+
+- The main cause was the web fix above (artifact v33, draft 4.1). The owner still wanted the render upgrades:
+- Scene (`build_room.py`): painted walls and ceiling (albedo 0.68 / 0.74 instead of mid grey, `pbr(albedo=, vary=)`:
+  the plaster texture keeps its relief but not its blotches), so the room has no black areas and the neon lights the
+  wall. Window frame, sashes, gaskets, sill, bed sides, skirting and chair back no longer overlap in a shared face
+  plane (secondary rays started inside the other box: black squares in the window corners, a dark sill; check with
+  `overlaps`-style box tests before adding parts). New: radiator valve and thermostat, two sockets.
+- Assets (`fetch_assets.py`): textures 4k, models 2k (`TEX_RES`, `MODEL_RES`; `build_room` falls back to 2k / 1k).
+- Render (`render_queue.py`): beauty and passes 1024 samples, noise threshold 0.005, neon 2048, denoiser set
+  explicitly (albedo + normal, accurate, high), more bounces; flights 1920x1080 at 128 samples
+  (`render_moves.py`); the outside clip at full size, 256 samples, VP9 crf 30 (`outside.py`).
+- Web: the mixed plate is mipmapped and sampled with `textureGrad` (clean when shown smaller than 3200).
+- PC watch: a request cut short (PC switched off) resumes without rebuild and skips finished jobs
+  (`render_step.ps1`: `render_request_started.txt`, `render_request_jobs_done.txt`; r5-1 itself began under the
+  old script, so if it is cut short, push r5-2 with the same jobs and no rebuild). The status file's log is plain
+  text again (it was ~4000 lines of PowerShell file notes).
+- PC request `r5-1` (scene3, rebuild): the full-quality test still `previews/room_day.jpg` (3200, 9.5 min on the
+  RX 6750 XT) came in 2026-10-09 21:38 UTC: window corners clean, room much brighter. Then preview, export, queue,
+  glow, outside, moves (estimated 5-7 h). After it: check the browser exposures (`azur-config.js`; keep
+  `render_moves` light_variant in step), build the artifact, test, publish, Shopify Files with a new prefix
+  (`azr5-`) and a new draft copied from the live theme 208797204819.
+
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
 - Preview render 960×540: about 1.5 min (incl. cloth simulation)
