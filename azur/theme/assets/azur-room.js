@@ -2389,6 +2389,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const v = this.viewData(key);
       const mode = await this.comp.load(key, this.passes);
       if (this.comp.view && !this.comp.view.size && v.res) this.comp.view.size = v.res.slice();   // plate not rendered yet: keep its geometry
+      // a view loaded on demand (phones, narrow windows: no background loading) swaps its small copies for sharp ones too
+      const cv = this.comp.view; if (cv && cv.upgrade) setTimeout(() => cv.upgrade && cv.upgrade(), 600);
       this.root.dataset.view = key; this.root.dataset.mode = mode;
       this.fallbackImg.hidden = !(mode === 'beauty' && !this.comp.ok);
       if (!this.comp.ok && mode === 'beauty') this.fallbackImg.src = A.url(A.config.assetBase + key + '/beauty.webp');
