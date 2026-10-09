@@ -10,8 +10,8 @@ AZUR.config = {
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
   neonGlow: 1.4,            // round 4: strength of the sign's soft glow (neon_glow.webp, added with the neon light)
-  realMoves: false,         // round 4 changed the room (bag, chair, night light); the rendered flights still show round 3
-                            // until the PC renders them again: until then the views blend into each other
+  realMoves: true,          // the rendered camera flights; false blends the views into each other instead (round 4 in
+                            // the cloud used that while the flights still showed the round 3 room)
   gpuViews: 2,              // views that keep their light passes on the GPU (the others upload again when needed)
   modelExt: 'glb',                       // jersey models for the product view ('glb.json' where .glb is not served)
 
@@ -32,7 +32,8 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, ids: false, window: false },   // exposure: extra stops on top of the clock
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, exposureNight: -0.8, ids: false, window: false },   // exposure: extra stops on top of the clock
+                                                                         // (at night the hallway light through the door ajar falls on the bed)
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },
@@ -761,7 +762,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
     mix(state) {
       const gl = this.gl, v = this.view, W = state.weights;
       const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
-      const exp = state.exposure + (vc.exposure || 0);
+      const night = A.app && A.app.dayState === 'night' && vc.exposureNight != null;   // his room at night: the hallway light
+      const exp = state.exposure + (night ? vc.exposureNight : (vc.exposure || 0));
       const q = x => Math.round(x * 400) / 400;
       const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow,
         ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
@@ -2530,17 +2532,25 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
         return [(F.w - sw) * pan, (F.h - sh) / 2, sw, sh, 0, 0, c.width, c.height];
       };
       const blit = F => { const q = cover(F); ctx.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); };
+      // the views' own exposure (config.views exposure / exposureNight, as the compositor uses it) eases in along the
+      // flight: the frames are rendered at the clock's exposure, so the arrival would jump (the bed at night)
+      const ev = v => { const vc = A.config.views[v] || {}; return this.dayState === 'night' && vc.exposureNight != null ? vc.exposureNight : (vc.exposure || 0); };
+      const lift = k => Math.pow(2, 0.5 * (ev(m.from_) * (1 - k / (n - 1)) + ev(m.to) * k / (n - 1)));
+      const canFilter = ctx.filter !== undefined;
       const draw = k => {
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        const lk = lift(k);
         if (day) {
+          if (canFilter && Math.abs(lk - 1) > 0.002) ctx.filter = `brightness(${lk.toFixed(3)})`;
           blit(day[k]);
+          if (canFilter) ctx.filter = 'none';
           if (mul !== 'rgb(255,255,255)') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over'; }
         }
         if (night) {
           ctx.globalAlpha = day ? mix.night : 1;
-          ctx.filter !== undefined && nb < 0.999 && (ctx.filter = `brightness(${nb.toFixed(3)})`);
+          if (canFilter && Math.abs(nb * lk - 1) > 0.002) ctx.filter = `brightness(${(nb * lk).toFixed(3)})`;
           blit(night[k]);
-          if (ctx.filter !== undefined) ctx.filter = 'none';
+          if (canFilter) ctx.filter = 'none';
           ctx.globalAlpha = 1;
         }
       };
