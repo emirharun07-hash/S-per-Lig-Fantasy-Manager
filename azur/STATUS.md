@@ -270,6 +270,12 @@ on every device without losing quality.
   (a copy of the live theme 208669016403; section, data snippet, js and css upserted, checksums match). Publishing
   the draft is the owner's step. The shop stays password-protected (owner's setting, not touched).
 - Open: the jerseys (3D scans from the owner later); the camera flights are 1600 wide (round 4 renders, not 3200).
+- Fix 2026-10-09 evening: views loaded on demand (phones, and any window up to 760 CSS px, e.g. the artifact beside
+  the Claude sidebar, which switches the page to its phone layout) never left their 1200 px copies: soft and blocky when
+  shown larger. `enterView` now starts the upgrade for every view. Artifact v33. The owner had published draft
+  208797204819 (now the live theme), so the fix went into a new copy "Azur Zimmer Runde 4.1 (Entwurf)"
+  `gid://shopify/OnlineStoreTheme/208843571539` (assets/azur-room.js upserted, checksum matches); publishing it is
+  the owner's step.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
@@ -300,6 +306,5 @@ the cloud queue. Never render the same job on two machines at once. A local mach
 
 Local test of the prototype: `cd azur/prototype && python3 -m http.server 8765`, then `sh azur/tools/mkdev.sh` wraps index.html into `_dev.html`; run Chromium with `--no-proxy-server`.
 
-Headless Chromium for looking at web references needs the proxy CA key:
-`--ignore-certificate-errors-spki-list=$(openssl x509 -in /root/.ccr/agent-proxy-ca.crt -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64)`
-plus `proxy: { server: $HTTPS_PROXY }` and the full Chromium build at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+Headless Chromium tests run against local servers only (`--no-proxy-server`); never skip certificate checks to
+reach outside pages.
