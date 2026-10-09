@@ -1,10 +1,10 @@
 {
     "state":  "arbeitet",
     "request":  "r4-4",
-    "job":  "queue",
-    "note":  "queue fertig nach 106.7 min",
+    "job":  "glow",
+    "note":  "Runde 4 Qualitaet (ersetzt r4-3): wie r4-3, die Log-Kurve fuer helle Licht-Ebenen mit feineren Stufen im dunklen Raum (Neon nachts). Bereits in 3200 gerenderte Ebenen werden nur neu kodiert, nicht neu gerendert.",
     "watch":  3,
-    "time":  "2026-10-09T13:26:50Z",
+    "time":  "2026-10-09T13:26:54Z",
     "device":  "13:40:12 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
