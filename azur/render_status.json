@@ -1,10 +1,10 @@
 {
     "state":  "arbeitet",
     "request":  "r5-1",
-    "job":  "preview:full,room_day",
-    "note":  "preview:full,room_day fertig nach 11.7 min",
+    "job":  "preview",
+    "note":  "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
     "watch":  3,
-    "time":  "2026-10-09T21:37:30Z",
+    "time":  "2026-10-09T21:37:33Z",
     "device":  "23:27:56 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
