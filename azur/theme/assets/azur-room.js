@@ -10,6 +10,7 @@ AZUR.config = {
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
   neonGlow: 1.4,            // round 4: strength of the sign's soft glow (neon_glow.webp, added with the neon light)
+  neonCore: 4.0,            // the tubes' cores this much brighter (the stored neon pass stops below them: white-hot core)
   realMoves: true,          // the rendered camera flights; false blends the views into each other instead (round 4 in
                             // the cloud used that while the flights still showed the round 3 room)
   gpuViews: 2,              // views that keep their light passes on the GPU (the others upload again when needed)
@@ -317,6 +318,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   const A = window.AZUR = window.AZUR || {};
   const PASSES = ['sky', 'sunLow', 'sunHigh', 'neon', 'lamp', 'ceiling', 'street', 'spot'];
   const REQUIRED = PASSES.slice(0, 7);          // 'spot' (ceiling spot on the rail) exists from scene2 on
+  const MD_MAX = 2600;          // plate pixels across the canvas the middle copies (2400 wide) serve; above: full plates
   const FILES = { sky: 'sky', sunLow: 'sun_low', sunHigh: 'sun_high', neon: 'neon', lamp: 'lamp', ceiling: 'ceiling', street: 'street', spot: 'spot' };
   const KEY_OF = Object.fromEntries(Object.entries(FILES).map(([k, f]) => [f, k]));
   const MAX_SWAY = 6;
@@ -328,6 +330,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   const COMMON = `
   vec3 dec(sampler2D t, vec2 uv, float s) {
     vec3 e = texture(t, uv).rgb;
+    if (s < 0.0) return (exp(e * 8.9873218) - 1.0) / (-8000.0 * s);   // log curve (render_queue.LOG_K 8000: ln 8001)
     vec3 y = min(pow(e, vec3(2.2)), vec3(0.995));
     return (y / (1.0 - y)) / s;
   }`;
@@ -338,7 +341,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   in vec2 vUv; out vec4 outColor;
   uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tSpot, tNeonGlow;
   uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
-  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot, sNeonGlow, uGlowGain;
+  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot, sNeonGlow, uGlowGain, uNeonCore;
   uniform float uExposure, uContrast, uSat;
   ${COMMON}
   // AgX (approximation by B. Wrensch), close to Blender's AgX view transform
@@ -366,8 +369,13 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
   }
   void main() {
     vec2 uv = vec2(vUv.x, 1.0 - vUv.y);                   // framebuffer rows run bottom-up: store the plate top-down
+    vec3 neon = dec(tNeon, uv, sNeon);
+    if (sNeon < 0.0) {     // the log curve stops at 1500x the pass's median: the tubes' cores above it get their heat back
+      float t = max(neon.r, max(neon.g, neon.b)) * -sNeon;
+      neon *= 1.0 + uNeonCore * smoothstep(0.2, 1.0, t);
+    }
     vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
-             + dec(tNeon, uv, sNeon) * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
+             + neon * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
              + dec(tStreet, uv, sStreet) * wStreet + dec(tSpot, uv, sSpot) * wSpot;
     if (uGlowGain > 0.0) lin += dec(tNeonGlow, uv, sNeonGlow) * wNeon * uGlowGain;   // the sign's soft glow
     outColor = vec4(clamp(agx(lin * exp2(uExposure)), 0.0, 1.0), 1.0);
@@ -472,7 +480,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       };
       this.mixP = program(MIX_FRAG, ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tSpot', 'tNeonGlow'],
         ['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
-         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot', 'sNeonGlow', 'uGlowGain',
+         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot', 'sNeonGlow', 'uGlowGain', 'uNeonCore',
          'uExposure', 'uContrast', 'uSat']);
       this.drawP = program(FRAG, ['tLit', 'tDepth', 'tBeauty', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'],
         ['uMap', 'uParallax', 'uFocus', 'uMode', 'uDim', 'uHasDepth', 'uGrade',
@@ -540,7 +548,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
           list.forEach((p, i) => { v.tex[p] = this.texture(imgs[i]); v.scales[p] = scales[FILES[p]]; v.imgs[p] = imgs[i]; });
           v.size = [imgs[0].naturalWidth, imgs[0].naturalHeight]; v.mode = 'passes';
           v.texW = imgs[0].naturalWidth; v.texH = imgs[0].naturalHeight; v.version = 1;
-          if (lo) v.upgrade = () => this.upgrade(v, list, base);
+          v.list = list; v.base = base; v.tier = lo ? 'lo' : 'full';
+          if (lo) v.upgrade = () => this.upgrade(v);
           if (scales.neon_glow) {                      // the sign's soft glow (small, smooth: no low copy)
             const g = await loadImage(base + 'neon_glow.webp');
             if (g) { v.tex.neonGlow = this.texture(g); v.scales.neonGlow = scales.neon_glow; }
@@ -606,13 +615,22 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       }
     }
 
-    /* Swap a view's low-resolution passes for the full ones (idle time after the first frames). */
-    async upgrade(v, list, base) {
+    /* Plate pixels the canvas shows across its width (cover fit and overscan included). */
+    platePxNeeded() { return this.canvas.width / Math.max(this.map[2], 1e-3); }
+
+    /* Swap a view's low-resolution passes for sharper ones (idle time after the first frames): the middle copies
+       (passes.json _md, 2400 wide) unless the canvas shows more plate pixels than those have, then the full plates. */
+    async upgrade(v, tier) {
       v.upgrade = null;
-      const imgs = await Promise.all(list.map(p => loadImage(base + FILES[p] + '.webp')));
+      const list = v.list, base = v.base;
+      tier = tier || ((v.meta && v.meta._md || []).includes(v.key) && this.platePxNeeded() < MD_MAX ? 'md' : 'full');
+      if (tier === v.tier) return;
+      v.tier = tier;
+      const imgs = await Promise.all(list.map(p => loadImage(base + (tier === 'md' ? 'md/' : '') + FILES[p] + '.webp')));
       if (!imgs.every(Boolean)) return;
       const gl = this.gl;
       v.chain = (v.chain || Promise.resolve()).then(async () => {
+        if (v.tier !== tier) return;                   // a sharper tier was asked for meanwhile
         list.forEach((p, i) => {
           if (v.tex[p]) { gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imgs[i]); }
           v.imgs[p] = imgs[i];
@@ -742,6 +760,8 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const os = 1 / (1 + this.overscan); zx *= os; zy *= os;
       const ox = (1 - zx) * this.pan, oy = (1 - zy) * 0.5;
       this.map = [ox, oy, zx, zy];
+      // a bigger window (full screen, a large display) than the middle copies serve: the full plates
+      if (this.view.tier === 'md' && this.platePxNeeded() > MD_MAX) this.upgrade(this.view, 'full');
     }
 
     /* Plate uv (0..1 from the top-left) + depth value -> CSS pixels, including the current parallax. */
@@ -765,7 +785,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const night = A.app && A.app.dayState === 'night' && vc.exposureNight != null;   // his room at night: the hallway light
       const exp = state.exposure + (night ? vc.exposureNight : (vc.exposure || 0));
       const q = x => Math.round(x * 400) / 400;
-      const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow,
+      const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow, A.config.neonCore,
         ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
       if (key === this.litKey && this.lit) return;
       const w = v.texW, h = v.texH || v.size[1];
@@ -787,6 +807,7 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       });
       gl.uniform1f(u.sNeonGlow, v.scales.neonGlow || 1);
       gl.uniform1f(u.uGlowGain, v.tex.neonGlow ? (A.config.neonGlow == null ? 1 : A.config.neonGlow) : 0);
+      gl.uniform1f(u.uNeonCore, A.config.neonCore == null ? 0 : A.config.neonCore);
       gl.uniform1f(u.uExposure, exp); gl.uniform1f(u.uContrast, state.contrast || 1); gl.uniform1f(u.uSat, state.saturation || 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(this.drawP.p);
