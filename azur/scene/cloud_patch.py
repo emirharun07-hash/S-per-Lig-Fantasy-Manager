@@ -28,6 +28,7 @@ R4 = os.path.join(rq.ROOT, '.cache', 'r4')
 ORIG = os.path.join(R4, 'orig')
 OLD_BLEND = os.path.join(rq.ROOT, '.cache', 'azur_room_scene3_r3cloud.blend')
 SAMPLES = int(os.environ.get('AZUR_R4_SAMPLES', 128))      # with the denoiser; 4 cores, a night to finish
+STATE_SAMPLES = {'morning': 96, 'evening': 96, 'night': 128}   # the night (the sleeper, the hall light) gets the most
 SKIP_PASSES = ('ceiling',)       # azur-config.js daylight: the ceiling light is never on (its weight is 0 at every hour)
 VIEWS = [v for v in ('room', 'bed', 'rail', 'rail_m') if not os.environ.get('AZUR_R4_ONLY') or v in os.environ['AZUR_R4_ONLY'].split(',')]
 FROZEN = ('jersey_', 'hook', 'hanger', 'hall_light_area', 'sleeper_', 'L_')
@@ -178,7 +179,7 @@ def step_day(sc, meta):
 
 
 def step_neon(sc, meta):
-    """The sign again with 4x the samples: its pass only, the sign's frame plus its glow on the wall."""
+    """The sign again with more samples (512 against 128): its pass only, the sign's frame plus its glow on the wall."""
     for key in VIEWS:
         tag_ = f'neon {key}'
         if tag_ in done() or key == 'bed': continue
@@ -192,7 +193,7 @@ def step_neon(sc, meta):
         sc.cycles.adaptive_threshold = 0.004
         rx, ry = sc.render.resolution_x, sc.render.resolution_y
         exr = os.path.join(R4, 'exr', key, 'neon.exr'); os.makedirs(os.path.dirname(exr), exist_ok=True)
-        secs = render_region(sc, box, exr, int(os.environ.get('AZUR_R4_NEON_SAMPLES', 1024)))
+        secs = render_region(sc, box, exr, int(os.environ.get('AZUR_R4_NEON_SAMPLES', 512)))
         dst = os.path.join(rq.OUT, key, 'neon.webp')
         new = rq.encode_rgb(rq.read_exr(exr), meta[key]['neon'])
         out, _ = merge_into(dst, new, px_box(box, rx, ry), whole=True)
@@ -239,7 +240,7 @@ def step_state(sc, meta, key, state):
         exr = os.path.join(R4, 'exr', key, f'{state}_{p}.exr'); os.makedirs(os.path.dirname(exr), exist_ok=True)
         if not os.path.exists(exr):
             rq.set_view(sc, key); rq.render_settings(sc, 'pass'); rq.restore_visibility(); rq.set_state(state); rq.set_pass(sc, p)
-            secs_all += render_region(sc, box, exr, SAMPLES)
+            secs_all += render_region(sc, box, exr, STATE_SAMPLES.get(state, SAMPLES))
         scale = meta[key][p]
         day = read_codes(os.path.join(rq.OUT, key, p + '.webp'))
         a = rq.encode_rgb(rq.read_exr(exr), scale)
@@ -267,7 +268,6 @@ def step_state(sc, meta, key, state):
 
 
 def step_maps(sc):
-    import maps
     for key in VIEWS:
         for state in ('day', 'night'):
             tag_ = f'masks {key} {state}'
@@ -281,8 +281,7 @@ def step_maps(sc):
         if tag_ not in done():
             p_ = os.path.join(rq.OUT, key, 'depth.png')
             if os.path.exists(p_): backup(p_); os.remove(p_)
-            rq.job_depth(sc, key)
-            maps.tidy_depth(p_, rq.VIEWS[key]['res'][0]); log('depth', key); mark(tag_)
+            rq.job_depth(sc, key); log('depth', key); mark(tag_)          # (job_depth tidies it for the web)
 
 
 def main():

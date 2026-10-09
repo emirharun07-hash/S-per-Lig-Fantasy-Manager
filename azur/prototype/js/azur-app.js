@@ -57,7 +57,9 @@
       window.addEventListener('resize', () => this.resize());
       if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => {
         this.offscreen = !en.isIntersecting;
-        if (this.video && this.offscreen && !this.video.paused) this.video.pause();
+        if (this.video && this.offscreen && !this.video.paused) {
+          if (this.video.loop) this.video.pause(); else this.clipEnded(this.video);   // never leave the boy frozen mid-run
+        }
         if (!this.offscreen) this.kick();
       }).observe(this.root);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.kick(); });
@@ -710,7 +712,7 @@
       } catch (e) { }
     }
     kickSound(vol) {
-      const ac = this.audio; if (!this.soundOn || !ac || ac.state !== 'running') return;
+      const ac = this.audio; if (!this.soundOn || !ac || ac.state !== 'running' || document.hidden) return;
       const t = ac.currentTime + 0.01, out = ac.createGain(); out.gain.value = 0.2 * vol;
       const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;      // through the window
       out.connect(lp); lp.connect(ac.destination);
