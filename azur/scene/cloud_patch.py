@@ -233,6 +233,7 @@ def step_state(sc, meta, key, state):
     union = np.zeros((ry, rx), bool); renders = {}; secs_all = 0
     for p in STATE_PASSES[state]:
         box = box_h if p == 'street' else box_o
+        if p == 'street' and hall: box = (0.0, 0.0, 1.0, 1.0)   # the hallway light reaches walls and floor everywhere
         if box is None: continue
         e = 10
         X0, X1 = int(box[0] * rx) + (e if box[0] > 0 else 0), int(np.ceil(box[2] * rx)) - (e if box[2] < 1 else 0)

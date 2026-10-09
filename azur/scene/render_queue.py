@@ -231,7 +231,7 @@ def state_visible(o, state):
 
 
 STATE_NOW = ['day']
-HALL_W = 40.0        # the hallway light (watts) in the street pass; the browser doses it with the street weight
+HALL_W = 25.0        # the hallway light (watts) in the street pass; the browser doses it with the street weight
 
 
 def set_state(state):
