@@ -180,6 +180,38 @@
     ],
     "complete": true
    }
+  },
+  "rail": {
+   "evening": {
+    "rects": [
+     [
+      0,
+      1211,
+      555,
+      1350
+     ],
+     [
+      590,
+      1211,
+      1563,
+      1350
+     ]
+    ],
+    "passes": [
+     "sky",
+     "sun_low",
+     "sun_high",
+     "neon",
+     "lamp",
+     "spot",
+     "street"
+    ],
+    "res": [
+     2400,
+     1350
+    ],
+    "complete": true
+   }
   }
  }
 }
