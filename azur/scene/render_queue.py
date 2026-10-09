@@ -15,7 +15,7 @@ Env:    AZUR_GPU=1            render on the graphics chip (e.g. on the owner's l
         AZUR_QUEUE_NO_GIT=1   skip commits (local testing)
         AZUR_QUEUE_FAST=1     tiny resolution and samples (pipeline test)
 """
-import bpy, os, sys, json, math, time, subprocess
+import bpy, os, sys, json, math, time, subprocess, shutil
 import numpy as np
 from mathutils import Vector, Matrix
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -359,10 +359,12 @@ def to_webp(src_png, dst, q=86):
 EXR = os.path.join(ROOT, '.cache', 'exr', SET)     # scene3 keeps the linear day passes to find what a state changes
 if FAST: EXR = os.path.join(OUT, 'exr')
 ENC_REF = 1.5 if HI else 0.5     # where the 97th percentile lands before the curve: scene3 spends more codes on the dark
-LOG_K = 2000.0   # the passes with bright sources are stored on a log curve (passes.json: negative scale): the same fine
-                 # step from the shade of a lit jersey up to the sun patch on the rug or the neon tube. On the Reinhard
-                 # curve those sat at its flat top (r4-1: one code of WebP noise was a big step in light, coloured dots,
-                 # a flat grainy sign) or, scaled down, in its bottom codes (r4-2: coloured grain on the lit jerseys).
+LOG_K = 8000.0   # the passes with bright sources are stored on a log curve (passes.json: negative scale): about 3.5 % of
+                 # light per code from the room's shade up to the sun patch or the neon tube. On the Reinhard curve those
+                 # sat at its flat top (r4-1: one code of WebP noise was a big step in light, coloured dots, a grainy
+                 # sign) or, scaled down, in its bottom codes (r4-2: coloured grain on the lit jerseys).
+LOG_TOP = {'sun_low': 400, 'sun_high': 400, 'neon': 1500}   # top code at this many times the pass's median (brighter
+                 # shows white anyway: the sun patch's core, the tube's core); the other log passes 800
 LOG_PASSES = ('sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street', 'ceiling')   # the sky stays on Reinhard
 
 
@@ -374,8 +376,11 @@ def read_exr(exr):
 
 
 def pass_scale(rgb, p=''):
-    """Encoding scale for passes.json. LOG_PASSES: negative, the log curve (the brightest 0.01 % at the top)."""
-    if p in LOG_PASSES: return -1.0 / max(float(np.percentile(rgb.max(-1), 99.99)), 1e-6)
+    """Encoding scale for passes.json. LOG_PASSES: negative, the log curve (LOG_TOP times the median at the top)."""
+    if p in LOG_PASSES:
+        m = rgb.max(-1); med = float(np.percentile(m, 50))
+        top = min(float(m.max()), LOG_TOP.get(p, 800) * med) if med > 0 else float(m.max())
+        return -1.0 / max(top, 1e-6)
     lum = rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
     return ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
 
@@ -515,8 +520,12 @@ def job_depth(sc, key):
 def job_pass(sc, key, p, meta):
     dst = os.path.join(OUT, key, p + '.webp')
     if os.path.exists(dst): return None
-    set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p); neon_quality(sc, p)
-    exr = dst.replace('.webp', '.exr'); secs = render_to(sc, exr)
+    exr = dst.replace('.webp', '.exr'); kept = os.path.join(EXR, key, p + '.exr') if HI else None
+    if kept and os.path.exists(kept) and read_exr(kept).shape[:2] == tuple(VIEWS[key]['res'][::-1]):
+        shutil.copy2(kept, exr); secs = 0                 # rendered at this size before: only the encoding is new
+    else:
+        set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p); neon_quality(sc, p)
+        secs = render_to(sc, exr)
     meta.setdefault(key, {})[p] = encode_pass(exr, dst, p, keep=os.path.join(EXR, key, p + '.exr') if HI else None)
     mpath = os.path.join(OUT, 'passes.json'); json.dump(meta, open(mpath, 'w'), indent=1)
     log('pass', key, p, secs, 's'); return [dst, mpath]

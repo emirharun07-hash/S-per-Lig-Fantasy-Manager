@@ -30,7 +30,7 @@
   const COMMON = `
   vec3 dec(sampler2D t, vec2 uv, float s) {
     vec3 e = texture(t, uv).rgb;
-    if (s < 0.0) return (exp(e * 7.6014023) - 1.0) / (-2000.0 * s);   // log curve (render_queue.LOG_K 2000: ln 2001)
+    if (s < 0.0) return (exp(e * 8.9873218) - 1.0) / (-8000.0 * s);   // log curve (render_queue.LOG_K 8000: ln 8001)
     vec3 y = min(pow(e, vec3(2.2)), vec3(0.995));
     return (y / (1.0 - y)) / s;
   }`;

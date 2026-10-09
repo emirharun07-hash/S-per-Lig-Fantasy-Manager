@@ -19,7 +19,7 @@ ENC_REF = 1.5
 
 def decode(codes, scale):
     e = codes.astype(np.float32) / 255.0
-    if scale < 0: return (np.exp(e * np.log1p(2000.0)) - 1.0) / (2000.0 * -scale)   # log curve (render_queue.LOG_K)
+    if scale < 0: return (np.exp(e * np.log1p(8000.0)) - 1.0) / (8000.0 * -scale)   # log curve (render_queue.LOG_K)
     y = np.minimum(np.power(e, 2.2), 0.995)
     return (y / (1.0 - y)) / scale
 
