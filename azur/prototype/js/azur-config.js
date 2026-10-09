@@ -8,6 +8,7 @@ AZUR.config = {
   scene3Base: 'assets/scene3/views/',   // round 3 renders (used when they exist; scene2 otherwise)
   outsideBase: 'assets/scene2/outside/', // footage of the Bolzplatz behind the window (shared by every scene set)
   neonGlow: 1.4,            // round 4: strength of the sign's soft glow (neon_glow.webp, added with the neon light)
+  neonCore: 4.0,            // the tubes' cores this much brighter (the stored neon pass stops below them: white-hot core)
   realMoves: true,          // the rendered camera flights; false blends the views into each other instead (round 4 in
                             // the cloud used that while the flights still showed the round 3 room)
   gpuViews: 2,              // views that keep their light passes on the GPU (the others upload again when needed)

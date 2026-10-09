@@ -41,7 +41,7 @@
   in vec2 vUv; out vec4 outColor;
   uniform sampler2D tSky, tSunLow, tSunHigh, tNeon, tLamp, tCeiling, tStreet, tSpot, tNeonGlow;
   uniform vec3 wSky, wSunLow, wSunHigh, wNeon, wLamp, wCeiling, wStreet, wSpot;
-  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot, sNeonGlow, uGlowGain;
+  uniform float sSky, sSunLow, sSunHigh, sNeon, sLamp, sCeiling, sStreet, sSpot, sNeonGlow, uGlowGain, uNeonCore;
   uniform float uExposure, uContrast, uSat;
   ${COMMON}
   // AgX (approximation by B. Wrensch), close to Blender's AgX view transform
@@ -69,8 +69,13 @@
   }
   void main() {
     vec2 uv = vec2(vUv.x, 1.0 - vUv.y);                   // framebuffer rows run bottom-up: store the plate top-down
+    vec3 neon = dec(tNeon, uv, sNeon);
+    if (sNeon < 0.0) {     // the log curve stops at 1500x the pass's median: the tubes' cores above it get their heat back
+      float t = max(neon.r, max(neon.g, neon.b)) * -sNeon;
+      neon *= 1.0 + uNeonCore * smoothstep(0.2, 1.0, t);
+    }
     vec3 lin = dec(tSky, uv, sSky) * wSky + dec(tSunLow, uv, sSunLow) * wSunLow + dec(tSunHigh, uv, sSunHigh) * wSunHigh
-             + dec(tNeon, uv, sNeon) * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
+             + neon * wNeon + dec(tLamp, uv, sLamp) * wLamp + dec(tCeiling, uv, sCeiling) * wCeiling
              + dec(tStreet, uv, sStreet) * wStreet + dec(tSpot, uv, sSpot) * wSpot;
     if (uGlowGain > 0.0) lin += dec(tNeonGlow, uv, sNeonGlow) * wNeon * uGlowGain;   // the sign's soft glow
     outColor = vec4(clamp(agx(lin * exp2(uExposure)), 0.0, 1.0), 1.0);
@@ -175,7 +180,7 @@
       };
       this.mixP = program(MIX_FRAG, ['tSky', 'tSunLow', 'tSunHigh', 'tNeon', 'tLamp', 'tCeiling', 'tStreet', 'tSpot', 'tNeonGlow'],
         ['wSky', 'wSunLow', 'wSunHigh', 'wNeon', 'wLamp', 'wCeiling', 'wStreet', 'wSpot',
-         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot', 'sNeonGlow', 'uGlowGain',
+         'sSky', 'sSunLow', 'sSunHigh', 'sNeon', 'sLamp', 'sCeiling', 'sStreet', 'sSpot', 'sNeonGlow', 'uGlowGain', 'uNeonCore',
          'uExposure', 'uContrast', 'uSat']);
       this.drawP = program(FRAG, ['tLit', 'tDepth', 'tBeauty', 'tIds', 'tWin', 'tVideo', 'tGlow', 'tSwayA', 'tSwayB'],
         ['uMap', 'uParallax', 'uFocus', 'uMode', 'uDim', 'uHasDepth', 'uGrade',
@@ -480,7 +485,7 @@
       const night = A.app && A.app.dayState === 'night' && vc.exposureNight != null;   // his room at night: the hallway light
       const exp = state.exposure + (night ? vc.exposureNight : (vc.exposure || 0));
       const q = x => Math.round(x * 400) / 400;
-      const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow,
+      const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow, A.config.neonCore,
         ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
       if (key === this.litKey && this.lit) return;
       const w = v.texW, h = v.texH || v.size[1];
@@ -502,6 +507,7 @@
       });
       gl.uniform1f(u.sNeonGlow, v.scales.neonGlow || 1);
       gl.uniform1f(u.uGlowGain, v.tex.neonGlow ? (A.config.neonGlow == null ? 1 : A.config.neonGlow) : 0);
+      gl.uniform1f(u.uNeonCore, A.config.neonCore == null ? 0 : A.config.neonCore);
       gl.uniform1f(u.uExposure, exp); gl.uniform1f(u.uContrast, state.contrast || 1); gl.uniform1f(u.uSat, state.saturation || 1);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(this.drawP.p);
