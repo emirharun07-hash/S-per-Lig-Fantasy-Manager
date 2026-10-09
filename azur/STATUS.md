@@ -255,11 +255,14 @@ on every device without losing quality.
   the bright passes (sun, neon, lamp, spot, street, ceiling) sat at the flat top of the Reinhard curve, where one code
   of WebP noise is a big step in light (coloured dots in the sun, a flat grainy sign); r4-2 scaled the sun passes down
   instead, which put the lit jerseys into the bottom codes (coloured grain everywhere). Now `render_queue.LOG_PASSES`
-  are stored on a log curve (`LOG_K` 2000, negative scale in passes.json, decoded in the compositor's `dec`): about
-  3 % per code from shade to sun patch and tube core. The desktop views render 3200x1800 (were 2400x1350: soft on
+  are stored on a log curve (`LOG_K` 8000, negative scale in passes.json, decoded in the compositor's `dec`; the top
+  code at `LOG_TOP` times the pass's median: sun 400, neon 1500, others 800, brighter shows white anyway): about
+  3.5-4.5 % of light per code from the room's shade to the sun patch and the tube. (r4-3 put the top at the maximum:
+  the neon pass's room, 1/10000 of the tubes, fell into the bottom codes; r4-4 replaced it, re-encoding the passes
+  already rendered at 3200 from their kept EXRs.) The desktop views render 3200x1800 (were 2400x1350: soft on
   HiDPI/full screen); `build_artifact.low_copies` makes lo/ (1200) and md/ (2400, passes.json `_md`) copies and the
   compositor loads md unless the canvas shows more than 2600 plate pixels (`platePxNeeded`), then the full plates.
-  Shopify Files prefix `azr4-`. PC request `r4-3` (queue + glow, about 3 hours).
+  Shopify Files prefix `azr4-`. PC request `r4-4` (queue + glow, about 3 hours).
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
