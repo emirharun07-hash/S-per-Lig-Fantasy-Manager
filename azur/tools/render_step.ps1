@@ -28,7 +28,8 @@ New-Item -ItemType Directory -Force -Path $Cache | Out-Null
 function Write-Status($State, $ReqId, $Job, $Note) {
   $tail = @()
   if (Test-Path $JobLog) {
-    $tail = @(Get-Content $JobLog -Tail 400 | Where-Object { $_ -notmatch "Blender create|glTF import|DeprecationWarning|use_nodes|^\s*$|Fra:|Sample \d" } | Select-Object -Last 30)
+    # plain strings: lines from Get-Content carry PSPath/PSDrive notes, which ConvertTo-Json would write out in full
+    $tail = @(Get-Content $JobLog -Tail 400 | Where-Object { $_ -notmatch "Blender create|glTF import|Data are loaded|DeprecationWarning|use_nodes|^\s*$|Fra:|Sample \d" } | Select-Object -Last 30 | ForEach-Object { "$_" })
   }
   $dev = ""
   if (Test-Path "$Cache\queue.log") {
