@@ -88,6 +88,28 @@
      1350
     ],
     "complete": true
+   },
+   "morning": {
+    "rects": [
+     [
+      269,
+      757,
+      2062,
+      1350
+     ]
+    ],
+    "passes": [
+     "sky",
+     "sun_high",
+     "neon",
+     "spot",
+     "street"
+    ],
+    "res": [
+     2400,
+     1350
+    ],
+    "complete": true
    }
   }
  }
