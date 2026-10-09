@@ -262,7 +262,14 @@ on every device without losing quality.
   already rendered at 3200 from their kept EXRs.) The desktop views render 3200x1800 (were 2400x1350: soft on
   HiDPI/full screen); `build_artifact.low_copies` makes lo/ (1200) and md/ (2400, passes.json `_md`) copies and the
   compositor loads md unless the canvas shows more than 2600 plate pixels (`platePxNeeded`), then the full plates.
-  Shopify Files prefix `azr4-`. PC request `r4-4` (queue + glow, about 3 hours).
+  Shopify Files prefix `azr4-`. PC request `r4-4` (queue + glow): done 2026-10-09 13:27 UTC (1 h 47 min).
+- Browser: the neon tubes' cores get their heat back (`config.neonCore` 4: the log-stored pass stops at 1500x its
+  median), the neon glow is computed again from the log-encoded pass (`glow.py`).
+- Published 2026-10-09 ~14:00 UTC: artifact v32 (https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy), Shopify Files
+  `azr4-` (254, READY), draft theme "Azur Zimmer Runde 4 (Entwurf)" `gid://shopify/OnlineStoreTheme/208797204819`
+  (a copy of the live theme 208669016403; section, data snippet, js and css upserted, checksums match). Publishing
+  the draft is the owner's step. The shop stays password-protected (owner's setting, not touched).
+- Open: the jerseys (3D scans from the owner later); the camera flights are 1600 wide (round 4 renders, not 3200).
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
