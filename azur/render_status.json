@@ -1,10 +1,10 @@
 {
-    "state":  "arbeitet",
+    "state":  "fertig",
     "request":  "r4-2",
-    "job":  "moves",
-    "note":  "moves fertig nach 44.7 min",
+    "job":  "",
+    "note":  "Runde 4 Korrektur: Flurlicht nachts viel schwaecher (die Bettdecke war weiss ueberstrahlt), Sonnenflecken ohne bunte Pixel (Sonnen-Ebenen mit mehr Spielraum kodiert). Neu: Sonnen-Ebenen, alle Tageszeiten-Ausschnitte, Nacht-Kamerafahrten; danach die restlichen Kamerafahrten",
     "watch":  3,
-    "time":  "2026-10-09T10:46:16Z",
+    "time":  "2026-10-09T10:46:19Z",
     "device":  "12:01:34 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
