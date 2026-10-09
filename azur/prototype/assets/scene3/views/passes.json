@@ -111,6 +111,32 @@
     ],
     "complete": true
    }
+  },
+  "bed": {
+   "evening": {
+    "rects": [
+     [
+      330,
+      163,
+      3200,
+      1800
+     ]
+    ],
+    "passes": [
+     "sky",
+     "sun_low",
+     "sun_high",
+     "neon",
+     "lamp",
+     "spot",
+     "street"
+    ],
+    "res": [
+     3200,
+     1800
+    ],
+    "complete": true
+   }
   }
  }
 }
