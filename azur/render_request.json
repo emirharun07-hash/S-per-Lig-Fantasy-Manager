@@ -1,7 +1,8 @@
 {
-  "id": "r4-1",
-  "note": "Runde 4: Zimmer mit Tageszeiten (Tasche weg am Tag, Schlafanzug auf dem Boden, Junge schlaeft nachts, Flurlicht), Stuhl nicht mehr im Tisch, Logo mit 1024 Samples und Glow, Junge mit Ball vor dem Fenster (Clip), Trikots unveraendert (eingefroren). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Glow, Fenster-Clips, Kamerafahrten",
+  "id": "r4-2",
+  "note": "Runde 4 Korrektur: Flurlicht nachts viel schwaecher (die Bettdecke war weiss ueberstrahlt), Sonnenflecken ohne bunte Pixel (Sonnen-Ebenen mit mehr Spielraum kodiert). Neu: Sonnen-Ebenen, alle Tageszeiten-Ausschnitte, Nacht-Kamerafahrten; danach die restlichen Kamerafahrten",
   "set": "scene3",
-  "rebuild": true,
-  "jobs": ["preview", "export", "queue", "glow", "outside", "moves"]
+  "rebuild": false,
+  "redo": ["views/*/sun_low.webp", "views/*/sun_high.webp", "views/*/morning/*", "views/*/evening/*", "views/*/night/*", "moves/*/n*.webp"],
+  "jobs": ["queue", "moves"]
 }

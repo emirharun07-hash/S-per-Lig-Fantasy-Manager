@@ -237,7 +237,8 @@ def state_visible(o, state):
 
 
 STATE_NOW = ['day']
-HALL_W = 25.0        # the hallway light (watts) in the street pass; the browser doses it with the street weight
+HALL_W = 2.0         # the hallway light (watts) in the street pass; the browser doses it with the street weight
+                     # (25 lit the duvet next to the door white at night: r4-1)
 
 
 def set_state(state):
@@ -358,6 +359,8 @@ def to_webp(src_png, dst, q=86):
 EXR = os.path.join(ROOT, '.cache', 'exr', SET)     # scene3 keeps the linear day passes to find what a state changes
 if FAST: EXR = os.path.join(OUT, 'exr')
 ENC_REF = 1.5 if HI else 0.5     # where the 97th percentile lands before the curve: scene3 spends more codes on the dark
+SUN_TOP = 3.0    # sun passes: where the brightest patch (99.9th percentile) may land at most. Above about 6 the curve is
+                 # so flat that one code of WebP noise is a big step in light: the sunlit floor showed coloured dots (r4-1)
 
 
 def read_exr(exr):
@@ -367,9 +370,11 @@ def read_exr(exr):
     return px.reshape(h, w, 4)[::-1, :, :3].copy()
 
 
-def pass_scale(rgb):
+def pass_scale(rgb, p=''):
     lum = rgb @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
-    return ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
+    scale = ENC_REF / max(float(np.percentile(lum, 97)), 1e-6)
+    if p in SUN: scale = min(scale, SUN_TOP / max(float(np.percentile(lum, 99.9)), 1e-6))
+    return scale
 
 
 def encode_rgb(rgb, scale):
@@ -391,7 +396,7 @@ def save_webp(codes, dst, q):
 
 def encode_pass(exr, dst, p='', keep=None):
     """Linear EXR -> WebP (see encode_rgb); returns the scale for passes.json. keep: move the EXR there instead of deleting."""
-    rgb = read_exr(exr); scale = pass_scale(rgb)
+    rgb = read_exr(exr); scale = pass_scale(rgb, p)
     save_webp(encode_rgb(rgb, scale), dst, pass_quality(p))
     if keep:
         os.makedirs(os.path.dirname(keep), exist_ok=True); os.replace(exr, keep)
