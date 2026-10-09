@@ -301,17 +301,25 @@
         return [(F.w - sw) * pan, (F.h - sh) / 2, sw, sh, 0, 0, c.width, c.height];
       };
       const blit = F => { const q = cover(F); ctx.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); };
+      // the views' own exposure (config.views exposure / exposureNight, as the compositor uses it) eases in along the
+      // flight: the frames are rendered at the clock's exposure, so the arrival would jump (the bed at night)
+      const ev = v => { const vc = A.config.views[v] || {}; return this.dayState === 'night' && vc.exposureNight != null ? vc.exposureNight : (vc.exposure || 0); };
+      const lift = k => Math.pow(2, 0.5 * (ev(m.from_) * (1 - k / (n - 1)) + ev(m.to) * k / (n - 1)));
+      const canFilter = ctx.filter !== undefined;
       const draw = k => {
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+        const lk = lift(k);
         if (day) {
+          if (canFilter && Math.abs(lk - 1) > 0.002) ctx.filter = `brightness(${lk.toFixed(3)})`;
           blit(day[k]);
+          if (canFilter) ctx.filter = 'none';
           if (mul !== 'rgb(255,255,255)') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over'; }
         }
         if (night) {
           ctx.globalAlpha = day ? mix.night : 1;
-          ctx.filter !== undefined && nb < 0.999 && (ctx.filter = `brightness(${nb.toFixed(3)})`);
+          if (canFilter && Math.abs(nb * lk - 1) > 0.002) ctx.filter = `brightness(${(nb * lk).toFixed(3)})`;
           blit(night[k]);
-          if (ctx.filter !== undefined) ctx.filter = 'none';
+          if (canFilter) ctx.filter = 'none';
           ctx.globalAlpha = 1;
         }
       };
