@@ -26,6 +26,7 @@ PATH_X = 8.6                     # how far out he runs (metres from the room's l
 Y0, Y1 = -3.5, 8.5               # where the run starts and ends (along the house)
 SPEED = (Y1 - Y0) / SECONDS
 KICK_T = 1.95                    # seconds into the clip
+GROUND = os.environ.get('AZUR_OUT_GROUND', 'catcher')   # 'catcher': HDRI + shadow only; 'lawn': modelled lawn and hedge
 
 
 def mat(name, rgb, rough=0.6, sheen=0.0, sss=0.0):
@@ -53,6 +54,13 @@ def joint(name, parent, loc):
 
 
 def build_lawn():
+    if GROUND == 'catcher':
+        # the park HDRI's own grass stays visible (the window looks exactly like the still room); the ground only
+        # catches his shadow and the ball's
+        bpy.ops.mesh.primitive_plane_add(size=1.0, location=(3.8 + 30, 5, GROUND_Z))
+        g = bpy.context.object; g.name = 'out_ground'; g.scale = (60, 70, 1); bpy.ops.object.transform_apply(scale=True)
+        g.is_shadow_catcher = True
+        return [g]
     t = rq_tex('grass_ground')
     m = bpy.data.materials.new('lawn'); m.use_nodes = True; nt = m.node_tree; N = nt.nodes; b = N['Principled BSDF']
     tc = N.new('ShaderNodeTexCoord'); mp = N.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (0.5, 0.5, 0.5)
@@ -245,6 +253,7 @@ def main():
         r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
         fdir = os.path.join(rq.ROOT, '.cache', 'r4', 'outside', key); os.makedirs(fdir, exist_ok=True)
         frames = [int(KICK_T * FPS) + d for d in (-10, -2, 6)] if test else range(FRAMES)
+        bg = background(sc, fdir, ball, test) if GROUND == 'catcher' else None
         t0 = time.time()
         for i in frames:
             png = os.path.join(fdir, f'{i:03d}.png')
@@ -256,12 +265,45 @@ def main():
                 for o in list(J.values()) + [ball]:
                     o.keyframe_insert('location', frame=fr + 1); o.keyframe_insert('rotation_euler', frame=fr + 1)
             sc.frame_set(i + 1)
-            sc.render.filepath = png; bpy.ops.render.render(write_still=True)
+            if bg is None:
+                sc.render.filepath = png; bpy.ops.render.render(write_still=True)
+            else:
+                tmp = png.replace('.png', '_rgba.png')
+                sc.render.filepath = tmp; bpy.ops.render.render(write_still=True)
+                over(tmp, bg, png); os.remove(tmp)
             rq.log('outside', key, i, round(time.time() - t0), 's')
         if test: continue
         enc(fdir, key)
         meta[key] = dict(box=box, fps=FPS, frames=FRAMES, kick=KICK_T, file=f'outside/{key}')
         json.dump(meta, open(meta_p, 'w'), indent=1)
+
+
+def background(sc, fdir, ball, test):
+    """The park through the window with nobody in it (the HDRI, as in the still room): rendered once per view. The
+    frames then render the boy, the ball and their shadow on the ground alone (transparent film) and go over it."""
+    path = os.path.join(fdir, 'bg.png')
+    objs = [o for o in bpy.data.objects if o.name.startswith(('boy', 'out_'))] + [ball]
+    # seen through the pane (a transmission ray) the shadow catcher is a white wall: no glass for the clip (the page
+    # lays the clip over the window at 93 %, so the still room's own glass stays faintly on top)
+    for o in bpy.data.objects:
+        if o.name.startswith('glass'): o.hide_render = True
+    if test or not os.path.exists(path):
+        for o in objs: o.hide_render = True
+        sc.render.film_transparent = False; sc.render.image_settings.color_mode = 'RGB'
+        sc.render.filepath = path; bpy.ops.render.render(write_still=True)
+        for o in objs: o.hide_render = False
+    sc.render.film_transparent = True; sc.render.image_settings.color_mode = 'RGBA'
+    return path
+
+
+def over(fg_path, bg_path, out_path):
+    from PIL import Image
+    import numpy as np
+    fg = np.asarray(Image.open(fg_path).convert('RGBA')).astype(np.float32) / 255
+    bg = np.asarray(Image.open(bg_path).convert('RGB')).astype(np.float32) / 255
+    a = fg[..., 3:4]
+    out = fg[..., :3] * a + bg * (1 - a)
+    Image.fromarray((out * 255 + 0.5).clip(0, 255).astype(np.uint8)).save(out_path)
 
 
 def enc(fdir, key):
