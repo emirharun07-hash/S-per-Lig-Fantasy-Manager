@@ -58,7 +58,11 @@ STATES = ['day', 'morning', 'evening', 'night']
 STATE_PASSES = {'morning': ['sky', 'sun_high', 'neon', 'spot', 'street'],
                 'evening': ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street'],
                 'night':   ['sky', 'neon', 'spot', 'street']}       # the lamp is off from 23:00 (azur-config.js)
-NEON_SAMPLES = 1024      # round 4: the sign looked grainy at 384; on a graphics card its pass takes about a minute
+NEON_SAMPLES = 2048      # round 4: the sign looked grainy at 384; round 5 doubles it again with every other pass
+# round 5 (the owner: soft and waxy on a large screen): about three times the samples and a finer noise threshold, so
+# the denoiser has less to guess in the shade; more diffuse bounces now that the walls are light and carry the room
+SAMPLES = {'beauty': 1024, 'pass': 1024, 'depth': 4, 'sprite': 128} if HI else {'beauty': 224, 'pass': 192, 'depth': 4, 'sprite': 128}
+NOISE = 0.005 if HI else 0.02
 # hover outlines: the objects that make up the bed, the rail and the magazine (masks.png channels R, G, B)
 # names are exact object names (Blender's .001 suffixes allowed); a trailing * makes a prefix
 MASK_GROUPS = {
@@ -167,7 +171,9 @@ def git_save(paths, message):
 # ------------------------------------------------------------------ scene
 def ensure_assets():
     """The Poly Haven downloads, again when a newer scene needs one an earlier download lacks (round 4: the lawn)."""
-    if not os.path.isdir(os.path.join(ROOT, '.cache', 'ph', 'tex', 'grass_ground')):
+    import fetch_assets as fa      # round 5: 4k textures, 2k models
+    if not os.path.exists(os.path.join(ROOT, '.cache', 'ph', 'tex', 'white_plaster_02', f'white_plaster_02_Diffuse_{fa.TEX_RES}.jpg')) \
+       or not os.path.exists(os.path.join(ROOT, '.cache', 'ph', 'models', 'boombox', f'boombox_{fa.MODEL_RES}.gltf')):
         subprocess.run([sys.executable, os.path.join(HERE, 'fetch_assets.py')], check=True)
 
 
@@ -318,15 +324,17 @@ def set_pass(sc, p):
 
 def neon_quality(sc, p):
     """The sign is the brand: its pass gets more samples and a finer noise threshold than the others."""
-    if p == 'neon' and not FAST: sc.cycles.samples = NEON_SAMPLES; sc.cycles.adaptive_threshold = 0.004
+    if p == 'neon' and not FAST: sc.cycles.samples = NEON_SAMPLES; sc.cycles.adaptive_threshold = 0.003
 
 
 def render_settings(sc, kind):
     cy = sc.cycles; r = sc.render
     r.film_transparent = False
     sc.view_layers[0].material_override = None
-    cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'; cy.adaptive_threshold = 0.01 if HI else 0.02
-    cy.samples = 8 if FAST else {'beauty': 256 if HI else 224, 'pass': 384 if HI else 192, 'depth': 4, 'sprite': 128}[kind]
+    cy.use_denoising = True; cy.denoiser = 'OPENIMAGEDENOISE'; cy.adaptive_threshold = NOISE
+    cy.denoising_input_passes = 'RGB_ALBEDO_NORMAL'; cy.denoising_prefilter = 'ACCURATE'; cy.denoising_quality = 'HIGH'
+    cy.samples = 8 if FAST else SAMPLES[kind]
+    if HI: cy.max_bounces = 12; cy.diffuse_bounces = 8; cy.glossy_bounces = 4
     r.use_border = False
     r.dither_intensity = 0.0 if kind == 'depth' else 1.0     # maps (depth, window, ids, masks) without dither noise
     if kind == 'depth': cy.use_denoising = False

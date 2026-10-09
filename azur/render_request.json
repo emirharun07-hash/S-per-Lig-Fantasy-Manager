@@ -1,8 +1,7 @@
 {
-  "id": "r4-4",
-  "note": "Runde 4 Qualitaet (ersetzt r4-3): wie r4-3, die Log-Kurve fuer helle Licht-Ebenen mit feineren Stufen im dunklen Raum (Neon nachts). Bereits in 3200 gerenderte Ebenen werden nur neu kodiert, nicht neu gerendert.",
+  "id": "r5-1",
+  "note": "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
   "set": "scene3",
-  "rebuild": false,
-  "redo": ["views/*/sun_low.webp", "views/*/sun_high.webp", "views/*/neon.webp", "views/*/lamp.webp", "views/*/spot.webp", "views/*/street.webp", "views/*/ceiling.webp", "views/*/morning/*", "views/*/evening/*", "views/*/night/*"],
-  "jobs": ["queue", "glow"]
+  "rebuild": true,
+  "jobs": ["preview:full,room_day", "preview", "export", "queue", "glow", "outside", "moves"]
 }

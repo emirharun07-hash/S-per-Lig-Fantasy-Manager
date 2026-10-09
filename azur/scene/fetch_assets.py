@@ -22,15 +22,16 @@ def model(aid,res='1k'):
     p=f"{d}/{aid}_{res}.gltf"; get(g['url'],p)
     for rel,inc in g.get('include',{}).items(): get(inc['url'],f"{d}/{rel}")
     return p
-# Everything the scene uses (all CC0, polyhaven.com)
+# Everything the scene uses (all CC0, polyhaven.com). Round 5: 4k textures and 2k models (2k/1k were soft on large screens)
+TEX_RES, MODEL_RES = '4k', '2k'
 TEXTURES=['white_plaster_02','laminate_floor_02','oak_veneer_01','cotton_jersey','dirty_carpet','rough_linen','grass_ground']   # grass: round 4, the lawn outside the window
 HDRIS=['eilenriede_park']
 MODELS=['football','desk_lamp_arm_01','Shelf_01','book_encyclopedia_set_01','alarm_clock_01','boombox','cardboard_box_01',
         'gamepad','throw_pillows_01','binder_notebook','stationery_supplies','modern_ceiling_lamp_01']
 if __name__=='__main__' and len(sys.argv)==1:
-    for t in TEXTURES: print(texture(t,'2k'))
+    for t in TEXTURES: print(texture(t,TEX_RES))
     for h in HDRIS: print(hdri(h,'4k'))
-    for m in MODELS: print(model(m,'1k'))
+    for m in MODELS: print(model(m,MODEL_RES))
 elif __name__=='__main__':
     kind=sys.argv[1]; res=sys.argv[3] if len(sys.argv)>3 else None
     fn={'tex':texture,'hdri':hdri,'model':model}[kind]

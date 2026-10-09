@@ -214,7 +214,7 @@ def setup(sc):
     sc.view_settings.exposure = float(os.environ.get('AZUR_OUT_EXPOSURE', 0.4))   # outdoors in daylight, not the dim room
     sc.render.use_motion_blur = True; sc.render.motion_blur_shutter = 0.5
     sc.render.fps = FPS; sc.render.use_persistent_data = True
-    sc.cycles.samples = int(os.environ.get('AZUR_OUT_SAMPLES', 128 if os.environ.get('AZUR_GPU') else 48)); sc.cycles.adaptive_threshold = 0.03
+    sc.cycles.samples = int(os.environ.get('AZUR_OUT_SAMPLES', 256 if os.environ.get('AZUR_GPU') else 48)); sc.cycles.adaptive_threshold = 0.02
     return J, ball
 
 
@@ -249,7 +249,7 @@ def main():
         box = window_box(key)
         if not box: continue
         rq.set_view(sc, key); plan(key)
-        sc.render.resolution_percentage = int(os.environ.get('AZUR_OUT_PCT', 25 if test else 50))
+        sc.render.resolution_percentage = int(os.environ.get('AZUR_OUT_PCT', 25 if test else 100))   # round 5: the plate's own size (50: soft)
         r = sc.render; r.use_border = True; r.use_crop_to_border = True
         r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
         fdir = os.path.join(rq.ROOT, '.cache', 'r4', 'outside', key); os.makedirs(fdir, exist_ok=True)
@@ -316,8 +316,8 @@ def enc(fdir, key):
     pad = 'scale=trunc(iw/2)*2:trunc(ih/2)*2'
     subprocess.run([ff, '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', src, '-vf', pad, '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
                     '-crf', '20', '-preset', 'slow', '-movflags', '+faststart', '-an', base + '.mp4'], check=True)
-    subprocess.run([ff, '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', src, '-vf', pad, '-c:v', 'libvpx-vp9', '-b:v', '0',
-                    '-crf', '34', '-an', base + '.webm'], check=True)
+    subprocess.run([ff, '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', src, '-vf', pad, '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-b:v', '0',
+                    '-crf', '30', '-row-mt', '1', '-an', base + '.webm'], check=True)
     rq.log('outside clip', key, os.path.getsize(base + '.mp4') // 1024, 'KB mp4', os.path.getsize(base + '.webm') // 1024, 'KB webm')
 
 

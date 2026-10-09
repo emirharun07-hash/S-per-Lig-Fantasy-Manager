@@ -5,6 +5,7 @@ as JPGs in azur/previews/ (overwritten each time; pushed, so the cloud session c
 
 Usage:  python azur/scene/render_preview.py            (all)
         python azur/scene/render_preview.py jerseys    (only shots whose name contains a word)
+        python azur/scene/render_preview.py full room_day   (a test still at the plates' size and samples)
 Env:    AZUR_PREVIEW_SAMPLES=64  AZUR_PREVIEW_RES=1280x720
 About 2 minutes on the owner's PC (RX 6750 XT), not counting a scene rebuild.
 """
@@ -51,7 +52,8 @@ def main():
     rq.ensure_blend()
     sc = rq.open_scene()
     os.makedirs(OUT, exist_ok=True)
-    want = rq.ONLY
+    want = [w for w in rq.ONLY if w != 'full']
+    full = 'full' in rq.ONLY               # round 5: a test still as the long run will make it, before that run
     done = []; t_all = time.time()
     for name, state, camv in shots():
         if want and not any(w in name for w in want): continue
@@ -59,9 +61,10 @@ def main():
         rm.light_variant(sc, LIGHT[state])
         rq.set_state(state)
         sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.03
+        if full: sc.cycles.samples = rq.SAMPLES['beauty']; sc.cycles.adaptive_threshold = rq.NOISE
         if isinstance(camv, str):
             rq.set_view(sc, camv)
-            rx, ry = rq.VIEWS[camv]['res']; k = RES[0] / max(rx, ry) if camv == 'rail_m' else RES[0] / rx
+            rx, ry = rq.VIEWS[camv]['res']; k = 1.0 if full else RES[0] / max(rx, ry) if camv == 'rail_m' else RES[0] / rx
             sc.render.resolution_x, sc.render.resolution_y = int(rx * k), int(ry * k)
         else:
             loc, tgt, lens = camv; cam = sc.camera; cd = cam.data
@@ -73,10 +76,10 @@ def main():
         png = os.path.join(OUT, name + '.png'); dst = png.replace('.png', '.jpg')
         secs = rq.render_to(sc, png)
         from PIL import Image
-        Image.open(png).convert('RGB').save(dst, 'JPEG', quality=85, optimize=True); os.remove(png)
+        Image.open(png).convert('RGB').save(dst, 'JPEG', quality=95 if full else 85, optimize=True); os.remove(png)
         rq.log('preview', name, secs, 's'); done.append(dst)
     info = os.path.join(OUT, 'info.json')
-    json.dump(dict(request=os.environ.get('AZUR_REQUEST_ID'), set=rq.SET, samples=SAMPLES, res=RES,
+    json.dump(dict(request=os.environ.get('AZUR_REQUEST_ID'), set=rq.SET, samples=rq.SAMPLES['beauty'] if full else SAMPLES, res=RES, full=full,
                    seconds=round(time.time() - t_all), shots=[os.path.basename(p) for p in done],
                    time=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())), open(info, 'w'), indent=1)
     rq.git_save(done + [info], 'AZUR preview renders')

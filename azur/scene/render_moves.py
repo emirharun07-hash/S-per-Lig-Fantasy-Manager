@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import render_queue as rq   # reuses scene loading, views, light setup and git saving
 
 FRAMES = int(os.environ.get('AZUR_MOVES_FRAMES', 36))
-SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 48))
-RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1600x900' if rq.HI else '1280x720').split('x'))
+SAMPLES = int(os.environ.get('AZUR_MOVES_SAMPLES', 128 if rq.HI else 48))   # round 5: 48 smeared in the shade
+RES = tuple(int(x) for x in os.environ.get('AZUR_MOVES_RES', '1920x1080' if rq.HI else '1280x720').split('x'))
 VARIANTS = ('day', 'evening', 'night') if rq.HI else ('day', 'night')
 STATE_OF = {'day': 'day', 'evening': 'evening', 'night': 'night'}
 OUT = os.environ.get('AZUR_MOVES_OUT') or os.path.join(rq.ROOT, 'prototype', 'assets', rq.SET, 'moves')
@@ -62,7 +62,7 @@ GLOW = [srgb2lin(int('16B8FF'[i:i + 2], 16) / 255) for i in (0, 2, 4)]   # palet
 def light_variant(sc, variant):
     """Same light rig as render_queue's passes, mixed with the prototype's daylight weights."""
     rq.render_settings(sc, 'beauty'); rq.lights_off(sc)
-    sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.04
+    sc.cycles.samples = SAMPLES; sc.cycles.adaptive_threshold = 0.02 if rq.HI else 0.04
     bg = sc.world.node_tree.nodes['Background'].inputs['Strength']
     nb = bpy.data.materials['neon_tube'].node_tree.nodes['Principled BSDF']
     if variant == 'day' and rq.HI:        # azur-config.js daylight key h 12.5
@@ -143,7 +143,7 @@ def render_move(sc, name, spec, variant):
         try: secs = rq.render_to(sc, png)
         finally:
             if posed: rq.unpose(posed)
-        rq.to_webp(png, dst, q=86 if rq.HI else 80)
+        rq.to_webp(png, dst, q=88 if rq.HI else 80)
         rq.stop_if_superseded()
         rq.log('move', name, variant, i, secs, 's'); saved.append(dst)
         if len(saved) >= 6:                     # commit in small batches

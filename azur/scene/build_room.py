@@ -5,6 +5,7 @@ import bpy, bmesh, math, json, random, os, sys
 from mathutils import Vector, Euler, Matrix
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import garment          # jerseys: cloth-simulated shells on wooden hangers (round 3)
+from fetch_assets import TEX_RES, MODEL_RES     # round 5: 4k textures, 2k models
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -63,9 +64,19 @@ def img(path, cs='sRGB'):
 
 def tex_paths(key):
     d = f'{PH}/tex/{key}'
-    return {m: f'{d}/{key}_{m}_2k.jpg' for m in ('Diffuse', 'nor_gl', 'Rough')}
+    res = TEX_RES if os.path.exists(f'{d}/{key}_Diffuse_{TEX_RES}.jpg') else '2k'    # older downloads: 2k
+    return {m: f'{d}/{key}_{m}_{res}.jpg' for m in ('Diffuse', 'nor_gl', 'Rough')}
 
-def pbr(name, key, tile=1.0, tint=(1, 1, 1), rough=(0.0, 1.0), nstr=1.0, coords='Object', box_blend=0.25, sheen=0.0, spec=0.5):
+def mean_albedo(image):
+    """Average linear colour of a texture (a small copy is enough)."""
+    s = image.copy(); s.scale(64, 64); px = list(s.pixels); bpy.data.images.remove(s)
+    lin = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    n = len(px) // 4
+    return [sum(lin(px[4 * i + k]) for i in range(n)) / n for k in range(3)]
+
+def pbr(name, key, tile=1.0, tint=(1, 1, 1), rough=(0.0, 1.0), nstr=1.0, coords='Object', box_blend=0.25, sheen=0.0, spec=0.5, albedo=None, vary=1.0):
+    """albedo: the average linear colour wanted (the photo's own brightness scaled to it), else tint multiplies.
+    vary < 1 keeps that much of the photo's blotches (paint is even; the plaster photo is mottled)."""
     t = tex_paths(key)
     m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree; N = nt.nodes; L = nt.links
     b = N['Principled BSDF']
@@ -76,9 +87,14 @@ def pbr(name, key, tile=1.0, tint=(1, 1, 1), rough=(0.0, 1.0), nstr=1.0, coords=
         if coords == 'Object': n.projection = 'BOX'; n.projection_blend = box_blend
         L.new(mp.outputs[0], n.inputs[0]); return n
     dn = tn(t['Diffuse'], 'sRGB')
+    if albedo is not None: tint = [a / max(m, 1e-4) for a, m in zip(albedo, mean_albedo(dn.image))]
     mix = N.new('ShaderNodeMix'); mix.data_type = 'RGBA'; mix.blend_type = 'MULTIPLY'; mix.inputs['Factor'].default_value = 1.0
     L.new(dn.outputs[0], mix.inputs[6]); mix.inputs[7].default_value = (*tint, 1)
-    L.new(mix.outputs[2], b.inputs['Base Color'])
+    if vary < 1.0 and albedo is not None:
+        ev = N.new('ShaderNodeMix'); ev.data_type = 'RGBA'; ev.blend_type = 'MIX'; ev.inputs['Factor'].default_value = vary
+        ev.inputs[6].default_value = (*albedo, 1); L.new(mix.outputs[2], ev.inputs[7]); L.new(ev.outputs[2], b.inputs['Base Color'])
+    else:
+        L.new(mix.outputs[2], b.inputs['Base Color'])
     rn = tn(t['Rough'], 'Non-Color')
     mr = N.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = rough[0]; mr.inputs['To Max'].default_value = rough[1]
     L.new(rn.outputs[0], mr.inputs[0]); L.new(mr.outputs[0], b.inputs['Roughness'])
@@ -96,7 +112,8 @@ def flat(name, color, rough=0.5, metal=0.0, **kw):
 
 def import_gltf(name, loc=(0, 0, 0), rot_z=0.0, scale=1.0, keep=None):
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=f'{PH}/models/{name}/{name}_1k.gltf')
+    res = MODEL_RES if os.path.exists(f'{PH}/models/{name}/{name}_{MODEL_RES}.gltf') else '1k'
+    bpy.ops.import_scene.gltf(filepath=f'{PH}/models/{name}/{name}_{res}.gltf')
     new = [o for o in bpy.data.objects if o not in before]
     meshes = [o for o in new if o.type == 'MESH']
     if keep is not None:
@@ -137,8 +154,10 @@ L.new(env.outputs[0], warm.inputs[6]); L.new(warm.outputs[2], bg.inputs['Color']
 
 # ---------------------------------------------------------------- materials
 M = {}
-M['wall'] = pbr('wall', 'white_plaster_02', tile=1.6, tint=(0.93, 0.91, 0.86), rough=(0.75, 0.95), nstr=0.35)
-M['ceil'] = pbr('ceil', 'white_plaster_02', tile=1.6, tint=(0.95, 0.94, 0.91), rough=(0.85, 0.95), nstr=0.2)
+# round 5: painted off-white like a real room (the plaster photo averages a mid grey, 0.25: the walls swallowed three
+# quarters of the light and the room went black wherever the sun did not reach)
+M['wall'] = pbr('wall', 'white_plaster_02', tile=1.6, albedo=(0.68, 0.65, 0.59), rough=(0.75, 0.95), nstr=0.25, vary=0.35)
+M['ceil'] = pbr('ceil', 'white_plaster_02', tile=1.6, albedo=(0.74, 0.72, 0.68), rough=(0.85, 0.95), nstr=0.2, vary=0.35)
 M['floor'] = pbr('floor', 'laminate_floor_02', tile=1.8, tint=(0.92, 0.86, 0.80), rough=(0.32, 0.6), nstr=0.6)
 M['oak'] = pbr('oak', 'oak_veneer_01', tile=0.9, tint=(0.98, 0.9, 0.78), rough=(0.4, 0.7), nstr=0.4)
 M['duvet'] = pbr('duvet', 'cotton_jersey', tile=0.12, tint=(1.0, 0.99, 0.97), rough=(0.85, 1.0), nstr=0.5, coords='UV', sheen=0.4)
@@ -176,7 +195,8 @@ box('wall_right_high', W, W + R, -0.3, D, WIN['z1'], H, M['wall'])
 box('wall_right_front', W, W + R, -0.3, WIN['y0'], WIN['z0'], WIN['z1'], M['wall'])
 box('wall_right_back', W, W + R, WIN['y1'], D, WIN['z0'], WIN['z1'], M['wall'])
 # skirting
-for nm, args in {'sk_back': (0, W, D - 0.014, D, 0, 0.06), 'sk_left': (0, 0.014, 0, D, 0, 0.06), 'sk_right': (W - 0.014, W, 0, D, 0, 0.06)}.items():
+# (no two boxes overlap where they share a face plane: rays leaving that face start inside the other box, a black patch)
+for nm, args in {'sk_back': (0, W, D - 0.014, D, 0, 0.06), 'sk_left': (0, 0.014, 0, D - 0.014, 0, 0.06), 'sk_right': (W - 0.014, W, 0, D - 0.014, 0, 0.06)}.items():
     box(nm, *args, M['paint'])
 
 # ---------------------------------------------------------------- window: PVC frame, glass, sill, radiator
@@ -185,8 +205,8 @@ y0, y1, z0, z1 = WIN['y0'], WIN['y1'], WIN['z0'], WIN['z1']
 fw = 0.075
 box('frame_b', fx0, fx1, y0, y1, z0, z0 + fw, M['pvc'], 0.004)
 box('frame_t', fx0, fx1, y0, y1, z1 - fw, z1, M['pvc'], 0.004)
-box('frame_l', fx0, fx1, y0, y0 + fw, z0, z1, M['pvc'], 0.004)
-box('frame_r', fx0, fx1, y1 - fw, y1, z0, z1, M['pvc'], 0.004)
+box('frame_l', fx0, fx1, y0, y0 + fw, z0 + fw, z1 - fw, M['pvc'], 0.004)      # between top and bottom (round 5: the
+box('frame_r', fx0, fx1, y1 - fw, y1, z0 + fw, z1 - fw, M['pvc'], 0.004)      # overlapping corners rendered black)
 sw = 0.055   # sash
 ym = (y0 + y1) / 2; mw = 0.045   # mullion: a double window (Dreh-Kipp), the most common German kind
 box('mullion', fx0, fx1, ym - mw, ym + mw, z0 + fw, z1 - fw, M['pvc'], 0.003)
@@ -195,13 +215,13 @@ M['alu'] = flat('alu', (0.82, 0.82, 0.83), rough=0.32, metal=1.0)
 for side, (sy0, sy1) in (('l', (y0 + fw, ym - mw)), ('r', (ym + mw, y1 - fw))):
     box('sash_b' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy1, z0 + fw, z0 + fw + sw, M['pvc'], 0.003)
     box('sash_t' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy1, z1 - fw - sw, z1 - fw, M['pvc'], 0.003)
-    box('sash_l' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy0 + sw, z0 + fw, z1 - fw, M['pvc'], 0.003)
-    box('sash_r' + side, fx0 - 0.02, fx1 - 0.03, sy1 - sw, sy1, z0 + fw, z1 - fw, M['pvc'], 0.003)
+    box('sash_l' + side, fx0 - 0.02, fx1 - 0.03, sy0, sy0 + sw, z0 + fw + sw, z1 - fw - sw, M['pvc'], 0.003)
+    box('sash_r' + side, fx0 - 0.02, fx1 - 0.03, sy1 - sw, sy1, z0 + fw + sw, z1 - fw - sw, M['pvc'], 0.003)
     gx = fx0 - 0.005    # black glazing gasket where the sash meets the glass
     box('gasket_b' + side, gx - 0.004, gx, sy0 + sw, sy1 - sw, z0 + fw + sw, z0 + fw + sw + 0.004, gasket)
     box('gasket_t' + side, gx - 0.004, gx, sy0 + sw, sy1 - sw, z1 - fw - sw - 0.004, z1 - fw - sw, gasket)
-    box('gasket_l' + side, gx - 0.004, gx, sy0 + sw, sy0 + sw + 0.004, z0 + fw + sw, z1 - fw - sw, gasket)
-    box('gasket_r' + side, gx - 0.004, gx, sy1 - sw - 0.004, sy1 - sw, z0 + fw + sw, z1 - fw - sw, gasket)
+    box('gasket_l' + side, gx - 0.004, gx, sy0 + sw, sy0 + sw + 0.004, z0 + fw + sw + 0.004, z1 - fw - sw - 0.004, gasket)
+    box('gasket_r' + side, gx - 0.004, gx, sy1 - sw - 0.004, sy1 - sw, z0 + fw + sw + 0.004, z1 - fw - sw - 0.004, gasket)
     # aluminium handle on the side that opens (next to the mullion), lever pointing down = closed
     hy = (sy1 - sw / 2) if side == 'l' else (sy0 + sw / 2); hz = (z0 + z1) / 2 + 0.02
     box('handle_plate' + side, fx0 - 0.032, fx0 - 0.02, hy - 0.016, hy + 0.016, hz - 0.035, hz + 0.035, M['alu'], 0.004)
@@ -215,7 +235,7 @@ box('belt_slot', W - 0.034, W - 0.032, y1 + 0.135, y1 + 0.15, 1.11, 1.135, gaske
 box('belt', W - 0.008, W - 0.004, y1 + 0.132, y1 + 0.153, 1.13, z1 + 0.03, flat('belt', (0.78, 0.74, 0.66), rough=0.8))
 g = box('glass', fx0 + 0.008, fx0 + 0.016, y0 + fw + sw, y1 - fw - sw, z0 + fw + sw, z1 - fw - sw, M['glass'])
 g.visible_shadow = False
-box('sill', W - 0.16, W + 0.17, y0 - 0.03, y1 + 0.03, z0 - 0.025, z0, M['sill'], 0.003)
+box('sill', W - 0.16, W + 0.17, y0 - 0.03, y1 + 0.03, z0 - 0.019, z0 + 0.006, M['sill'], 0.003)   # its top above the wall's
 # panel radiator (Plattenheizkörper) under the window
 rx0, rx1 = W - 0.12, W - 0.04
 rad = box('radiator', rx0, rx1, y0 + 0.06, y1 - 0.06, 0.16, 0.74, M['paint'], 0.006)
@@ -224,6 +244,28 @@ for i in range(int((y1 - y0 - 0.14) / 0.033)):
     yy = y0 + 0.08 + i * 0.033
     box(f'rib{i}', rx0 - 0.006, rx0, yy, yy + 0.014, 0.19, 0.71, rad.data.materials[0])
 cyl('rad_pipe', (rx1 - 0.02, y1 - 0.09, 0.0), (rx1 - 0.02, y1 - 0.09, 0.17), 0.009, M['paint'])
+# round 5, the small things a real room has: the radiator's thermostat head, wall sockets (white Schuko)
+# (on the room's side: the curtain hangs at the far end)
+cyl('rad_valve', ((rx0 + rx1) / 2, y0 + 0.065, 0.69), ((rx0 + rx1) / 2, y0 + 0.025, 0.69), 0.011, M['silver'], verts=20)
+cyl('rad_thermostat', ((rx0 + rx1) / 2, y0 + 0.025, 0.69), ((rx0 + rx1) / 2, y0 - 0.055, 0.69), 0.027, M['paint'], verts=32)
+cyl('rad_thermostat_cap', ((rx0 + rx1) / 2, y0 - 0.055, 0.69), ((rx0 + rx1) / 2, y0 - 0.06, 0.69), 0.022, M['paint'], verts=32)
+def socket(c, axis, n=1):
+    """A flush wall socket (n gangs side by side) centred at c on a wall facing -axis ('x': right wall, 'y': back wall)."""
+    hole = flat('socket_hole', (0.05, 0.05, 0.05), rough=0.6)
+    for k in range(n):
+        o = (k - (n - 1) / 2) * 0.071
+        if axis == 'x':
+            x, y, z = c[0], c[1] + o, c[2]
+            box('socket_frame', x - 0.009, x, y - 0.0355, y + 0.0355, z - 0.0355, z + 0.0355, M['pvc'], 0.004)
+            cyl('socket_cup', (x - 0.0092, y, z), (x - 0.0035, y, z), 0.021, hole, verts=32)
+            for s in (-1, 1): cyl('socket_pin', (x - 0.0036, y + s * 0.0095, z), (x - 0.0026, y + s * 0.0095, z), 0.0024, M['ink'], verts=12)
+        else:
+            x, y, z = c[0] + o, c[1], c[2]
+            box('socket_frame', x - 0.0355, x + 0.0355, y - 0.009, y, z - 0.0355, z + 0.0355, M['pvc'], 0.004)
+            cyl('socket_cup', (x, y - 0.0092, z), (x, y - 0.0035, z), 0.021, hole, verts=32)
+            for s in (-1, 1): cyl('socket_pin', (x + s * 0.0095, y - 0.0036, z), (x + s * 0.0095, y - 0.0026, z), 0.0024, M['ink'], verts=12)
+socket((W, 1.55, 0.30), 'x', 2)       # right wall, under the free stretch beside the window
+socket((2.42, D, 0.30), 'y', 1)       # back wall, next to the shelf
 # window portal for cleaner sky sampling
 pl = bpy.data.lights.new('portal', 'AREA'); pl.shape = 'RECTANGLE'; pl.size = (y1 - y0); pl.size_y = (z1 - z0)
 for tgt in (pl, getattr(pl, 'cycles', None)):
@@ -279,8 +321,8 @@ so = link(bpy.data.objects.new('sun', sl)); so.rotation_euler = Vector(SUN['dir'
 
 # ---------------------------------------------------------------- bed
 bx0, bx1, by0, by1 = 0.02, 0.98, -0.25, 2.0
-box('bed_side', bx1 - 0.04, bx1, by0, by1, 0.12, 0.32, M['oak'], 0.004)
-box('bed_side_l', bx0, bx0 + 0.04, by0, by1, 0.12, 0.32, M['oak'], 0.004)
+box('bed_side', bx1 - 0.04, bx1, by0, by1 - 0.03, 0.12, 0.32, M['oak'], 0.004)       # up to the foot board
+box('bed_side_l', bx0, bx0 + 0.04, by0, by1 - 0.03, 0.12, 0.32, M['oak'], 0.004)
 box('bed_foot', bx0, bx1, by1 - 0.03, by1 + 0.01, 0.0, 0.52, M['oak'], 0.005)
 for yy in (by1 - 0.06,):
     for xx in (bx0 + 0.02, bx1 - 0.06):
@@ -727,7 +769,7 @@ trophy(3.16, D - 0.14, lv(5), 1.05, 'gold')
 for i, (dx, s_) in enumerate([(-0.25, 0.8), (0.05, 1.0)]):
     trophy(2.98 + dx, D - 0.13, lv(4), s_, 'gold' if i else 'silver')
 # little cup on the window sill
-trophy(W - 0.06, y0 + 0.22, z0, 0.8, 'gold')
+trophy(W - 0.06, y0 + 0.22, z0 + 0.006, 0.8, 'gold')
 
 # ---------------------------------------------------------------- floor: rug, worn football, gamepad, box
 rug = box('rug', 0.75, 2.35, 2.15, 3.35, 0.0, 0.008, M['rug'], 0.004)
@@ -818,7 +860,7 @@ for lx, ly in ((-0.18, -0.18), (0.16, -0.18), (-0.18, 0.16), (0.16, 0.16)):
 for lx in (0.16,):
     for ly in (-0.18, 0.16):
         ch.append(box('cpost', lx, lx + 0.025, ly, ly + 0.025, 0.455, 0.86, pine, 0.002))
-    ch.append(box('cback', lx - 0.004, lx + 0.03, -0.18, 0.185, 0.72, 0.84, pine, 0.003))
+    ch.append(box('cback', lx - 0.004, lx + 0.03, -0.155, 0.16, 0.72, 0.84, pine, 0.003))   # between the posts
 group('chair', ch, loc=(0.88, 2.47, 0), rot_z=math.radians(9))        # pulled out from the desk, facing it (round 4: clear of the desk legs)
 
 # football boots: dropped by the bed, one on its side (metaball upper, rubber soleplate, studs)
