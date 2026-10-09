@@ -1,14 +1,14 @@
 {
-    "state":  "arbeitet",
+    "state":  "abgeloest",
     "request":  "r4-1",
-    "job":  "moves",
-    "note":  "Runde 4: Zimmer mit Tageszeiten (Tasche weg am Tag, Schlafanzug auf dem Boden, Junge schlaeft nachts, Flurlicht), Stuhl nicht mehr im Tisch, Logo mit 1024 Samples und Glow, Junge mit Ball vor dem Fenster (Clip), Trikots unveraendert (eingefroren). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Glow, Fenster-Clips, Kamerafahrten",
+    "job":  "",
+    "note":  "neuer Auftrag auf dem Branch, dieser wurde bei moves beendet",
     "watch":  3,
-    "time":  "2026-10-09T09:01:45Z",
-    "device":  "10:57:36 render device HIP: AMD Radeon RX 6750 XT",
+    "time":  "2026-10-09T09:07:38Z",
+    "device":  "11:01:50 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
-                    "value":  "11:01:16 outside rail 64 115 s",
+                    "value":  "02:38.796  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f011.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -136,10 +136,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  270
+                    "ReadCount":  26
                 },
                 {
-                    "value":  "03:43.484  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\065.png\u0027",
+                    "value":  "11:04:27 move room-rail day 11 12.4 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -267,10 +267,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  271
+                    "ReadCount":  27
                 },
                 {
-                    "value":  "11:01:18 outside rail 65 117 s",
+                    "value":  "02:51.640  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f012.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -398,10 +398,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  272
+                    "ReadCount":  28
                 },
                 {
-                    "value":  "03:45.250  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\066.png\u0027",
+                    "value":  "11:04:40 move room-rail day 12 12.4 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -529,10 +529,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  273
+                    "ReadCount":  29
                 },
                 {
-                    "value":  "11:01:19 outside rail 66 119 s",
+                    "value":  "03:04.390  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f013.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -660,10 +660,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  274
+                    "ReadCount":  30
                 },
                 {
-                    "value":  "03:47.031  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\067.png\u0027",
+                    "value":  "11:04:53 move room-rail day 13 12.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -791,10 +791,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  275
+                    "ReadCount":  31
                 },
                 {
-                    "value":  "11:01:21 outside rail 67 121 s",
+                    "value":  "03:17.156  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f014.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -922,10 +922,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  276
+                    "ReadCount":  32
                 },
                 {
-                    "value":  "03:48.828  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\068.png\u0027",
+                    "value":  "11:05:06 move room-rail day 14 12.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1053,10 +1053,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  277
+                    "ReadCount":  33
                 },
                 {
-                    "value":  "11:01:23 outside rail 68 123 s",
+                    "value":  "03:31.015  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f015.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1184,10 +1184,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  278
+                    "ReadCount":  34
                 },
                 {
-                    "value":  "03:50.593  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\069.png\u0027",
+                    "value":  "11:05:20 move room-rail day 15 13.6 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1315,10 +1315,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  279
+                    "ReadCount":  35
                 },
                 {
-                    "value":  "11:01:25 outside rail 69 124 s",
+                    "value":  "03:44.390  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f016.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1446,10 +1446,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  280
+                    "ReadCount":  36
                 },
                 {
-                    "value":  "03:52.359  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\070.png\u0027",
+                    "value":  "11:05:33 move room-rail day 16 12.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1577,10 +1577,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  281
+                    "ReadCount":  37
                 },
                 {
-                    "value":  "11:01:27 outside rail 70 126 s",
+                    "value":  "03:57.218  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f017.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1708,10 +1708,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  282
+                    "ReadCount":  38
                 },
                 {
-                    "value":  "03:54.125  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\071.png\u0027",
+                    "value":  "11:05:46 move room-rail day 17 12.5 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1839,10 +1839,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  283
+                    "ReadCount":  39
                 },
                 {
-                    "value":  "11:01:28 outside rail 71 128 s",
+                    "value":  "04:13.765  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f018.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -1970,10 +1970,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  284
+                    "ReadCount":  40
                 },
                 {
-                    "value":  "03:55.890  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\072.png\u0027",
+                    "value":  "11:06:02 move room-rail day 18 12.7 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2101,10 +2101,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  285
+                    "ReadCount":  41
                 },
                 {
-                    "value":  "11:01:30 outside rail 72 130 s",
+                    "value":  "04:26.687  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f019.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2232,10 +2232,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  286
+                    "ReadCount":  42
                 },
                 {
-                    "value":  "03:57.671  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\073.png\u0027",
+                    "value":  "11:06:15 move room-rail day 19 12.6 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2363,10 +2363,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  287
+                    "ReadCount":  43
                 },
                 {
-                    "value":  "11:01:32 outside rail 73 131 s",
+                    "value":  "04:39.640  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f020.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2494,10 +2494,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  288
+                    "ReadCount":  44
                 },
                 {
-                    "value":  "03:59.453  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\074.png\u0027",
+                    "value":  "11:06:29 move room-rail day 20 12.7 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2625,10 +2625,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  289
+                    "ReadCount":  45
                 },
                 {
-                    "value":  "11:01:34 outside rail 74 133 s",
+                    "value":  "04:53.234  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f021.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2756,10 +2756,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  290
+                    "ReadCount":  46
                 },
                 {
-                    "value":  "04:01.218  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\075.png\u0027",
+                    "value":  "11:06:42 move room-rail day 21 12.7 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -2887,10 +2887,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  291
+                    "ReadCount":  47
                 },
                 {
-                    "value":  "11:01:35 outside rail 75 135 s",
+                    "value":  "05:06.234  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f022.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3018,10 +3018,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  292
+                    "ReadCount":  48
                 },
                 {
-                    "value":  "04:03.000  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\076.png\u0027",
+                    "value":  "11:06:55 move room-rail day 22 12.7 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3149,10 +3149,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  293
+                    "ReadCount":  49
                 },
                 {
-                    "value":  "11:01:37 outside rail 76 137 s",
+                    "value":  "05:19.296  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f023.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3280,10 +3280,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  294
+                    "ReadCount":  50
                 },
                 {
-                    "value":  "04:04.765  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\077.png\u0027",
+                    "value":  "11:07:08 move room-rail day 23 12.8 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3411,10 +3411,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  295
+                    "ReadCount":  51
                 },
                 {
-                    "value":  "11:01:39 outside rail 77 138 s",
+                    "value":  "05:32.515  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f024.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3542,10 +3542,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  296
+                    "ReadCount":  52
                 },
                 {
-                    "value":  "04:06.546  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\078.png\u0027",
+                    "value":  "11:07:21 move room-rail day 24 12.8 s",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3673,10 +3673,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  297
+                    "ReadCount":  53
                 },
                 {
-                    "value":  "11:01:41 outside rail 78 140 s",
+                    "value":  "05:45.593  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\f025.png\u0027",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3804,10 +3804,10 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  298
+                    "ReadCount":  54
                 },
                 {
-                    "value":  "11:01:42 outside clip rail 16 KB mp4 24 KB webm",
+                    "value":  "11:07:35 a newer render request is on the branch: stopping this run",
                     "PSPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\job.log",
                     "PSParentPath":  "C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache",
                     "PSChildName":  "job.log",
@@ -3935,7 +3935,7 @@
                                                       "C"
                                                   ]
                                    },
-                    "ReadCount":  299
+                    "ReadCount":  55
                 }
             ]
 }
