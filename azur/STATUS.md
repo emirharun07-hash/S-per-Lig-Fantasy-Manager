@@ -227,7 +227,7 @@ on every device without losing quality.
   in the duvet on the floor, ball and backpack in the scarf, books under the chair, sock in the foot board.
 - Cloud patch (`scene/cloud_patch.py`): compares the round 3 scene (`.cache/azur_room_scene3_r3cloud.blend`) with the
   new one, renders only the changed regions of the day passes and merges them (feathered, same encoding), renders
-  the sign again with 1024 samples (the grain), the time-of-day patches against the new day plates, masks and depth.
+  the sign again with 512 samples over its whole region (the grain), the time-of-day patches against the new day plates, masks and depth.
   Originals are backed up in `.cache/r4/orig`, progress in `.cache/r4/done.json` and `patch.log` (resumable).
 - Neon glow: `scene/glow.py` makes a smooth bloom from the neon pass (`<view>/neon_glow.webp`, quarter size); the
   compositor adds it with the neon light (`config.neonGlow` gain).
