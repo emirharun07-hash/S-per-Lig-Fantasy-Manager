@@ -1,12 +1,12 @@
 {
- "request": "r3-5",
+ "request": "r4-1",
  "set": "scene3",
  "samples": 64,
  "res": [
   1280,
   720
  ],
- "seconds": 176,
+ "seconds": 215,
  "shots": [
   "room_day.jpg",
   "room_morning.jpg",
@@ -29,5 +29,5 @@
   "floor_evening.jpg",
   "bed_close_night.jpg"
  ],
- "time": "2026-10-08T20:24:40Z"
+ "time": "2026-10-09T07:27:56Z"
 }
