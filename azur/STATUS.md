@@ -246,6 +246,20 @@ on every device without losing quality.
   1024 samples (`render_queue.NEON_SAMPLES`), night patches cover the whole picture (the hallway light), the night has
   no lamp patch (off from 23:00), the outside clip 128 samples. The camera flights are on again (`config.realMoves`).
   `cloud_patch.py`, `despeckle.py` stay for a cloud-only round.
+- r4-2 (PC): the hallway light 2 W instead of 25 (the duvet next to the door was white at night); the bed view gets
+  `views.bed.exposureNight` (-0.8) and the camera flights ease the views' own exposure in (`azur-app.js playMove`).
+- Outside clip (cloud): the park HDRI through the window instead of a modelled lawn (the lawn looked turquoise); the
+  boy and his shadow are rendered on a shadow catcher with transparent film and laid over one background render
+  (`outside.py background/over`, no glass: seen through the pane the catcher is a white wall); darker clothes, soft sun.
+- Quality (owner 09.10. midday: "grainy, worse than yesterday, fine small but not big; the sign is still not better"):
+  the bright passes (sun, neon, lamp, spot, street, ceiling) sat at the flat top of the Reinhard curve, where one code
+  of WebP noise is a big step in light (coloured dots in the sun, a flat grainy sign); r4-2 scaled the sun passes down
+  instead, which put the lit jerseys into the bottom codes (coloured grain everywhere). Now `render_queue.LOG_PASSES`
+  are stored on a log curve (`LOG_K` 2000, negative scale in passes.json, decoded in the compositor's `dec`): about
+  3 % per code from shade to sun patch and tube core. The desktop views render 3200x1800 (were 2400x1350: soft on
+  HiDPI/full screen); `build_artifact.low_copies` makes lo/ (1200) and md/ (2400, passes.json `_md`) copies and the
+  compositor loads md unless the canvas shows more than 2600 plate pixels (`platePxNeeded`), then the full plates.
+  Shopify Files prefix `azr4-`. PC request `r4-3` (queue + glow, about 3 hours).
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
