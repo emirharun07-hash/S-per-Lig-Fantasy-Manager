@@ -1,7 +1,7 @@
 {
-  "id": "r3-5",
-  "note": "Runde 3 neu: Trikots sauber drapiert (Deutschland war zerknittert, jede Simulation wird jetzt geprueft), Drop-Huelle mit mehr Platz (verdeckte die Tuerkei), dazu alles aus r3-4 (Stifte im Becher, Pulli ueber der Stuhllehne, Masken ohne Fussbaelle). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Kamerafahrten",
+  "id": "r4-1",
+  "note": "Runde 4: Zimmer mit Tageszeiten (Tasche weg am Tag, Schlafanzug auf dem Boden, Junge schlaeft nachts, Flurlicht), Stuhl nicht mehr im Tisch, Logo mit 1024 Samples und Glow, Junge mit Ball vor dem Fenster (Clip), Trikots unveraendert (eingefroren). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Glow, Fenster-Clips, Kamerafahrten",
   "set": "scene3",
   "rebuild": true,
-  "jobs": ["preview", "export", "queue", "moves"]
+  "jobs": ["preview", "export", "queue", "glow", "outside", "moves"]
 }

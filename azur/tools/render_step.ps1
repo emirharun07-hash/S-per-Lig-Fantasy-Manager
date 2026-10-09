@@ -4,7 +4,8 @@
 # azur/render_request.json (written by the cloud session):
 #   { "id": "r3-a", "note": "...", "set": "scene3", "rebuild": true, "jobs": ["preview", "queue", "moves"] }
 #   jobs: preview (quick look, azur/previews), queue (plates, passes, masks, times of day), moves (camera flights),
-#         export (jersey models for the product view); "queue:room,bed" passes arguments.
+#         export (jersey models for the product view), glow (the sign's halo, after queue), outside (the boy running
+#         past the window, after queue: it needs the window maps); "queue:room,bed" passes arguments.
 #   rebuild: build the scene again and drop that set's earlier outputs (they belong to the old scene).
 #   redo: outputs to delete first so they render again, as patterns in the set's folder ("views/*/masks*.png").
 # A request runs once (its id is remembered in azur/.cache/render_request_done.txt). A newer request stops a running
@@ -17,7 +18,7 @@ $Trailer = "`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`nClaude-
 $Cache = "azur\.cache"
 $DoneFile = "$Cache\render_request_done.txt"
 $JobLog = "$Cache\job.log"
-$Version = 2
+$Version = 3
 New-Item -ItemType Directory -Force -Path $Cache | Out-Null
 
 function Write-Status($State, $ReqId, $Job, $Note) {
@@ -53,7 +54,8 @@ function Push-All($Msg) {
 
 function Run-Job($Job) {
   $parts = $Job -split ":", 2
-  $file = @{ preview = "render_preview.py"; queue = "render_queue.py"; moves = "render_moves.py"; export = "export_models.py" }[$parts[0]]
+  $file = @{ preview = "render_preview.py"; queue = "render_queue.py"; moves = "render_moves.py"; export = "export_models.py"
+             glow = "glow.py"; outside = "outside.py" }[$parts[0]]
   if (-not $file) { Write-Host "Unbekannter Auftrag: $Job"; return 2 }
   $argv = @("azur\scene\$file")
   if ($parts.Count -gt 1 -and $parts[1]) { $argv += ($parts[1] -split ",") }

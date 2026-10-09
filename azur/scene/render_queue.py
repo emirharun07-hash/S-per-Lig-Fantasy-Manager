@@ -57,7 +57,8 @@ GARMENT_PREFIX = ('jersey_', 'drop_', 'hanger', 'hook', 'tag', 'tagtext', 'strin
 STATES = ['day', 'morning', 'evening', 'night']
 STATE_PASSES = {'morning': ['sky', 'sun_high', 'neon', 'spot', 'street'],
                 'evening': ['sky', 'sun_low', 'sun_high', 'neon', 'lamp', 'spot', 'street'],
-                'night':   ['sky', 'neon', 'lamp', 'spot', 'street']}
+                'night':   ['sky', 'neon', 'spot', 'street']}       # the lamp is off from 23:00 (azur-config.js)
+NEON_SAMPLES = 1024      # round 4: the sign looked grainy at 384; on a graphics card its pass takes about a minute
 # hover outlines: the objects that make up the bed, the rail and the magazine (masks.png channels R, G, B)
 # names are exact object names (Blender's .001 suffixes allowed); a trailing * makes a prefix
 MASK_GROUPS = {
@@ -164,11 +165,16 @@ def git_save(paths, message):
 
 
 # ------------------------------------------------------------------ scene
+def ensure_assets():
+    """The Poly Haven downloads, again when a newer scene needs one an earlier download lacks (round 4: the lawn)."""
+    if not os.path.isdir(os.path.join(ROOT, '.cache', 'ph', 'tex', 'grass_ground')):
+        subprocess.run([sys.executable, os.path.join(HERE, 'fetch_assets.py')], check=True)
+
+
 def ensure_blend():
+    ensure_assets()
     if os.path.exists(BLEND): return
     log('building scene (no saved .blend found)')
-    if not os.path.isdir(os.path.join(ROOT, '.cache', 'ph')):
-        subprocess.run([sys.executable, os.path.join(HERE, 'fetch_assets.py')], check=True)
     env = dict(os.environ, AZUR_BUILD_ONLY='1')
     subprocess.run([sys.executable, os.path.join(HERE, 'build_room.py'), '--', 'preview', '/dev/null', BLEND], check=True, env=env)
 
@@ -307,6 +313,11 @@ def set_pass(sc, p):
             hall.hide_render = not state_visible(hall, STATE_NOW[0]); hall.data.energy = HALL_W; hall.data.color = (1, 1, 1)
     elif p == 'spot':
         bpy.data.objects['L_spot'].hide_render = False; bpy.data.objects['L_spot'].data.color = (1, 1, 1)
+
+
+def neon_quality(sc, p):
+    """The sign is the brand: its pass gets more samples and a finer noise threshold than the others."""
+    if p == 'neon' and not FAST: sc.cycles.samples = NEON_SAMPLES; sc.cycles.adaptive_threshold = 0.004
 
 
 def render_settings(sc, kind):
@@ -492,7 +503,7 @@ def job_depth(sc, key):
 def job_pass(sc, key, p, meta):
     dst = os.path.join(OUT, key, p + '.webp')
     if os.path.exists(dst): return None
-    set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p)
+    set_view(sc, key); render_settings(sc, 'pass'); set_pass(sc, p); neon_quality(sc, p)
     exr = dst.replace('.webp', '.exr'); secs = render_to(sc, exr)
     meta.setdefault(key, {})[p] = encode_pass(exr, dst, p, keep=os.path.join(EXR, key, p + '.exr') if HI else None)
     mpath = os.path.join(OUT, 'passes.json'); json.dump(meta, open(mpath, 'w'), indent=1)
@@ -806,6 +817,8 @@ def job_state(sc, key, state, meta):
     rx, ry = sc.render.resolution_x, sc.render.resolution_y
     suns = [SUN[p] for p in STATE_PASSES[state] if p in SUN]
     box = frame_box(sc, state_objects(state), 0.12, suns)
+    if any(o.name == 'hall_light_area' for o in state_objects(state)):
+        box = (0.0, 0.0, 1.0, 1.0)       # round 4: the hallway light (night) reaches walls and floor everywhere
     if box is None:
         st[state] = dict(rects=[], passes=[], res=[rx, ry], complete=True); json.dump(meta, open(mpath, 'w'), indent=1)
         log('state', key, state, 'nothing of it in the picture'); return [mpath]
@@ -817,7 +830,7 @@ def job_state(sc, key, state, meta):
     for p in STATE_PASSES[state]:
         exr = os.path.join(EXR, key, f'{state}_{p}.exr')
         if not os.path.exists(exr):
-            set_view(sc, key); render_settings(sc, 'pass'); restore_visibility(); set_state(state); set_pass(sc, p)
+            set_view(sc, key); render_settings(sc, 'pass'); restore_visibility(); set_state(state); set_pass(sc, p); neon_quality(sc, p)
             r = sc.render; r.use_border = True; r.use_crop_to_border = False
             r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
             tmp = exr.replace('.exr', '_tmp.exr'); secs_all += render_to(sc, tmp); os.replace(tmp, exr)
