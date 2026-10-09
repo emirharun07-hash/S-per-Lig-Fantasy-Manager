@@ -9,7 +9,9 @@
 #   rebuild: build the scene again and drop that set's earlier outputs (they belong to the old scene).
 #   redo: outputs to delete first so they render again, as patterns in the set's folder ("views/*/masks*.png").
 # A request runs once (its id is remembered in azur/.cache/render_request_done.txt). A newer request stops a running
-# one between two renders. What the PC is doing goes to azur/render_status.json (pushed), so the cloud can see it.
+# one between two renders. One cut short (the PC switched off) resumes at the next start: no rebuild, no redo, only the
+# jobs that had not finished (and those skip what they already rendered). What the PC is doing goes to
+# azur/render_status.json (pushed), so the cloud can see it.
 param([switch]$Hello)
 $ErrorActionPreference = "Continue"
 $env:AZUR_NO_HANDOVER = "1"
@@ -17,6 +19,8 @@ $Branch = "claude/shopify-notification-signup-o5avym"
 $Trailer = "`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`nClaude-Session: https://claude.ai/code/session_01R3wWJYBEPWenzksQTM89FE"
 $Cache = "azur\.cache"
 $DoneFile = "$Cache\render_request_done.txt"
+$StartedFile = "$Cache\render_request_started.txt"    # the request begun last (a PC switched off mid-run resumes it)
+$JobsDone = "$Cache\render_request_jobs_done.txt"     # "<id> <job>" for every job that finished
 $JobLog = "$Cache\job.log"
 $Version = 3
 New-Item -ItemType Directory -Force -Path $Cache | Out-Null
@@ -85,10 +89,20 @@ $last = if (Test-Path $DoneFile) { (Get-Content $DoneFile -Raw).Trim() } else { 
 $req = Get-Content "azur\render_request.json" -Raw | ConvertFrom-Json
 if (-not $req.id -or $req.id -eq $last) { return }
 
-Write-Host ("[{0}] Neuer Auftrag {1}: {2}" -f (Get-Date -Format "HH:mm"), $req.id, $req.note)
+# begun before and cut short (the PC was switched off): resume it, without rebuilding or deleting what is done,
+# and without the jobs that already finished
+$started = if (Test-Path $StartedFile) { (Get-Content $StartedFile -Raw).Trim() } else { "" }
+$resume = ($started -eq $req.id)
+$doneJobs = @()
+if ($resume -and (Test-Path $JobsDone)) {
+  $doneJobs = @(Get-Content $JobsDone | Where-Object { $_.StartsWith($req.id + " ") } | ForEach-Object { $_.Substring($req.id.Length + 1) })
+}
+Set-Content -Path $StartedFile -Value $req.id
+if ($resume) { Write-Host ("[{0}] Auftrag {1} wird fortgesetzt" -f (Get-Date -Format "HH:mm"), $req.id) }
+else { Write-Host ("[{0}] Neuer Auftrag {1}: {2}" -f (Get-Date -Format "HH:mm"), $req.id, $req.note) }
 $env:AZUR_REQUEST_ID = $req.id
 if ($req.set) { $env:AZUR_SET = $req.set } else { $env:AZUR_SET = "scene3" }
-if ($req.rebuild) {
+if ($req.rebuild -and -not $resume) {
   Remove-Item ("$Cache\azur_room_" + $env:AZUR_SET + ".blend") -ErrorAction SilentlyContinue
   if ($env:AZUR_SET -notin @("scene1", "scene2")) {
     # outputs of the old scene would be skipped as "done": remove them (they come back from the new scene)
@@ -96,7 +110,7 @@ if ($req.rebuild) {
     Remove-Item -Recurse -Force ("$Cache\exr\" + $env:AZUR_SET) -ErrorAction SilentlyContinue
   }
 }
-if ($req.redo) {
+if ($req.redo -and -not $resume) {
   # outputs to render again (patterns inside this set's folder, e.g. "views/*/masks*.png")
   $setDir = "azur\prototype\assets\" + $env:AZUR_SET + "\"
   foreach ($pat in $req.redo) {
@@ -108,6 +122,7 @@ uv pip install -q bpy==5.0.1 numpy pillow scikit-image scipy imageio-ffmpeg
 
 $final = "fertig"; $note = $req.note; $failed = @()
 foreach ($job in $req.jobs) {
+  if ($doneJobs -contains $job) { continue }
   Write-Status "arbeitet" $req.id $job $req.note
   Push-All "AZUR PC: $($req.id) $job started" | Out-Null
   $t0 = Get-Date
@@ -121,6 +136,7 @@ foreach ($job in $req.jobs) {
     Push-All "AZUR PC: $($req.id) $job failed" | Out-Null
     continue
   }
+  Add-Content -Path $JobsDone -Value ($req.id + " " + $job)
   Write-Status "arbeitet" $req.id $job "$job fertig nach $mins min"
   Push-All "AZUR renders from the PC: $($req.id) $job" | Out-Null
 }
