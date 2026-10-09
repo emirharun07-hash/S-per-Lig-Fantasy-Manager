@@ -41,5 +41,33 @@
   "street": -0.3132695984703633,
   "spot": -0.7170240700218818,
   "neon_glow": 4.864028354498441
+ },
+ "states": {
+  "room": {
+   "evening": {
+    "rects": [
+     [
+      0,
+      1006,
+      2937,
+      1800
+     ]
+    ],
+    "passes": [
+     "sky",
+     "sun_low",
+     "sun_high",
+     "neon",
+     "lamp",
+     "spot",
+     "street"
+    ],
+    "res": [
+     3200,
+     1800
+    ],
+    "complete": true
+   }
+  }
  }
 }
