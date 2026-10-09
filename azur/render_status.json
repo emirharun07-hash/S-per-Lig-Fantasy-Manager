@@ -1,10 +1,10 @@
 {
     "state":  "arbeitet",
     "request":  "r4-1",
-    "job":  "preview",
-    "note":  "preview fertig nach 4.5 min",
+    "job":  "export",
+    "note":  "Runde 4: Zimmer mit Tageszeiten (Tasche weg am Tag, Schlafanzug auf dem Boden, Junge schlaeft nachts, Flurlicht), Stuhl nicht mehr im Tisch, Logo mit 1024 Samples und Glow, Junge mit Ball vor dem Fenster (Clip), Trikots unveraendert (eingefroren). Szene neu bauen, Vorschau, 3D-Modelle, alle Bilder, Glow, Fenster-Clips, Kamerafahrten",
     "watch":  3,
-    "time":  "2026-10-09T07:28:02Z",
+    "time":  "2026-10-09T07:28:05Z",
     "device":  "09:24:21 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 {
