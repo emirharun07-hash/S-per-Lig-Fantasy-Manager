@@ -967,8 +967,10 @@ def boot(name, loc, rot, tilt=0.0):
     r.rotation_euler = (0, tilt, rot)
     return r
 # (round 4: off the duvet that spills onto the floor; the scene check found them inside it)
-boot('boot_l', (1.50, 1.30, 0.012), math.radians(-35))       # round 6: always in the room (the owner wants them seen)
-boot('boot_r', (1.68, 1.17, 0.05), math.radians(60), tilt=math.radians(-80))
+# round 6: always in the room, kicked off next to the ball where the doorway camera sees them (they were by the bed,
+# at the bottom edge of that view, and away in the day)
+boot('boot_l', (2.50, 2.02, 0.012), math.radians(-35))
+boot('boot_r', (2.68, 1.89, 0.05), math.radians(60), tilt=math.radians(-80))
 
 # training bag on the floor at the foot of the bed
 bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.15, depth=0.42, location=(0, 0, 0))
@@ -1122,7 +1124,7 @@ def backpack(loc, rot_z):
     tx = bpy.data.textures.new('packslump', 'CLOUDS'); tx.noise_scale = 0.15
     dm = bp.modifiers.new('disp', 'DISPLACE'); dm.texture = tx; dm.strength = 0.02
     bpy.ops.object.shade_smooth()
-    mat = fabric('backpack', (0.035, 0.09, 0.07), sheen=0.2, rough=0.7, scale=60)
+    mat = fabric('backpack', (0.012, 0.03, 0.075), sheen=0.12, rough=0.75, scale=60)   # round 6: navy (the green read mint in the sun)
     bp.data.materials.append(mat)
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     pk = bpy.context.object; pk.name = 'backpack_pocket'; pk.scale = (0.22, 0.06, 0.18); pk.location = (0, -0.09, 0.14); apply_tf(pk)
