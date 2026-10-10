@@ -7,11 +7,11 @@
   der Theme-Header erscheint, sobald das Zimmer weggescrollt ist.
 
   Code: azur/prototype (Quelle) -> azur/tools/build_theme.py -> assets/azur-room.js, assets/azur-room.css,
-  snippets/azur-room-data.liquid. Die Renderbilder liegen unter Inhalte > Dateien (Namen azr4-…).
+  snippets/azur-room-data.liquid. Die Renderbilder liegen unter Inhalte > Dateien (Namen azr5-…).
   Die Trikots sind in die Bilder hineingerendert: die Produktfelder nur ändern, wenn sich ein Handle ändert.
 {%- endcomment -%}
 {%- liquid
-  assign files_base = 'azr4-probe.webp' | file_url | split: 'azr4-probe.webp' | first
+  assign files_base = 'azr5-probe.webp' | file_url | split: 'azr5-probe.webp' | first
   assign keys = 'frankfurt,berlin,brasilien,deutschland,tuerkei' | split: ','
   assign shipping = 'Versand in Deutschland'
   if settings.shipping_cost != blank
@@ -96,7 +96,7 @@
       var m = p.match(/^assets\/brand\/(.+)$/);
       if (m) return brand[m[1]] || p;
       m = p.match(/^assets\/(?:scene\d\/)?(.+)$/);
-      return m ? files + 'azr4-' + m[1].replace(/@/g, '-at-').replace(/\//g, '-') : p;
+      return m ? files + 'azr5-' + m[1].replace(/@/g, '-at-').replace(/\//g, '-') : p;
     };
     A.formatPrice = function (v) { return v == null ? '' : v.toFixed(2).replace('.', ',') + ' €'; };
     A.store = {

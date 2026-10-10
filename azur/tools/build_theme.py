@@ -8,7 +8,7 @@ the renders go to Shopify Files (fileCreate, Shopify fetches them from this publ
 What changes against the prototype:
 - one script bundle (config, then window.AZUR_SETUP from the section: products, URLs, JSON; then the rest; no Regie panel)
 - the CSS is scoped to the room and its overlays (the theme keeps its own tokens, base styles and square corners)
-- renders live in Files under flat names: assets/scene3/views/rail/lo/sky.webp -> azr4-views-rail-lo-sky.webp
+- renders live in Files under flat names: assets/scene3/views/rail/lo/sky.webp -> azr5-views-rail-lo-sky.webp
 - jersey models (GLB) for the 3D product view go to Files too; the magazine pages can be section blocks
 - views.json / passes.json / a slim moves.json are printed into the page (snippets/azur-room-data.liquid)
 - fonts: Archivo comes from the theme; Martian Mono and Caveat are self-hosted (no Google Fonts request)
@@ -21,7 +21,7 @@ REPO = os.path.dirname(ROOT)
 SRC = os.path.join(ROOT, 'prototype')
 PUB = os.path.join(ROOT, '.cache', 'publish')          # tools/build_artifact.py output (move strips)
 OUT = os.path.join(ROOT, 'theme')
-PREFIX = 'azr4-'                                        # bumped when the renders change (Files are cached); azr4 = round 4, 3200 wide
+PREFIX = 'azr5-'                                        # bumped when the renders change (Files are cached); azr5 = round 5 (brighter room, more samples)
 SET = os.environ.get('AZUR_SET', 'scene3')
 BRANCH = 'claude/shopify-notification-signup-o5avym'
 RAW = f'https://raw.githubusercontent.com/emirharun07-hash/S-per-Lig-Fantasy-Manager/{BRANCH}/'
@@ -30,7 +30,7 @@ SCOPE = ['.azur', '.azur-mag', '.azur-pdp', '.azur-holo', '.azur-ghost']   # the
 
 
 def files_name(path):
-    """'assets/scene3/views/rail/lo/sky.webp' -> 'azr4-views-rail-lo-sky.webp' (same rule as urlMap in the section)."""
+    """'assets/scene3/views/rail/lo/sky.webp' -> 'azr5-views-rail-lo-sky.webp' (same rule as urlMap in the section)."""
     p = re.sub(r'^assets/(scene\d/)?', '', path)
     return PREFIX + p.replace('@', '-at-').replace('/', '-')
 
