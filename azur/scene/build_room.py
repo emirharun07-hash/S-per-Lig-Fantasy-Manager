@@ -1052,8 +1052,8 @@ for v, z_ in zip(mvs, zz_):
     p_ = mw_ @ v.co; p_.z = z_; v.co = inv_ @ p_
 tmp_ = calm(poster, P6 + 'magazin.jpg', MAG_W, MAG_H, Matrix(), gloss=True, border=0.0, tape=False)
 cover_m = tmp_.data.materials[0]; bpy.data.objects.remove(tmp_, do_unlink=True)
-mag.data.materials.append(M['paper']); mag.data.materials.append(cover_m)
-so_ = mag.modifiers.new('sol', 'SOLIDIFY'); so_.thickness = 0.004; so_.offset = 1; so_.material_offset = 1; so_.material_offset_rim = 0
+mag.data.materials.append(cover_m); mag.data.materials.append(M['paper'])      # the sheet's own faces stay on top: the cover
+so_ = mag.modifiers.new('sol', 'SOLIDIFY'); so_.thickness = 0.004; so_.offset = 1; so_.material_offset = 1; so_.material_offset_rim = 1
 bpy.ops.object.select_all(action='DESELECT'); mag.select_set(True); bpy.context.view_layer.objects.active = mag; bpy.ops.object.shade_smooth()
 
 # ---------------------------------------------------------------- the room through the day (round 3)
