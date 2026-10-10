@@ -726,9 +726,10 @@ nail = (0.0, tcy, tcz + TH / 2 + 0.13)
 cyl('poster_nail', nail, (0.012, tcy, nail[2]), 0.0025, M['silver'], verts=8)
 for side in (-1, 1):
     cyl('poster_string', (0.013, tcy + side * (TW / 2 - 0.03), tcz + TH / 2 + 0.012), (0.009, tcy, nail[2] - 0.003), 0.0011, M['paper'], verts=6)
-# 3 the match moment: a square print taped to the left wall above the bed, a little crooked
-calm(poster, P6 + 'moment.jpg', 0.66, 0.66,
-     Matrix.Translation((0.0025, 0.98, 1.36)) @ Euler((math.radians(90), math.radians(-1.4), math.radians(90))).to_matrix().to_4x4(),
+# 3 the match moment: a square print taped to the left wall above the bed's foot end, a little crooked (high enough to
+# stay out of the bed view, which would cut it, and whole in the room view)
+calm(poster, P6 + 'moment.jpg', 0.64, 0.64,
+     Matrix.Translation((0.0025, 1.55, 1.62)) @ Euler((math.radians(90), math.radians(-1.4), math.radians(90))).to_matrix().to_4x4(),
      gloss=False, border=0.0, tape=True).name = 'poster_moment'
 
 # ---------------------------------------------------------------- AZUR neon (LED neon flex traced from the real signature)
@@ -1027,15 +1028,33 @@ pno.data.materials.append(pnm)
 cyl('pennant_pin', (W, 3.56, 2.12), (W - 0.012, 3.56, 2.12), 0.004, M['silver'], verts=8)
 
 # football magazine left open on the bed (invented title "ANSTOSS"). Round 6 (the owner: easier to see from the bed
-# view): a little larger, nearer that camera on the bare sheet where the duvet is thrown back, turned so its top points
-# away from the camera, the cover the browser opens (masthead, cover lines, sticker printed on: scene/make_posters.py)
-MAG_W, MAG_H = 0.23, 0.31
-mz, _ = surface_z(0.70, 0.98)
-mag = box('magazine', -MAG_W / 2, MAG_W / 2, -MAG_H / 2, MAG_H / 2, 0.0, 0.004, M['paper'], 0.001)
-mag.location = (0.70, 0.98, mz + 0.002); mag.rotation_euler = (math.radians(2), math.radians(-2), math.radians(40))
-cov = calm(poster, P6 + 'magazin.jpg', MAG_W - 0.004, MAG_H - 0.004, Matrix.Translation((0, 0, 0.0042)), gloss=True, border=0.0, tape=False)
-for v in cov.data.vertices: v.co.z = 0.0   # a magazine cover lies flat (poster() peels a corner)
-cov.name = 'magazine_cover'; cov.parent = mag
+# view): a little larger, nearer that camera on the flattest part of the duvet that view sees whole, turned so its top
+# points away from the camera, with the cover the browser opens (masthead, cover lines, sticker printed on:
+# scene/make_posters.py). The duvet is all folds: the paper rests on their tops and bridges the creases between them
+# (a stiff sheet), so it neither floats nor sinks in.
+MAG_W, MAG_H, MAG_AT, MAG_RZ = 0.23, 0.31, (0.80, 1.21), 50
+bpy.ops.mesh.primitive_grid_add(x_subdivisions=16, y_subdivisions=22, size=1.0)
+mag = bpy.context.object; mag.name = 'magazine'; mag.scale = (MAG_W, MAG_H, 1); apply_tf(mag)
+mag.location = (MAG_AT[0], MAG_AT[1], 0.0); mag.rotation_euler = (0, 0, math.radians(MAG_RZ)); bpy.context.view_layer.update()
+mw_ = mag.matrix_world.copy(); dg_ = bpy.context.evaluated_depsgraph_get(); mvs = mag.data.vertices
+rest_ = []
+for v in mvs:
+    p_ = mw_ @ v.co
+    hit, loc, *_ = sc.ray_cast(dg_, Vector((p_.x, p_.y, 1.5)), Vector((0, 0, -1)))
+    rest_.append((loc.z if hit else 0.42) + 0.003)
+nb_ = [[] for _ in mvs]
+for e in mag.data.edges: a_, b_ = e.vertices; nb_[a_].append(b_); nb_[b_].append(a_)
+zz_ = list(rest_)
+for _ in range(40):          # relax toward the neighbours' mean, never below the duvet
+    zz_ = [max(rest_[i], 0.5 * zz_[i] + 0.5 * sum(zz_[j] for j in nb_[i]) / len(nb_[i])) for i in range(len(mvs))]
+inv_ = mw_.inverted()
+for v, z_ in zip(mvs, zz_):
+    p_ = mw_ @ v.co; p_.z = z_; v.co = inv_ @ p_
+tmp_ = calm(poster, P6 + 'magazin.jpg', MAG_W, MAG_H, Matrix(), gloss=True, border=0.0, tape=False)
+cover_m = tmp_.data.materials[0]; bpy.data.objects.remove(tmp_, do_unlink=True)
+mag.data.materials.append(M['paper']); mag.data.materials.append(cover_m)
+so_ = mag.modifiers.new('sol', 'SOLIDIFY'); so_.thickness = 0.004; so_.offset = 1; so_.material_offset = 1; so_.material_offset_rim = 0
+bpy.ops.object.select_all(action='DESELECT'); mag.select_set(True); bpy.context.view_layer.objects.active = mag; bpy.ops.object.shade_smooth()
 
 # ---------------------------------------------------------------- the room through the day (round 3)
 # Objects tagged 'azur_state' appear only in the named states (render_queue.set_state): 'night' (the teen asleep),
@@ -1201,10 +1220,9 @@ bm.to_mesh(ft.data); bm.free(); ft.modifiers.new('sub', 'SUBSURF').levels = 1; b
 ft.location = (0.60, 1.85, 0.44); ft.rotation_euler = (math.radians(8), math.radians(-70), math.radians(-14))
 ft.data.materials.append(fabric('sock', (0.82, 0.82, 0.8), sheen=0.6)); tag(ft, 'night')
 # the magazine slid off the bed onto the floor in the night
-mn = box('magazine_night', -MAG_W / 2, MAG_W / 2, -MAG_H / 2, MAG_H / 2, 0.0, 0.004, M['paper'], 0.001)
+mn = mag.copy(); mn.data = mag.data.copy(); link(mn); mn.name = 'magazine_night'
+for v in mn.data.vertices: v.co.z = 0.0           # flat on the floor
 mn.location = (1.13, 1.76, 0.001); mn.rotation_euler = (0, 0, math.radians(-17))   # in the bed view's frame
-for ch_ in list(bpy.data.objects['magazine'].children):
-    cp = ch_.copy(); cp.data = ch_.data.copy() if ch_.data else None; link(cp); cp.parent = mn; cp.matrix_parent_inverse = ch_.matrix_parent_inverse.copy()
 tag(mn, 'night'); tag(bpy.data.objects['magazine'], '!night')
 
 # ---------------------------------------------------------------- cameras (the owner may still change the angle; all presets render from one build)
