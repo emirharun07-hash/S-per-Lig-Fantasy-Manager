@@ -169,7 +169,9 @@ function serve() {
     if (clip.clips.length) ok('outside: the room view uses its own clip (not a loop)', clip.box && clip.loop === false, clip);
     // view chips
     for (const v of ['bed', 'rail', 'room']) {
-      await p.click(`.azur-views button[data-view="${v}"]`); await p.waitForTimeout(2600);
+      // a camera flight takes 2.5-5.5 s in this software-rendered browser (round 4 and 5 alike): wait for the arrival
+      await p.click(`.azur-views button[data-view="${v}"]`);
+      await p.waitForFunction(w => AZUR.app.viewKey === w && !AZUR.app.busy, v, { timeout: 12000 }).catch(() => {});
       s = await st(p); ok(`chips: ${v}`, s.view === v, s);
     }
     // the magazine: opens from the bed, turns, closes with Escape, the room is not dimmed afterwards
