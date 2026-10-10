@@ -1,10 +1,10 @@
 {
     "state":  "arbeitet",
     "request":  "r5-1",
-    "job":  "queue",
-    "note":  "queue fertig nach 465.6 min",
+    "job":  "glow",
+    "note":  "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
     "watch":  3,
-    "time":  "2026-10-10T19:04:38Z",
+    "time":  "2026-10-10T19:04:40Z",
     "device":  "13:19:07 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 "06:50:33.406  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\exr\\scene3\\rail\\night_neon_tmp.exr\u0027",
