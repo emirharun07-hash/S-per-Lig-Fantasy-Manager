@@ -689,8 +689,47 @@ def fill_wall(wall, u0, u1, z0, z1, holes=(), seed=0):
         z -= rh - rnd.uniform(0.0, 0.035)
 
 neon_hole = (NEON['x'] - 0.37, NEON['x'] + 0.37, NEON['z'] - 0.17, H)
+# round 6 (the owner: "viel zu monoton"): the photo collage goes; three large posters that stand apart take its place.
+# The collage is still built and then removed, so everything built after it draws the same random numbers as before
+# and stays exactly where it was.
+_before = set(bpy.data.objects)
 fill_wall('back', 0.03, 2.56, 0.50, H - 0.03, holes=[neon_hole], seed=3)
 fill_wall('left', 2.05, D - 0.03, 0.86, H - 0.03, seed=5)
+for o in set(bpy.data.objects) - _before: bpy.data.objects.remove(o, do_unlink=True)
+
+P6 = A + '/posters_r6/'          # scene/make_posters.py
+def calm(fn, *a, **k):
+    """poster() draws from the build's random stream (peel, fade, tape): give the state back afterwards."""
+    st = random.getstate(); r = fn(*a, **k); random.setstate(st); return r
+def flatten(o):
+    for v in o.data.vertices: v.co.z = 0.0
+    return o
+frame_m = flat('poster_frame', (0.018, 0.018, 0.02), rough=0.38, metal=0.7)
+# 1 the stadium: a 2:1 panorama behind a white margin in a thin black frame, back wall left of the sign, above the rail
+SW, SH, FB, FD, scx, scz = 1.10, 0.60, 0.022, 0.028, 0.70, 2.08
+x0_, x1_, z0_, z1_, g_ = scx - SW / 2, scx + SW / 2, scz - SH / 2, scz + SH / 2, 0.0005
+for nm, (a0, a1, b0, b1) in {'top': (x0_, x1_, z1_ - FB, z1_), 'bottom': (x0_, x1_, z0_, z0_ + FB),
+                             'left': (x0_, x0_ + FB, z0_ + FB + g_, z1_ - FB - g_), 'right': (x1_ - FB, x1_, z0_ + FB + g_, z1_ - FB - g_)}.items():
+    box('poster_frame_' + nm, a0, a1, D - FD, D - 0.001, b0, b1, frame_m, 0.002)
+box('poster_frame_back', x0_ + FB + g_, x1_ - FB - g_, D - 0.006, D - 0.001, z0_ + FB + g_, z1_ - FB - g_, M['paper'])
+flatten(calm(poster, P6 + 'stadium.jpg', SW - 2 * FB - 0.002, SH - 2 * FB - 0.002,
+             Matrix.Translation((scx, D - 0.0075, scz)) @ Euler((math.radians(90), 0, 0)).to_matrix().to_4x4(),
+             gloss=False, border=0.07, tape=False)).name = 'poster_stadium'
+# 2 the jersey poster: 5:7 between two wooden hanger rails on a string, left wall above the desk
+TW, TH, tcy, tcz = 0.52, 0.73, 2.86, 1.58
+flatten(calm(poster, P6 + 'trikot.jpg', TW, TH,
+             Matrix.Translation((0.012, tcy, tcz)) @ Euler((math.radians(90), 0, math.radians(90))).to_matrix().to_4x4(),
+             gloss=True, border=0.0, tape=False)).name = 'poster_trikot'
+for nm, zz in (('top', tcz + TH / 2), ('bottom', tcz - TH / 2)):
+    box('poster_rail_' + nm, 0.004, 0.022, tcy - TW / 2 - 0.018, tcy + TW / 2 + 0.018, zz - 0.012, zz + 0.012, M['oak'], 0.003)
+nail = (0.0, tcy, tcz + TH / 2 + 0.13)
+cyl('poster_nail', nail, (0.012, tcy, nail[2]), 0.0025, M['silver'], verts=8)
+for side in (-1, 1):
+    cyl('poster_string', (0.013, tcy + side * (TW / 2 - 0.03), tcz + TH / 2 + 0.012), (0.009, tcy, nail[2] - 0.003), 0.0011, M['paper'], verts=6)
+# 3 the match moment: a square print taped to the left wall above the bed, a little crooked
+calm(poster, P6 + 'moment.jpg', 0.66, 0.66,
+     Matrix.Translation((0.0025, 0.98, 1.36)) @ Euler((math.radians(90), math.radians(-1.4), math.radians(90))).to_matrix().to_4x4(),
+     gloss=False, border=0.0, tape=True).name = 'poster_moment'
 
 # ---------------------------------------------------------------- AZUR neon (LED neon flex traced from the real signature)
 nj = json.load(open(HERE + '/neon_paths.json'))
@@ -927,10 +966,9 @@ def boot(name, loc, rot, tilt=0.0):
     r = group(name + '_root', parts, loc=loc, rot_z=rot)
     r.rotation_euler = (0, tilt, rot)
     return r
-# round 4: the boots go to training with him (gone in the day, back in the evening)
 # (round 4: off the duvet that spills onto the floor; the scene check found them inside it)
-tag(boot('boot_l', (1.50, 1.30, 0.012), math.radians(-35)), 'morning evening night')
-tag(boot('boot_r', (1.68, 1.17, 0.05), math.radians(60), tilt=math.radians(-80)), 'morning evening night')
+boot('boot_l', (1.50, 1.30, 0.012), math.radians(-35))       # round 6: always in the room (the owner wants them seen)
+boot('boot_r', (1.68, 1.17, 0.05), math.radians(60), tilt=math.radians(-80))
 
 # training bag on the floor at the foot of the bed
 bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.15, depth=0.42, location=(0, 0, 0))
@@ -986,16 +1024,16 @@ pb.inputs['Roughness'].default_value = 0.95; pb.inputs['Sheen Weight'].default_v
 pno.data.materials.append(pnm)
 cyl('pennant_pin', (W, 3.56, 2.12), (W - 0.012, 3.56, 2.12), 0.004, M['silver'], verts=8)
 
-# football magazine left open on the duvet (invented title "ANSTOSS")
-mz, _ = surface_z(0.62, 1.42)
-mag = box('magazine', -0.105, 0.105, -0.14, 0.14, 0.0, 0.004, M['paper'], 0.001)
-mag.location = (0.62, 1.42, mz + 0.002); mag.rotation_euler = (math.radians(4), math.radians(-3), math.radians(28))
-cov = poster(A + '/posters/hero_a.jpg', 0.205, 0.275, Matrix.Translation((0, 0, 0.0042)), gloss=True, border=0.0, tape=False)
-for v in cov.data.vertices: v.co.z = 0.0   # a magazine cover lies flat (poster() peels a corner, which hid the masthead)
-cov.parent = mag
-mtc = bpy.data.curves.new('masthead', 'FONT'); mtc.body = 'ANSTOSS'; mtc.size = 0.034; mtc.align_x = 'CENTER'
-mto = link(bpy.data.objects.new('masthead', mtc)); mto.parent = mag; mto.location = (0, 0.1, 0.0046)
-mto.data.materials.append(flat('masthead', (0.95, 0.95, 0.93), rough=0.4))
+# football magazine left open on the bed (invented title "ANSTOSS"). Round 6 (the owner: easier to see from the bed
+# view): a little larger, nearer that camera on the bare sheet where the duvet is thrown back, turned so its top points
+# away from the camera, the cover the browser opens (masthead, cover lines, sticker printed on: scene/make_posters.py)
+MAG_W, MAG_H = 0.23, 0.31
+mz, _ = surface_z(0.70, 0.98)
+mag = box('magazine', -MAG_W / 2, MAG_W / 2, -MAG_H / 2, MAG_H / 2, 0.0, 0.004, M['paper'], 0.001)
+mag.location = (0.70, 0.98, mz + 0.002); mag.rotation_euler = (math.radians(2), math.radians(-2), math.radians(40))
+cov = calm(poster, P6 + 'magazin.jpg', MAG_W - 0.004, MAG_H - 0.004, Matrix.Translation((0, 0, 0.0042)), gloss=True, border=0.0, tape=False)
+for v in cov.data.vertices: v.co.z = 0.0   # a magazine cover lies flat (poster() peels a corner)
+cov.name = 'magazine_cover'; cov.parent = mag
 
 # ---------------------------------------------------------------- the room through the day (round 3)
 # Objects tagged 'azur_state' appear only in the named states (render_queue.set_state): 'night' (the teen asleep),
@@ -1098,7 +1136,7 @@ def backpack(loc, rot_z):
     root = group('backpack_root', [bp, pk, ho], loc=loc, rot_z=rot_z)
     root.rotation_euler = (math.radians(-14), 0, rot_z)          # leaning back against nothing, half tipped
     return root
-tag(backpack((1.48, 2.42, 0.008), math.radians(20)), 'morning evening night')   # at school in the day
+backpack((1.48, 2.42, 0.008), math.radians(20))      # round 6: always there (was at school in the day)
 for i, (x, y, rz, hcol) in enumerate([(1.72, 2.24, 18, (0.75, 0.2, 0.15)), (1.84, 2.42, -30, (0.15, 0.32, 0.55)), (1.66, 2.66, 64, (0.9, 0.85, 0.25))]):
     hb = box('floor_heft', -0.105, 0.105, -0.148, 0.148, 0.0, 0.006, flat('heft', hcol, rough=0.6), 0.001)
     hb.location = (x, y, 0.009 + i * 0.0002); hb.rotation_euler = (0, 0, math.radians(rz)); tag(hb, 'evening night')
@@ -1161,7 +1199,7 @@ bm.to_mesh(ft.data); bm.free(); ft.modifiers.new('sub', 'SUBSURF').levels = 1; b
 ft.location = (0.60, 1.85, 0.44); ft.rotation_euler = (math.radians(8), math.radians(-70), math.radians(-14))
 ft.data.materials.append(fabric('sock', (0.82, 0.82, 0.8), sheen=0.6)); tag(ft, 'night')
 # the magazine slid off the bed onto the floor in the night
-mn = box('magazine_night', -0.105, 0.105, -0.14, 0.14, 0.0, 0.004, M['paper'], 0.001)
+mn = box('magazine_night', -MAG_W / 2, MAG_W / 2, -MAG_H / 2, MAG_H / 2, 0.0, 0.004, M['paper'], 0.001)
 mn.location = (1.13, 1.76, 0.001); mn.rotation_euler = (0, 0, math.radians(-17))   # in the bed view's frame
 for ch_ in list(bpy.data.objects['magazine'].children):
     cp = ch_.copy(); cp.data = ch_.data.copy() if ch_.data else None; link(cp); cp.parent = mn; cp.matrix_parent_inverse = ch_.matrix_parent_inverse.copy()

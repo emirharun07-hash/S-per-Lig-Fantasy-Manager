@@ -38,8 +38,9 @@ ONLY = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 HI = SET not in ('scene1', 'scene2')      # scene3: sharper plates (3200 wide since round 4: large and HiDPI screens)
 RX = 0.24 if HI else 0.0                  # scene3 moved the rail 0.24 m right (it stood in the desk)
 VIEWS = {
-    # establishing shot: high in the front-left corner, the whole room
-    'room':   dict(loc=(0.24, 0.22, 2.06), target=(1.85, 3.15, 0.78), lens=19, res=(3200, 1800) if HI else (1600, 900)),
+    # establishing shot, the whole room. Round 6 (the owner: the bed hardly showed, it stood right under the old corner
+    # camera): from high in the doorway (front wall, right of the bed), so the bed, the rail and the window are all in
+    'room':   dict(loc=(2.1, 0.0, 2.15), target=(1.2, 3.1, 0.45), lens=15, res=(3200, 1800) if HI else (1600, 900)),
     # the rail: centred, closer and a little higher than the first stills
     'rail':   dict(loc=(1.72 + RX, 0.70, 1.40), target=(1.85 + RX, 3.60, 1.18), lens=24, res=(3200, 1800) if HI else (1600, 900)),
     # the bed (easter egg, content decided later)
