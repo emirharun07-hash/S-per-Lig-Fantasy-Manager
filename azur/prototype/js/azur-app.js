@@ -302,30 +302,57 @@
         sw *= os; sh *= os;
         return [(F.w - sw) * pan, (F.h - sh) / 2, sw, sh, 0, 0, c.width, c.height];
       };
-      const blit = F => { const q = cover(F); ctx.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); };
-      // the views' own exposure (config.views exposure / exposureNight, as the compositor uses it) eases in along the
-      // flight: the frames are rendered at the clock's exposure, so the arrival would jump (the bed at night)
-      const ev = v => { const vc = A.config.views[v] || {}; return this.dayState === 'night' && vc.exposureNight != null ? vc.exposureNight : (vc.exposure || 0); };
-      const lift = k => Math.pow(2, 0.5 * (ev(m.from_) * (1 - k / (n - 1)) + ev(m.to) * k / (n - 1)));
       const canFilter = ctx.filter !== undefined;
-      const draw = k => {
-        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
-        const lk = lift(k);
+      // frame f of the day/evening and night sets, laid over each other by how dark it is, brightened by b; fit: the
+      // plates' crop on the stage canvas, else the whole frame on a small canvas
+      const layers = (x, f, w, h, b, fit) => {
+        const put = F => {
+          if (fit) { const q = cover(F); x.drawImage(F.im, q[0], q[1] + F.y, q[2], q[3], q[4], q[5], q[6], q[7]); }
+          else x.drawImage(F.im, 0, F.y, F.w, F.h, 0, 0, w, h);
+        };
+        x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
         if (day) {
-          if (canFilter && Math.abs(lk - 1) > 0.002) ctx.filter = `brightness(${lk.toFixed(3)})`;
-          blit(day[k]);
-          if (canFilter) ctx.filter = 'none';
-          if (mul !== 'rgb(255,255,255)') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); ctx.globalCompositeOperation = 'source-over'; }
+          if (canFilter && Math.abs(b - 1) > 0.002) x.filter = `brightness(${b.toFixed(3)})`;
+          put(day[f]);
+          if (canFilter) x.filter = 'none';
         }
         if (night) {
-          ctx.globalAlpha = day ? mix.night : 1;
-          if (canFilter && Math.abs(nb * lk - 1) > 0.002) ctx.filter = `brightness(${(nb * lk).toFixed(3)})`;
-          blit(night[k]);
-          if (canFilter) ctx.filter = 'none';
-          ctx.globalAlpha = 1;
+          x.globalAlpha = day ? mix.night : 1;
+          if (canFilter && Math.abs(nb * b - 1) > 0.002) x.filter = `brightness(${(nb * b).toFixed(3)})`;
+          put(night[f]);
+          if (canFilter) x.filter = 'none';
+          x.globalAlpha = 1;
         }
       };
       const idx = k => mv.reverse ? n - 1 - k : k;
+      // round 6: the frames carry the light of their set (noon, golden hour, night), the views the light of this hour.
+      // Graded at both ends to the views as the compositor shows them now (their averages), so a change of view never
+      // changes the light: the flight leaves the room and lands at the bed in the same light.
+      const frameMean = f => {
+        const t = this.meanCanvas || (this.meanCanvas = document.createElement('canvas')); t.width = 400; t.height = 225;
+        const x = t.getContext('2d', { willReadFrequently: true });
+        x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';   // ~400 px, as the views are read (meanColor)
+        layers(x, f, 400, 225, 1, false);
+        try { return A.Compositor.meanDisplay(x.getImageData(0, 0, 400, 225).data); } catch (e) { return null; }
+      };
+      const gainOf = (vm, fm) => vm && fm ? vm.map((x, i) => Math.min(2.5, Math.max(0.3, (x + 1e-3) / (fm[i] + 1e-3)))) : null;
+      const from = this.comp.view && this.comp.view.key;
+      const gS = gainOf(from && this.comp.meanColor(from, this.light), frameMean(idx(0)));
+      const gE = gainOf(this.comp.meanColor(to, this.light), frameMean(idx(n - 1))) || gS || [1, 1, 1];
+      const g0 = gS || gE;
+      const gainAt = k => { const t = k / (n - 1); return g0.map((a, i) => Math.pow(a, 1 - t) * Math.pow(gE[i], t)); };
+      this.moveGrade = { start: gS, end: gE };          // for tests (tools/test_room.cjs)
+      const draw = k => {
+        const gk = gainAt(k), gm = Math.max(1, gk[0], gk[1], gk[2]);
+        layers(ctx, idx(k), c.width, c.height, gm, true);
+        const col = gk.map(x => Math.round(Math.min(1, x / gm) * 255));
+        if (mul !== 'rgb(255,255,255)' || col.some(x => x < 255)) {
+          ctx.globalCompositeOperation = 'multiply';
+          if (mul !== 'rgb(255,255,255)') { ctx.fillStyle = mul; ctx.fillRect(0, 0, c.width, c.height); }
+          if (col.some(x => x < 255)) { ctx.fillStyle = `rgb(${col.join(',')})`; ctx.fillRect(0, 0, c.width, c.height); }
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      };
       // garments fly along: the frames are rendered without them, the live garment layer follows the projected
       // hangers frame by frame (moves.json track). Older moves without a track hide the garments instead.
       const tr = !this.plate && m.track && m.track.length === n ? m.track : null;
@@ -342,7 +369,7 @@
       const dropSrc = j => { const v = j / (n - 1) < 0.5 ? m.from_ : m.to; return sb(v) ? A.url(A.config.assetBase + v + '/drop.webp') : null; };
       const fly = k => { if (tr) { const j = idx(k); this.rail.fly(tr[j], proxy, dropAt(j), dropSrc(j)); } };
       // the first frame is the current camera: fade it in
-      draw(idx(0)); c.style.transform = ''; c.hidden = false;
+      draw(0); c.style.transform = ''; c.hidden = false;
       if (tr) { this.world.insertBefore(c, this.layer); c.style.zIndex = '0'; this.root.classList.add('is-flying'); fly(0); }
       else this.layer.classList.add('is-moving');
       await c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => { });
@@ -350,7 +377,7 @@
         const t0 = performance.now();
         const tick = now => {
           const k = Math.max(0, Math.min(n - 1, Math.floor((now - t0) / 1000 * fps)));   // rAF time can precede t0
-          draw(idx(k)); fly(k);
+          draw(k); fly(k);
           if (k < n - 1) requestAnimationFrame(tick); else res();
         };
         requestAnimationFrame(tick);

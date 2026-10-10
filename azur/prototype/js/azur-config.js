@@ -31,8 +31,8 @@ AZUR.config = {
     room:   { label: 'Zimmer', parallax: 0.010, focus: 0.55, garmentScale: 1.0,
               bedHotspot: [[0.20, 0.83], [0.46, 0.79], [0.53, 1.0], [0.18, 1.0]] },
     rail:   { label: 'Ständer', parallax: 0.014, focus: 0.62, garmentScale: 1.0 },
-    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, exposure: 0.5, exposureNight: -0.8, ids: false, window: false },   // exposure: extra stops on top of the clock
-                                                                         // (at night the hallway light through the door ajar falls on the bed)
+    bed:    { label: 'Bett', parallax: 0.012, focus: 0.5, ids: false, window: false },
+                // round 6: no view has its own exposure any more (the bed had +0.5 stops, -0.8 at night): one light for all
     rail_m: { label: 'Ständer', parallax: 0.008, focus: 0.62, garmentScale: 1.0, swipe: true }
   },
   startView: { desktop: 'room', mobile: 'rail_m' },

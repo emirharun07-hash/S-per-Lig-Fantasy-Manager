@@ -495,9 +495,7 @@
        the clock moves the light slowly, so this runs a few times a minute instead of every frame. */
     mix(state) {
       const gl = this.gl, v = this.view, W = state.weights;
-      const vc = A.config.views[v.key.split('@')[0]] || {};      // per-view art direction (the bed corner gets less window light)
-      const night = A.app && A.app.dayState === 'night' && vc.exposureNight != null;   // his room at night: the hallway light
-      const exp = state.exposure + (night ? vc.exposureNight : (vc.exposure || 0));
+      const exp = state.exposure;       // one exposure for every view (round 6: it was set per view, the light jumped)
       const q = x => Math.round(x * 400) / 400;
       const key = [v.key, v.version || 0, v.texW, q(exp), q(state.contrast || 1), q(state.saturation || 1), A.config.neonGlow, A.config.neonCore,
         ...PASSES.map(p => (W[p] || [0, 0, 0]).map(q).join(','))].join('|');
@@ -528,6 +526,33 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(this.drawP.p);
       gl.bindTexture(gl.TEXTURE_2D, this.lit); gl.generateMipmap(gl.TEXTURE_2D);    // smaller screens: filtered levels
       this.litKey = key;
+    }
+
+    /* A view's picture at this light, averaged as displayed (0..1 per channel): the camera flights grade their frames
+       to it at both ends, so changing the view never changes the light. null when the view's passes are not on the GPU. */
+    meanColor(key, state) {
+      const gl = this.gl, v = this.cache[key];
+      if (!gl || !v || v.mode !== 'passes' || v.evicted || !PASSES.some(p => v.tex[p])) return null;
+      const keep = this.view;
+      this.view = v; this.litKey = null; this.mix(state);
+      // a mip level about 400 px wide: small enough to read, fine enough that averaging sRGB-encoded texels (which
+      // pulls the mean down where light and shade meet) stays small; the flights average their frames alike
+      let lv = 0; while ((this.litW >> (lv + 1)) >= 320) lv++;
+      const lw = Math.max(1, this.litW >> lv), lh = Math.max(1, this.litH >> lv), px = new Uint8Array(lw * lh * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.lit, lv);
+      gl.readPixels(0, 0, lw, lh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.view = keep; this.litKey = null;
+      if (keep && keep.mode === 'passes' && !keep.evicted) this.mix(state);
+      return Compositor.meanDisplay(px);
+    }
+    /* Average of RGBA bytes as displayed. The eye judges a jump in light by this, not by linear light: a flight frame
+       with a hard noon sun patch and a view with soft light can have the same linear mean and still read darker. */
+    static meanDisplay(px) {
+      const m = [0, 0, 0], n = px.length / 4;
+      for (let i = 0; i < px.length; i += 4) { m[0] += px[i]; m[1] += px[i + 1]; m[2] += px[i + 2]; }
+      return m.map(x => x / n / 255);
     }
 
     render(state) {
