@@ -1,10 +1,10 @@
 {
-    "state":  "arbeitet",
+    "state":  "fertig",
     "request":  "r5-2",
-    "job":  "moves",
-    "note":  "moves fertig nach 71 min",
+    "job":  "",
+    "note":  "Runde 5, Nachtrag: der Junge vor dem Fenster neu in voller Groesse (r5-1 hat die kleinen Bilder aus Runde 4 wiederverwendet), danach die restlichen Kamerafahrten (fertige Bilder werden uebersprungen).",
     "watch":  3,
-    "time":  "2026-10-10T21:39:15Z",
+    "time":  "2026-10-10T21:39:18Z",
     "device":  "22:28:19 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 "23:30:56 move room-bed night 21 34.7 s",
