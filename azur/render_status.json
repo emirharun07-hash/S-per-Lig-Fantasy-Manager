@@ -1,10 +1,10 @@
 {
-    "state":  "abgeloest",
-    "request":  "r5-1",
-    "job":  "",
-    "note":  "neuer Auftrag auf dem Branch, dieser wurde bei moves beendet",
+    "state":  "arbeitet",
+    "request":  "r5-2",
+    "job":  "outside",
+    "note":  "Runde 5, Nachtrag: der Junge vor dem Fenster neu in voller Groesse (r5-1 hat die kleinen Bilder aus Runde 4 wiederverwendet), danach die restlichen Kamerafahrten (fertige Bilder werden uebersprungen).",
     "watch":  3,
-    "time":  "2026-10-10T20:03:34Z",
+    "time":  "2026-10-10T20:05:41Z",
     "device":  "21:05:24 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
                 "49:17.734  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\prototype\\assets\\scene3\\moves\\room-rail\\e014.png\u0027",
