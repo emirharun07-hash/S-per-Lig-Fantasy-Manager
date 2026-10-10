@@ -91,12 +91,19 @@ $req = Get-Content "azur\render_request.json" -Raw | ConvertFrom-Json
 if (-not $req.id -or $req.id -eq $last) { return }
 
 # begun before and cut short (the PC was switched off): resume it, without rebuilding or deleting what is done,
-# and without the jobs that already finished
+# and without the jobs that already finished. Begun: noted in $StartedFile, or this PC's own commits for it are in
+# the history ("AZUR PC: <id> <job> started"; requests begun before the note existed). Finished jobs: noted in
+# $JobsDone, or their commit "AZUR renders from the PC: <id> <job>".
 $started = if (Test-Path $StartedFile) { (Get-Content $StartedFile -Raw).Trim() } else { "" }
-$resume = ($started -eq $req.id)
+$subjects = @(git log --format=%s -3000 2>$null | ForEach-Object { "$_" })
+$resume = ($started -eq $req.id) -or (@($subjects | Where-Object { $_.StartsWith("AZUR PC: " + $req.id + " ") }).Count -gt 0)
 $doneJobs = @()
-if ($resume -and (Test-Path $JobsDone)) {
-  $doneJobs = @(Get-Content $JobsDone | Where-Object { $_.StartsWith($req.id + " ") } | ForEach-Object { $_.Substring($req.id.Length + 1) })
+if ($resume) {
+  $prefix = "AZUR renders from the PC: " + $req.id + " "
+  $doneJobs = @($subjects | Where-Object { $_.StartsWith($prefix) } | ForEach-Object { $_.Substring($prefix.Length) })
+  if (Test-Path $JobsDone) {
+    $doneJobs += @(Get-Content $JobsDone | Where-Object { $_.StartsWith($req.id + " ") } | ForEach-Object { $_.Substring($req.id.Length + 1) })
+  }
 }
 Set-Content -Path $StartedFile -Value $req.id
 if ($resume) { Write-Host ("[{0}] Auftrag {1} wird fortgesetzt" -f (Get-Date -Format "HH:mm"), $req.id) }
