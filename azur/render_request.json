@@ -1,7 +1,7 @@
 {
-  "id": "r5-2",
-  "note": "Runde 5, Nachtrag: der Junge vor dem Fenster neu in voller Groesse (r5-1 hat die kleinen Bilder aus Runde 4 wiederverwendet), danach die restlichen Kamerafahrten (fertige Bilder werden uebersprungen).",
+  "id": "r6-1",
+  "note": "Runde 6: Zimmer-Kamera von der Tuer aus (Bett gut sichtbar), drei grosse Fussball-Poster statt der Collage, Schuhe und Rucksack immer im Zimmer, Magazin groesser und lesbar auf der Decke. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
   "set": "scene3",
-  "rebuild": false,
-  "jobs": ["outside", "moves"]
+  "rebuild": true,
+  "jobs": ["preview:full,room_day", "preview", "export", "queue", "glow", "outside", "moves"]
 }
