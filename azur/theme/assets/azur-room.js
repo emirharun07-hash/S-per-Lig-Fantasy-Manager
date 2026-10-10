@@ -602,19 +602,29 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       PASSES.forEach(p => { if (v.imgs[p]) v.tex[p] = this.texture(v.imgs[p]); });
       if (v.patched && v.patchImgs) {
         const k = v.texW / ((v.patched.res && v.patched.res[0]) || v.platePx[0]);
-        v.patched.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) v.patched.rects.forEach((r, i) => this.putPatch(v.tex[p], v.patchImgs[j][i], r, k)); });
+        v.patched.passes.forEach((f, j) => { const p = KEY_OF[f]; if (v.tex[p]) v.patched.rects.forEach((r, i) => this.putPatch(v.tex[p], v.patchImgs[j][i], r, k, v)); });
       }
       v.evicted = false; v.version = (v.version || 0) + 1;
     }
-    putPatch(tex, img, r, k) {
+    /* A patch rectangle (plate pixels of the state's render) in the view's texture: scaled to the loaded copy and kept
+       inside it. On the 2400 and 1200 copies a rectangle reaching the plate's edge rounded one pixel past the texture,
+       and WebGL then dropped the whole upload (evening and night lights missing on most screens). */
+    static rectIn(r, k, v) {
+      const W = v.texW, H = v.texH || Math.round(v.texW * v.platePx[1] / v.platePx[0]);
+      const x0 = Math.min(W, Math.max(0, Math.round(r[0] * k))), y0 = Math.min(H, Math.max(0, Math.round(r[1] * k)));
+      return [x0, y0, Math.max(0, Math.min(W, Math.round(r[2] * k)) - x0), Math.max(0, Math.min(H, Math.round(r[3] * k)) - y0)];
+    }
+    putPatch(tex, img, r, k, v) {
       const gl = this.gl;
-      const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+      const [x, y, w, h] = Compositor.rectIn(r, k, v);
+      if (!w || !h) return;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       if (Math.abs(k - 1) < 1e-3 && img.naturalWidth === w && img.naturalHeight === h) {
         gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, img);
       } else {
+        // the patch at its scaled size; what lies past the texture's edge falls off the scratch canvas
         const c = Compositor.scratch(w, h); const g = c.getContext('2d');
-        g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        g.clearRect(0, 0, w, h); g.drawImage(img, 0, 0, Math.round((r[2] - r[0]) * k), Math.round((r[3] - r[1]) * k));
         gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
       }
     }
@@ -674,14 +684,14 @@ if (window.AZUR_SETUP) window.AZUR_SETUP(window.AZUR);
       const [masksN, glowN] = A.config.scene3 && night && !v.masksNight
         ? await Promise.all([loadImage(A.config.assetBase + v.key.split('@')[0] + '/masks_night.png'), loadImage(A.config.assetBase + v.key.split('@')[0] + '/glow_night.png')]) : [null, null];
       if (v.state === state) return;            // another call got there first
-      const put = (tex, img, r, k) => this.putPatch(tex, img, r, k);
+      const put = (tex, img, r, k) => this.putPatch(tex, img, r, k, v);
       // the previous state's rectangles go back to day
       if (v.patched) {
         const { rects, passes } = v.patched, k = kOf(v.patched);
         passes.forEach(f => {
           const p = KEY_OF[f], day = v.imgs[p]; if (!day || !v.tex[p]) return;
           rects.forEach(r => {
-            const x = Math.round(r[0] * k), y = Math.round(r[1] * k), w = Math.round((r[2] - r[0]) * k), h = Math.round((r[3] - r[1]) * k);
+            const [x, y, w, h] = Compositor.rectIn(r, k, v); if (!w || !h) return;
             const c = Compositor.scratch(w, h); const g = c.getContext('2d');
             g.clearRect(0, 0, w, h); g.drawImage(day, x, y, w, h, 0, 0, w, h);
             gl.bindTexture(gl.TEXTURE_2D, v.tex[p]); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, c);
