@@ -316,6 +316,29 @@ on every device without losing quality.
   https://admin.shopify.com/store/5vpchz-hd/themes/208914973011/editor. Publishing it is the owner's step; the shop
   stays password-protected. Draft 4.1 (208843571539) is superseded by it.
 
+## Round 6 (owner 2026-10-10 night: boots, ball, backpack; the bed and the magazine easier to see; the light the same
+## in every view; fewer, larger posters)
+
+- Light (browser, committed 1208a2b): no view has its own exposure any more (the bed had +0.5 stops, -0.8 at night).
+  The camera flights carry the light of their set (noon / golden hour / night) and were about twice as bright as the
+  views on screen; `playMove` now grades each flight to the views as the compositor shows them at this hour
+  (`Compositor.meanColor`: mixes a cached view, reads a ~400 px mip level; frames averaged alike), start to the view
+  it leaves, end to the view it lands on, matched on the displayed average. Measured room <-> bed at 8, 11, 19, 23:30:
+  last flight frame vs view after landing within 1-4 %. In Blender every light is global already (passes, not per
+  camera). After r6 renders: check the day/night balance with the global daylight keys only (the bed view by day is
+  ~20 % darker than it was with its own +0.5, at night brighter where the hallway light falls).
+- Wall: the collage is built and removed (random stream unchanged, the rest of the room stays put); three posters
+  from `scene/make_posters.py` (JPGs in `assets/posters_r6`, Archivo SIL OFL fetched to `.cache/fonts`): framed 2:1
+  stadium above the rail left of the sign, 5:7 jersey poster on hanger rails above the desk, square goalkeeper print
+  "ZU NULL." taped above the bed's foot end (placed by projection: whole in the room view, out of the bed view).
+- Boots (next to the ball) and the backpack (navy, on the rug) are in every state; the ball stays.
+- Magazine: 23 x 31 cm sheet on the flattest part of the duvet the bed view sees whole (ray-cast search), resting on
+  the folds' tops and bridging the creases; its top face carries the cover the browser opens (`magazin.jpg`:
+  masthead, issue, cover lines, sticker). At night a flat copy on the floor.
+- Room camera: from high in the doorway, loc (2.1, 0, 2.15) -> (1.2, 3.1, 0.45), 15 mm (was above the bed's head,
+  where the bed hardly showed). Tried 9 positions (scratchpad r6/cams); the far corner hid the window.
+- PC request `r6-1` (rebuild, all jobs) pushed 2026-10-10 23:36 UTC.
+
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
 - Preview render 960×540: about 1.5 min (incl. cloth simulation)
