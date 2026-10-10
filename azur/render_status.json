@@ -2,11 +2,19 @@
     "state":  "arbeitet",
     "request":  "r5-1",
     "job":  "outside",
-    "note":  "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
+    "note":  "outside fertig nach 0.4 min",
     "watch":  3,
-    "time":  "2026-10-10T19:04:48Z",
-    "device":  "13:19:07 render device HIP: AMD Radeon RX 6750 XT",
+    "time":  "2026-10-10T19:05:16Z",
+    "device":  "21:04:53 render device HIP: AMD Radeon RX 6750 XT",
     "log":  [
-                "neon glow: [\u0027room\u0027, \u0027rail\u0027, \u0027rail_m\u0027]"
+                "00:00.422  blend            | Read blend: \"C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\azur_room_scene3.blend\"",
+                "00:02.297  cycles           | WARNING CUEW initialization failed: Error opening the library",
+                "21:04:53 render device HIP: AMD Radeon RX 6750 XT",
+                "21:04:54 outside plan room visible y 5.47 8.0 run 2.6 s 65 frames, kick at 1.13 s",
+                "00:12.860  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\room\\bg.png\u0027",
+                "21:05:05 outside clip room 14 KB mp4 10 KB webm",
+                "21:05:05 outside plan rail visible y 7.38 11.56 run 3.16 s 79 frames, kick at 1.41 s",
+                "00:23.485  render           | Saved: \u0027C:\\Users\\Emir\\S-per-Lig-Fantasy-Manager\\azur\\.cache\\r4\\outside\\rail\\bg.png\u0027",
+                "21:05:15 outside clip rail 16 KB mp4 11 KB webm"
             ]
 }
