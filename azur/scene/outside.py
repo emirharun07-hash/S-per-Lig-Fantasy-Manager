@@ -253,6 +253,9 @@ def main():
         r = sc.render; r.use_border = True; r.use_crop_to_border = True
         r.border_min_x, r.border_max_x = box[0], box[2]; r.border_min_y, r.border_max_y = 1 - box[3], 1 - box[1]
         fdir = os.path.join(rq.ROOT, '.cache', 'r4', 'outside', key); os.makedirs(fdir, exist_ok=True)
+        if not test:
+            fresh_frames(fdir, dict(res=[r.resolution_x, r.resolution_y, r.resolution_percentage], box=[round(b, 5) for b in box],
+                                    samples=sc.cycles.samples, ground=GROUND, blend=int(os.path.getmtime(rq.BLEND))))
         frames = [int(KICK_T * FPS) + d for d in (-10, -2, 6)] if test else range(FRAMES)
         bg = background(sc, fdir, ball, test) if GROUND == 'catcher' else None
         t0 = time.time()
@@ -278,6 +281,20 @@ def main():
         enc(fdir, key)
         meta[key] = dict(box=box, fps=FPS, frames=FRAMES, kick=KICK_T, file=f'outside/{key}')
         json.dump(meta, open(meta_p, 'w'), indent=1)
+
+
+def fresh_frames(fdir, stamp):
+    """Frames (and the background) cached by an earlier run are kept only when they were rendered at the same size and
+    samples from the same scene: round 5 raised both and rebuilt the scene, and the clip still came out of round 4's
+    small frames, which were found on disk and skipped."""
+    p = os.path.join(fdir, 'stamp.json')
+    try: old = json.load(open(p))
+    except Exception: old = None
+    if old == stamp: return
+    gone = [f for f in os.listdir(fdir) if f.endswith('.png')]
+    for f in gone: os.remove(os.path.join(fdir, f))
+    json.dump(stamp, open(p, 'w'))
+    if gone: rq.log('outside', os.path.basename(fdir), 'frames from an earlier scene or size dropped:', len(gone))
 
 
 def background(sc, fdir, ball, test):

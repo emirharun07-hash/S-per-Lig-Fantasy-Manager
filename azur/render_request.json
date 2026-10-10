@@ -1,7 +1,7 @@
 {
-  "id": "r5-1",
-  "note": "Runde 5 Qualitaet: helle gestrichene Waende (mehr Licht im Raum, keine schwarzen Flaechen), 4K-Texturen, feinere Modelle, Fensterrahmen ohne schwarze Ecken, Steckdosen und Thermostat, rund dreimal so viele Samples, Kamerafahrten 1920 breit, Junge vor dem Fenster in voller Groesse. Zuerst ein Testbild in voller Qualitaet, dann alles neu.",
+  "id": "r5-2",
+  "note": "Runde 5, Nachtrag: der Junge vor dem Fenster neu in voller Groesse (r5-1 hat die kleinen Bilder aus Runde 4 wiederverwendet), danach die restlichen Kamerafahrten (fertige Bilder werden uebersprungen).",
   "set": "scene3",
-  "rebuild": true,
-  "jobs": ["preview:full,room_day", "preview", "export", "queue", "glow", "outside", "moves"]
+  "rebuild": false,
+  "jobs": ["outside", "moves"]
 }
