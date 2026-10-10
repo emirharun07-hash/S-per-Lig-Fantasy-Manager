@@ -295,10 +295,26 @@ on every device without losing quality.
   old script, so if it is cut short, push r5-2 with the same jobs and no rebuild). The status file's log is plain
   text again (it was ~4000 lines of PowerShell file notes).
 - PC request `r5-1` (scene3, rebuild): the full-quality test still `previews/room_day.jpg` (3200, 9.5 min on the
-  RX 6750 XT) came in 2026-10-09 21:38 UTC: window corners clean, room much brighter. Then preview, export, queue,
-  glow, outside, moves (estimated 5-7 h). After it: check the browser exposures (`azur-config.js`; keep
-  `render_moves` light_variant in step), build the artifact, test, publish, Shopify Files with a new prefix
-  (`azr5-`) and a new draft copied from the live theme 208797204819.
+  RX 6750 XT) came in 2026-10-09 21:38 UTC: window corners clean, room much brighter. The PC slept from 01:13 to
+  13:18 local (no uploads); restarted, it resumed at queue (`render_step.ps1` now also recognises a request begun
+  under the old script from its own commits). Timings on the RX 6750 XT: a 3200 pass 6-10 min, a state 15-40 min
+  (night is full frame: the hallway light), flights ~20 min per move and light.
+- r5-1's outside job reused round 4's small frames from `.cache` (20 s, clip 150x200). `outside.py` now stamps the
+  frame folder (size, box, samples, ground, scene time) and drops frames of another stamp; request `r5-2` (outside,
+  then the remaining flights) rendered the clip at 404x532 / 348x1022. Done 2026-10-10 21:39 UTC.
+- Browser check at 1920x1080 (11:00, 18:30, 19:30, 23:30; room, bed, rail): about 1.5x brighter at every hour, the
+  shadows lifted most, nothing clipped; the exposures stay as they were.
+- Compositor fix: state patches on the 2400/1200 copies could end one pixel past the texture (rounding), and WebGL
+  dropped the whole upload (some evening/night lights missing on most screens). `Compositor.rectIn` clamps them.
+  `test_room.cjs` waits for a flight to land (2.5-5.5 s in software GL). 59 checks pass. The page fragment declares
+  UTF-8 (a plain file server showed 'BlÃ¤tter').
+- Published 2026-10-10 ~22:20 UTC: artifact v36 (https://claude.ai/artifact/B4j6WH1yNHNeEG6rJLJ2Sy; v34 removed the
+  unused round 2 files, the artifact holds 302 files), Shopify Files `azr5-` (276, all READY, from commit 0e8b0d5),
+  draft theme **"Azur Zimmer Runde 5 (Entwurf)" `gid://shopify/OnlineStoreTheme/208914973011`** (a copy of the live
+  theme 208797204819; section, data snippet and js upserted, checksums match; css and index.json were identical).
+  Preview: https://azurclothing.com/?preview_theme_id=208914973011 · editor:
+  https://admin.shopify.com/store/5vpchz-hd/themes/208914973011/editor. Publishing it is the owner's step; the shop
+  stays password-protected. Draft 4.1 (208843571539) is superseded by it.
 
 ## Rough timings (this machine: 4 CPU cores, no GPU)
 
